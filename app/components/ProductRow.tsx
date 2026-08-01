@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import ProductSearch from "./ProductSearch";
 type ProductRowProps = {
+  
   index: number;
   product: {
     name: string;

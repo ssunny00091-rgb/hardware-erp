@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 type DashboardCardProps = {
   title: string;
   value: string;
@@ -38,49 +39,54 @@ function getThemeIndex(title: string) {
   }, 0) % themes.length;
 }
 
+
+
 export default function DashboardCard({
   title,
   value,
 }: DashboardCardProps) {
   const theme = themes[getThemeIndex(title)];
 
-  return (
+ return (
+  <motion.div
+    initial={{ opacity: 0, y: 25 }}
+animate={{ opacity: 1, y: 0 }}
+transition={{
+  duration: 0.22,
+  ease: "easeOut",
+}}
+whileHover={{
+  scale: 1.03,
+  y: -8,
+  transition: {
+    duration: 0.15,
+  },
+}}
+whileTap={{
+  scale: 0.98,
+}}
+    className="relative overflow-hidden rounded-2xl p-6 text-white shadow-xl"
+  >
+    {/* Background Circle */}
     <div
-      style={{ background: theme.background }}
-      className="relative overflow-hidden rounded-2xl p-5 text-white shadow-xl transition duration-300 hover:-translate-y-1 hover:scale-[1.02]"
-    >
-      {/* Paint splash design */}
-      <div
-        style={{ backgroundColor: theme.splashOne }}
-        className="absolute -right-7 -top-7 h-28 w-28 rounded-full opacity-30"
-      />
-      <div
-        style={{ backgroundColor: theme.splashTwo }}
-        className="absolute -bottom-10 -left-8 h-32 w-32 rounded-full opacity-25"
-      />
-      <div
-        style={{ backgroundColor: theme.splashOne }}
-        className="absolute right-16 top-10 h-4 w-4 rounded-full opacity-50"
-      />
-      <div
-        style={{ backgroundColor: theme.splashTwo }}
-        className="absolute right-10 top-16 h-3 w-3 rounded-full opacity-50"
-      />
+      className="absolute -right-10 -top-10 h-32 w-32 rounded-full opacity-20"
+      style={{ background: theme.splashOne }}
+    />
 
-      <div className="relative z-10 flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-medium text-white/85">{title}</p>
-          <h2 className="mt-2 text-3xl font-bold">{value}</h2>
-        </div>
+    <div
+      className="absolute -bottom-12 -left-12 h-40 w-40 rounded-full opacity-20"
+      style={{ background: theme.splashTwo }}
+    />
 
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 text-2xl backdrop-blur-sm">
-          🪣
-        </div>
-      </div>
+    <div className="relative z-10">
+      <h3 className="text-lg font-semibold">
+        {title}
+      </h3>
 
-      <p className="relative z-10 mt-5 text-xs text-white/75">
-        Live shop summary
+      <p className="mt-3 text-4xl font-bold">
+        {value}
       </p>
     </div>
-  );
+  </motion.div>
+);
 }

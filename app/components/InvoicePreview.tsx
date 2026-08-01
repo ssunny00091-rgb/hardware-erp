@@ -34,7 +34,6 @@ export default function InvoicePreview({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
       <div className="flex max-h-[95vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
-
         {/* Header */}
         <div className="flex items-center justify-between border-b bg-white px-6 py-4">
           <h2 className="text-2xl font-bold text-blue-700">
@@ -50,7 +49,7 @@ export default function InvoicePreview({
         </div>
 
         {/* Invoice */}
-        <div className="bg-gray-100 p-6">
+        <div className="flex-1 overflow-y-auto bg-gray-100 p-6">
           <InvoiceLayout
             customerName={customerName}
             mobile={mobile}

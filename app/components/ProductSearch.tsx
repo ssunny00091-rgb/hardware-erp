@@ -19,6 +19,7 @@ export default function ProductSearch({
   onSelect,
 }: ProductSearchProps) {
   const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(0);
 
   const filteredProducts = useMemo(() => {
     const search = (value ?? "").trim().toLowerCase();
@@ -42,6 +43,33 @@ export default function ProductSearch({
           onChange(e.target.value);
           setShowDropdown(true);
         }}
+        onKeyDown={(e) => {
+  if (!showDropdown || filteredProducts.length === 0) return;
+
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    setSelectedIndex((prev) =>
+      Math.min(prev + 1, filteredProducts.length - 1)
+    );
+  }
+
+  if (e.key === "ArrowUp") {
+    e.preventDefault();
+    setSelectedIndex((prev) => Math.max(prev - 1, 0));
+  }
+
+  if (e.key === "Enter") {
+    e.preventDefault();
+
+    const product = filteredProducts[selectedIndex];
+
+    if (product) {
+      onSelect(product.name, product.price, product.unit);
+      setShowDropdown(false);
+      setSelectedIndex(0);
+    }
+  }
+}}
       />
 
       {showDropdown &&
@@ -49,10 +77,14 @@ export default function ProductSearch({
         filteredProducts.length > 0 &&
         !filteredProducts.some((p) => p.name === value) && (
           <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto rounded-lg border border-gray-300 bg-black shadow-xl">
-            {filteredProducts.map((product) => (
+            {filteredProducts.map((product, index) => (
               <div
                 key={product.id}
-                className="cursor-pointer border-b p-3 hover:bg-blue-500"
+                className={`cursor-pointer border-b p-3 ${
+  index === selectedIndex
+    ? "bg-blue-600 text-white"
+    : "hover:bg-blue-500"
+}`}
                 onMouseDown={(e) => {
                   e.preventDefault();
 

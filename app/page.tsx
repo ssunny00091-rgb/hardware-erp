@@ -12,6 +12,7 @@ import { supabase } from "./lib/supabase";
 import { useEffect } from "react";
 import SalesHistory from "./components/SalesHistory";
 import CustomerForm from "./components/CustomerForm";
+import AnimatedBackground from "./components/AnimatedBackground";
 export default function Home() {
   
 
@@ -180,7 +181,10 @@ useEffect(() => {
   ========================= */
 
   return (
-    <main className="min-h-screen bg-gray-900 p-6">
+  <>
+    <AnimatedBackground />
+
+    <main className="relative z-10 min-h-screen p-6">
 
       {/* =========================
             Page Heading
@@ -263,151 +267,79 @@ useEffect(() => {
       ========================= */}
 
       {showForm && (
-        
-        
+  <div className="mt-8 rounded-3xl border border-white/20 bg-white/10 p-8 shadow-2xl backdrop-blur-xl">
 
+    {/* Header */}
+    <div className="mb-8 border-b border-white/10 pb-4">
+      <h2 className="text-3xl font-bold text-white">
+        📝 New Sale
+      </h2>
 
+      <p className="mt-2 text-sm text-gray-300">
+        Create a new invoice, add customer details and products.
+      </p>
+    </div>
 
-        <div className="mt-8 rounded-xl bg-black p-6 shadow-lg">
+    {/* Customer Details */}
+    <CustomerForm
+      customerName={CustomerName}
+      mobile={mobile}
+      address={address}
+      gst={gst}
+      onCustomerNameChange={setCustomerName}
+      onMobileChange={handleMobileChange}
+      onAddressChange={setAddress}
+      onGstChange={setGst}
+    />
 
-          <h2 className="mb-4 text-2xl font-bold text-white">
-            📝 New Sale Form
-          </h2>
+    {/* Product Table */}
+    <div className="mt-8">
 
+      <div className="mb-4 grid grid-cols-5 gap-3 rounded-2xl border border-white/10 bg-white/10 p-4 font-semibold text-white backdrop-blur-md">
+        <div>📦 Product</div>
+        <div>Qty</div>
+        <div>Price</div>
+        <div>Total</div>
+        <div>Action</div>
+      </div>
 
+      {products.map((product, index) => (
+        <ProductRow
+          key={index}
+          index={index}
+          product={product}
+          onChange={handleProductChange}
+          total={Number(product.qty) * Number(product.price)}
+          onDelete={deleteProduct}
+          onAddNewRow={() => {
+            setProducts([
+              ...products,
+              {
+                name: "",
+                qty: "",
+                unit: "Piece",
+                price: "",
+              },
+            ]);
+          }}
+        />
+      ))}
 
-          <CustomerForm
-  customerName={CustomerName}
-  mobile={mobile}
-  address={address}
-  gst={gst}
-  onCustomerNameChange={setCustomerName}
-  onMobileChange={handleMobileChange}
-  onAddressChange={setAddress}
-  onGstChange={setGst}
-/>
+    </div>
 
-
-
-          {/* =========================
-                Product Table Header
-          ========================= */}
-
-          <div className="mb-3 grid grid-cols-5 gap-3 rounded-lg bg-gray-500 p-3 font-bold">
-
-            <div>Product Name</div>
-            <div>Qty</div>
-            <div>Price</div>
-            <div>Total</div>
-            <div>Action</div>
-
-          </div>
-
-
-
-          {/* =========================
-                Product List
-          ========================= */}
-          
-          {products.map((product, index) => (
-
-            <ProductRow
-  key={index}
-  index={index}
-  product={product}
-  onChange={handleProductChange}
-  total={Number(product.qty) * Number(product.price)}
-  onDelete={deleteProduct}
-  onAddNewRow={() => {
-    setProducts([
-      ...products,
-      {
-        name: "",
-        qty: "",
-        unit: "Piece",
-        price: "",
-      },
-    ]);
-  }}
-/>
-
-          ))}
-         <div className="mb-6 flex items-center justify-between rounded-lg bg-gray-100 p-4">
-
-  <div className="text-lg font-semibold text-gray-700">
-    📦 Products Added : {products.length}
-  </div>
-
-  <div className="flex gap-3">
-
-    <button
-      type="button"
-      onClick={() => {
-        setProducts([
-          ...products,
-          {
-            name: "",
-            qty: "",
-            unit: "Piece",
-            price: "",
-          },
-        ]);
-      }}
-      className="rounded-lg bg-purple-600 px-6 py-3 text-white hover:bg-purple-700"
-    >
-      ➕ Add Product
-    </button>
-
-    <button
-      type="button"
-      onClick={() => {
-        if (products.length > 1) {
-          setProducts(products.slice(0, -1));
-        }
-      }}
-      className="rounded-lg bg-red-600 px-6 py-3 text-white hover:bg-red-700"
-    >
-      🗑️ Remove Last Product
-    </button>
+    {/* Footer Buttons */}
+    <div className="mt-8 flex justify-end gap-4">
+      <button
+        type="button"
+        onClick={() => setShowPreview(true)}
+        className="rounded-xl bg-green-600 px-6 py-3 font-semibold text-white transition hover:bg-green-500"
+      >
+        💾 Save Sale
+      </button>
+    </div>
 
   </div>
-
-</div>
-        {/* =========================
-               Grand Total
-           ========================= */}
-
-           <div className="mb-6 flex justify-end">
-           <div className="rounded-lg bg-green-700 px-6 py-4 text-xl font-bold text-white">
-            Grand Total : ₹{grandTotal}
-        </div>
-       </div>
-           {/* =========================
-                     Bill Summary
-               ========================= */}
-
-          <BillSummary
-  invoiceNumber={invoiceNumber}
-  customerName={CustomerName}
-  mobile={mobile}
-  products={products}
-  grandTotal={grandTotal}
-/>
-          {/* =========================
-                Save Button
-          ========================= */}
-
-   <button
-  onClick={() => setShowPreview(true)}
-
-            className="rounded-lg bg-green-600 px-5 py-3 text-white hover:bg-green-700"
-          >
-            💾 Save Sale
-          </button>
-
-        </div>
-
-      )}
+)}
 <SalesHistory
   open={showSalesHistory}
   sales={sales}
@@ -431,6 +363,7 @@ useEffect(() => {
     );
   }}
 />
-    </main>
-  );
+        </main>
+  </>
+);
 }
