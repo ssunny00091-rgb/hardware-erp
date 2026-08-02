@@ -9,6 +9,7 @@ type ProductRowProps = {
     unit: string;
     price: string;
   };
+    productInputRef?: React.Ref<HTMLInputElement>;
   onChange: (
     index: number,
     field: "name" | "qty" | "unit" | "price",
@@ -21,6 +22,7 @@ type ProductRowProps = {
 export default function ProductRow({
   index,
   product,
+   productInputRef,
   onChange,
   total,
   onDelete,
@@ -32,6 +34,7 @@ export default function ProductRow({
   return (
   <div className="mb-3 grid grid-cols-5 gap-3">
    <ProductSearch
+   ref={productInputRef}
   value={product.name}
   onChange={(value) => {
     onChange(index, "name", value);

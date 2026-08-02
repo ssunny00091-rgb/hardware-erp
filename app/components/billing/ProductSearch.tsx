@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { products } from "../data/products";
+import { forwardRef, useMemo, useState } from "react";
+import { products } from "../../data/products";
 
 type ProductSearchProps = {
   value: string;
@@ -13,11 +13,18 @@ type ProductSearchProps = {
   ) => void;
 };
 
-export default function ProductSearch({
-  value,
-  onChange,
-  onSelect,
-}: ProductSearchProps) {
+const ProductSearch = forwardRef<
+  HTMLInputElement,
+  ProductSearchProps
+>(
+(
+  {
+    value,
+    onChange,
+    onSelect,
+  },
+  ref
+) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
@@ -34,6 +41,7 @@ export default function ProductSearch({
   return (
     <div className="relative w-full">
       <input
+        ref={ref}
         type="text"
         value={value ?? ""}
         placeholder="Search Product..."
@@ -108,4 +116,7 @@ export default function ProductSearch({
         )}
     </div>
   );
-}
+})
+ProductSearch.displayName = "ProductSearch";
+
+export default ProductSearch;

@@ -1,6 +1,5 @@
 import InvoiceLayout from "./InvoiceLayout";
 import InvoiceActions from "./InvoiceActions";
-
 type Product = {
   name: string;
   qty: string;

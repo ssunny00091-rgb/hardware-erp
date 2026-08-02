@@ -1,18 +1,18 @@
 "use client";
 import { products as productMaster } from "./data/products";
-import { useState } from "react";
-import DashboardCard from "./components/DashboardCard";
-import ProductRow from "./components/ProductRow";
-import BillSummary from "./components/BillSummary";
+import { useRef, useState } from "react";
+import DashboardCard from "./components/dashboard/DashboardCard";
+import ProductRow from "./components/billing/ProductRow";
+import BillSummary from "./components/billing/BillSummary";
 import { downloadInvoice } from "./utils/downloadInvoice";
 import { generateInvoiceNumber } from "./utils/invoiceNumber";
 import { customers } from "./data/customers";
-import InvoicePreview from "./components/InvoicePreview";
+import InvoicePreview from "./components/billing/InvoicePreview";
 import { supabase } from "./lib/supabase";
 import { useEffect } from "react";
-import SalesHistory from "./components/SalesHistory";
-import CustomerForm from "./components/CustomerForm";
-import AnimatedBackground from "./components/AnimatedBackground";
+import SalesHistory from "./components/layout/SalesHistory";
+import CustomerForm from "./components/billing/CustomerForm";
+import AnimatedBackground from "./components/layout/AnimatedBackground";
 export default function Home() {
   
 
@@ -24,6 +24,7 @@ export default function Home() {
   const [showPreview, setShowPreview] = useState(false);
 
   const [products, setProducts] = useState([
+
     {
       name: "",
       qty: "",
@@ -31,6 +32,7 @@ export default function Home() {
       price: "",
     },
   ]);
+  
 
   const [CustomerName, setCustomerName] = useState("");
   const [mobile, setMobile] = useState("");
@@ -51,6 +53,7 @@ const [gst, setGst] = useState("");
 };
 const [sales, setSales] = useState<any[]>([]);
 const [showSalesHistory, setShowSalesHistory] = useState(false);
+const productInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
 
 
@@ -305,24 +308,31 @@ useEffect(() => {
 
       {products.map((product, index) => (
         <ProductRow
-          key={index}
-          index={index}
-          product={product}
-          onChange={handleProductChange}
-          total={Number(product.qty) * Number(product.price)}
-          onDelete={deleteProduct}
-          onAddNewRow={() => {
-            setProducts([
-              ...products,
-              {
-                name: "",
-                qty: "",
-                unit: "Piece",
-                price: "",
-              },
-            ]);
-          }}
-        />
+  key={index}
+  index={index}
+  product={product}
+  productInputRef={(el) => {
+    productInputRefs.current[index] = el;
+  }}
+  onChange={handleProductChange}
+  total={Number(product.qty) * Number(product.price)}
+  onDelete={deleteProduct}
+  onAddNewRow={() => {
+    setProducts((prev) => [
+      ...prev,
+      {
+        name: "",
+        qty: "",
+        unit: "Piece",
+        price: "",
+      },
+    ]);
+
+    setTimeout(() => {
+      productInputRefs.current[index + 1]?.focus();
+    }, 100);
+  }}
+/>
       ))}
 
     </div>
