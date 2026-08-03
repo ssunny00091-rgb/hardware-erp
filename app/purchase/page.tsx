@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { supabase } from "../lib/supabase";
 
@@ -11,6 +11,7 @@ import PurchaseSummary from "../components/purchase/PurchaseSummary";
 type PurchaseProduct = {
   name: string;
   qty: string;
+  unit: string;
   price: string;
 };
 
@@ -36,19 +37,21 @@ export default function PurchasePage() {
     {
       name: "",
       qty: "",
+      unit: "Piece",
       price: "",
     },
   ]);
 
   const [productMaster, setProductMaster] =
     useState<Product[]>([]);
+    const productRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
     fetchProducts();
   }, []);
   const handleProductChange = (
   index: number,
-  field: "name" | "qty" | "price",
+  field: "name" | "qty" | "unit" | "price",
   value: string
 ) => {
   setProducts((prev) => {
@@ -64,14 +67,23 @@ export default function PurchasePage() {
 };
 
 const addRow = () => {
-  setProducts([
-    ...products,
-    {
-      name: "",
-      qty: "",
-      price: "",
-    },
-  ]);
+  setProducts((prev) => {
+    const updated = [
+      ...prev,
+      {
+        name: "",
+        qty: "",
+        unit: "Piece",
+        price: "",
+      },
+    ];
+
+    setTimeout(() => {
+      productRefs.current[updated.length - 1]?.focus();
+    }, 0);
+
+    return updated;
+  });
 };
 
 const deleteRow = (index: number) => {
@@ -125,18 +137,18 @@ return (
 
         {products.map((product, index) => (
 
-          <PurchaseRow
-            key={index}
-            index={index}
-            product={product}
-            total={
-              Number(product.qty) *
-              Number(product.price)
-            }
-            onChange={handleProductChange}
-            onDelete={deleteRow}
-            onAddRow={addRow}
-          />
+   <PurchaseRow
+  key={index}
+  index={index}
+  product={product}
+  productInputRef={(el) => {
+    productRefs.current[index] = el;
+  }}
+  total={Number(product.qty) * Number(product.price)}
+  onChange={handleProductChange}
+  onDelete={deleteRow}
+  onAddRow={addRow}
+/>
 
         ))}
 
