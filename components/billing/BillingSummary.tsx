@@ -1,0 +1,10 @@
+type BillingSummaryProps = { grandTotal: number; onAddRow: () => void; onPreview: () => void; onSave: () => void; saving?: boolean };
+
+export default function BillingSummary({ grandTotal, onAddRow, onPreview, onSave, saving = false }: BillingSummaryProps) {
+  return (
+    <div className="relative z-10 mt-8 rounded-2xl border border-white/20 bg-white/10 p-6 backdrop-blur-xl">
+      <div className="mb-6 flex items-center justify-between"><h2 className="text-2xl font-bold text-white">Bill summary</h2><div className="text-3xl font-bold text-emerald-300">₹ {grandTotal.toFixed(2)}</div></div>
+      <div className="flex flex-col gap-4 sm:flex-row"><button type="button" onClick={onAddRow} className="flex-1 rounded-xl bg-blue-600 py-3 text-lg font-semibold text-white hover:bg-blue-500">Add product</button><button type="button" onClick={onPreview} className="flex-1 rounded-xl bg-violet-600 py-3 text-lg font-semibold text-white hover:bg-violet-500">Preview invoice</button><button type="button" onClick={onSave} disabled={saving} className="flex-1 rounded-xl bg-green-600 py-3 text-lg font-semibold text-white hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-60">{saving ? "Saving..." : "Save bill"}</button></div>
+    </div>
+  );
+}

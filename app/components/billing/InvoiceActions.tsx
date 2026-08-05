@@ -29,7 +29,7 @@ export default function InvoiceActions({
       </button>
 
       <button
-  onClick={() => alert("Print setup is under development")}
+  onClick={onPrint}
   className="rounded-lg bg-blue-600 px-5 py-2 text-white hover:bg-blue-700"
 >
   🖨️ Print

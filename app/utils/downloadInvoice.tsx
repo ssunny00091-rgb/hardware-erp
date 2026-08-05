@@ -46,7 +46,6 @@ export async function downloadInvoice(
 // ==========================
 
 const invoiceNumber = generateInvoiceNumber();
-const today = new Date().toLocaleDateString("en-IN");
 
 // ==========================
 // Company Header
@@ -168,7 +167,7 @@ columnStyles: {
   // ==========================
   // Grand Total
   // ==========================
-  const finalY = (doc as any).lastAutoTable.finalY + 10;
+  const finalY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
 
 doc.setFillColor(34, 139, 34);
 

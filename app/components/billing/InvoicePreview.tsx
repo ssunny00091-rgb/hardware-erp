@@ -16,6 +16,9 @@ type InvoicePreviewProps = {
   grandTotal: number;
   onDownload: () => void;
   onSave: () => void;
+  invoiceNo?: string;
+  billDate?: string;
+  saving?: boolean;
 };
 
 export default function InvoicePreview({
@@ -27,6 +30,8 @@ export default function InvoicePreview({
   grandTotal,
   onDownload,
   onSave,
+  invoiceNo,
+  billDate,
 }: InvoicePreviewProps) {
   if (!open) return null;
 
@@ -54,6 +59,8 @@ export default function InvoicePreview({
             mobile={mobile}
             products={products}
             grandTotal={grandTotal}
+            invoiceNo={invoiceNo}
+            billDate={billDate}
           />
         </div>
 
@@ -61,7 +68,7 @@ export default function InvoicePreview({
        <InvoiceActions
   onEdit={onClose}
   onDownload={onDownload}
-  onPrint={() => alert("Print setup is under development")}
+  onPrint={() => window.print()}
   onSave={onSave}
 />
       </div>
