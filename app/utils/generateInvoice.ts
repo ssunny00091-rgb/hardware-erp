@@ -34,7 +34,7 @@ export function generateInvoice(
     ]),
   });
 
-  const finalY = (doc as any).lastAutoTable.finalY;
+  const finalY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
 
   doc.setFontSize(14);
   doc.text(`Grand Total : ₹${grandTotal}`, 15, finalY + 15);
