@@ -23,7 +23,8 @@ export default function CustomerForm({
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<CustomerFormData>({
-    resolver: zodResolver(customerSchema),
+    
+
     defaultValues: {
       customer_name: "",
       mobile: "",
@@ -40,10 +41,12 @@ export default function CustomerForm({
   });
 
   return (
-    <form
-      onSubmit={handleSubmit(onSubmit)}
-      className="space-y-5"
-    >
+   <form
+  onSubmit={handleSubmit(async (data) => {
+    await onSubmit(data);
+    reset();
+  })}
+>
       {/* Customer Name */}
 
       <div>

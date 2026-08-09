@@ -28,4 +28,26 @@ static async create(customer: CustomerFormData) {
   }
 
   return data;
-} }
+}
+
+static async update(id: number, customer: Partial<CustomerFormData>) {
+  const { data, error } = await supabase
+    .from("customers")
+    .update(customer)
+    .eq("id", id)
+    .select();
+
+  if (error) throw error;
+
+  return data;
+}
+
+static async delete(id: number) {
+  const { error } = await supabase
+    .from("customers")
+    .delete()
+    .eq("id", id);
+
+  if (error) throw error;
+}
+} 
