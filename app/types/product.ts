@@ -13,11 +13,13 @@ export interface Product {
 
   selling_price: number;
 
-  gst: number;
-
   stock: number;
 
   minimum_stock: number;
+
+  hsn_code: string | null;
+
+  gst_percent: number;
 
   created_at: string;
 }
