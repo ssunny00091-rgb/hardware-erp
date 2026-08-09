@@ -4,10 +4,31 @@ import { useState } from "react";
 import PageHeader from "../components/shared/PageHeader";
 import SearchBar from "../components/shared/SearchBar";
 import EmptyState from "../components/shared/EmptyState";
-
+import CustomerForm from "../components/customers/CustomerForm";
+import { CustomerService } from "../services/customer.service";
+import { CustomerFormData } from "../lib/validations/customer";
 export default function CustomersPage() {
   const [search, setSearch] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
+  async function handleCreateCustomer(data: CustomerFormData) {
+  try {
+    console.log("Sending Data:", data);
+
+    await CustomerService.create(data);
+
+    alert("Customer Saved Successfully ✅");
+
+    setDrawerOpen(false);
+  } catch (error: any) {
+    console.log("FULL ERROR:", error);
+    console.log("MESSAGE:", error?.message);
+    console.log("DETAILS:", error?.details);
+    console.log("HINT:", error?.hint);
+
+    alert("Failed to save customer");
+  }
+}
+   
 
 
   return (
@@ -20,20 +41,15 @@ export default function CustomersPage() {
   actionLabel="+ Add Customer"
   onAction={() => setDrawerOpen(true)}
 />
-<SearchBar
+
+
+
+
+        <SearchBar
   value={search}
   onChange={setSearch}
   placeholder="Search Customer..."
 />
-
-
-        <input
-          type="text"
-          placeholder="🔍 Search Customer..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="mb-8 w-full rounded-xl border border-white/20 bg-white/10 p-4 text-white placeholder-gray-400"
-        />
 
         <EmptyState
   title="No Customers Found"
@@ -45,9 +61,7 @@ export default function CustomersPage() {
   title="Add Customer"
 >
 
-  <p className="text-muted-foreground">
-    Customer Form Coming Soon...
-  </p>
+  <CustomerForm onSubmit={handleCreateCustomer} />
 
 </AppDrawer>
 

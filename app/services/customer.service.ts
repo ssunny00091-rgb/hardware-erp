@@ -1,5 +1,6 @@
 import { supabase } from "../lib/supabase";
 import { Customer } from "../types/customer";
+import { CustomerFormData } from "../lib/validations/customer";
 
 export class CustomerService {
   static async getAll(): Promise<Customer[]> {
@@ -13,13 +14,18 @@ export class CustomerService {
     return data ?? [];
   }
 
-  static async create(
-    customer: Omit<Customer, "id" | "created_at" | "updated_at">
-  ) {
-    const { error } = await supabase
-      .from("customers")
-      .insert([customer]);
+static async create(customer: CustomerFormData) {
+  const { data, error } = await supabase
+    .from("customers")
+    .insert([customer])
+    .select();
 
-    if (error) throw error;
+  console.log("Supabase Data:", data);
+  console.log("Supabase Error:", error);
+
+  if (error) {
+    throw error;
   }
-}
+
+  return data;
+} }
