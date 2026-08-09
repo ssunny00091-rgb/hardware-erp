@@ -1,4 +1,3 @@
-import { forwardRef } from "react";
 type Product = {
   name: string;
   qty: string;
@@ -11,6 +10,8 @@ type InvoiceLayoutProps = {
   mobile: string;
   products: Product[];
   grandTotal: number;
+  invoiceNo?: string;
+  billDate?: string;
 };
 
 export default function InvoiceLayout({
@@ -18,6 +19,8 @@ export default function InvoiceLayout({
   mobile,
   products,
   grandTotal,
+  invoiceNo,
+  billDate,
 }: InvoiceLayoutProps) {
   const validProducts = products.filter(
     (p) =>
@@ -58,12 +61,12 @@ export default function InvoiceLayout({
 
         <div>
           <p>
-            <strong>Invoice No :</strong> INV-20260730-001
+            <strong>Invoice No :</strong> {invoiceNo ?? "Draft"}
           </p>
 
           <p>
             <strong>Date :</strong>{" "}
-            {new Date().toLocaleDateString("en-IN")}
+            {billDate ? new Date(`${billDate}T00:00:00`).toLocaleDateString("en-IN") : new Date().toLocaleDateString("en-IN")}
           </p>
         </div>
 

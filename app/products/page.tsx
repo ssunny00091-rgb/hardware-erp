@@ -33,7 +33,6 @@ export default function ProductsPage() {
   }, []);
 
   const fetchProducts = useCallback(async () => {
-    setLoading(true);
     try {
       const { data, error } = await supabase
         .from("products")
@@ -58,7 +57,10 @@ export default function ProductsPage() {
   }, []);
 
   useEffect(() => {
-    fetchProducts();
+    const timer = window.setTimeout(() => {
+      void fetchProducts();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [fetchProducts]);
 
   const deleteProduct = useCallback(
@@ -149,7 +151,7 @@ export default function ProductsPage() {
               ) : products.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="p-8 text-center text-neutral-300">
-                    No products yet. Click "Add Product" to create one.
+                    No products yet. Click &quot;Add Product&quot; to create one.
                   </td>
                 </tr>
               ) : (
@@ -205,7 +207,7 @@ export default function ProductsPage() {
       <AddProductModal open={showAddModal} onClose={() => setShowAddModal(false)} onSaved={fetchProducts} />
 
       { /* Render EditProductModal only when needed to avoid unnecessary renders */ }
-      <EditProductModal open={showEditModal} product={selectedProduct} onClose={onCloseEdit} onSaved={() => { fetchProducts(); onCloseEdit(); }} />
+      <EditProductModal key={selectedProduct?.id} open={showEditModal} product={selectedProduct} onClose={onCloseEdit} onSaved={() => { fetchProducts(); onCloseEdit(); }} />
     </main>
   );
 }
