@@ -19,10 +19,11 @@ export default function CustomerForm({
   onSubmit,
 }: CustomerFormProps) {
   const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<CustomerFormData>({
+  register,
+  handleSubmit,
+  reset,
+  formState: { errors, isSubmitting },
+} = useForm<CustomerFormData>({
     
 
     defaultValues: {

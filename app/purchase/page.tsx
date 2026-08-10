@@ -8,6 +8,8 @@ import type { InventoryProduct } from "../components/billing/ProductSearch";
 import { supabase } from "../lib/supabase";
 import MotionPage from "../components/layout/MotionPage";
 import { motion } from "framer-motion";
+import { SupplierService } from "../services/supplier.service";
+import type { Supplier } from "../types/supplier";
 
 type PurchaseProduct = { name: string; qty: string; unit: string; price: string };
 const emptyRow = (): PurchaseProduct => ({ name: "", qty: "", unit: "Piece", price: "" });
@@ -19,6 +21,7 @@ export default function PurchasePage() {
   const [purchaseDate, setPurchaseDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [products, setProducts] = useState<PurchaseProduct[]>([emptyRow()]);
   const [productMaster, setProductMaster] = useState<InventoryProduct[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const productRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -33,6 +36,29 @@ export default function PurchasePage() {
     void loadProducts().then((data) => { if (active) setProductMaster(data); }).catch((error: Error) => { if (active) setMessage(error.message); });
     return () => { active = false; };
   }, []);
+  useEffect(() => {
+  let active = true;
+
+  void SupplierService.getAll()
+    .then((data) => {
+      if (active) {
+        setSuppliers(data);
+      }
+    })
+    .catch((error) => {
+      if (active) {
+        setMessage(
+          error instanceof Error
+            ? error.message
+            : "Failed to load suppliers."
+        );
+      }
+    });
+
+  return () => {
+    active = false;
+  };
+}, []);
 
   const handleProductChange = (index: number, field: keyof PurchaseProduct, value: string) => setProducts((current) => current.map((item, rowIndex) => rowIndex === index ? { ...item, [field]: value } : item));
   const addRow = () => { setProducts((current) => [...current, emptyRow()]); window.setTimeout(() => productRefs.current[products.length]?.focus(), 0); };
@@ -56,6 +82,16 @@ export default function PurchasePage() {
   };
 
   return (
-    <MotionPage><main className="p-4 sm:p-8"><div className="mx-auto max-w-7xl"><motion.header initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} className="mb-8"><p className="text-sm font-semibold uppercase tracking-[0.18em] text-sky-300">Inventory</p><h1 className="bg-gradient-to-r from-white to-sky-200 bg-clip-text text-3xl font-bold text-transparent sm:text-4xl">Purchase entry</h1></motion.header>{message && <p role="status" className="mb-5 rounded-xl border border-sky-300/30 bg-sky-300/10 p-4 text-sky-100">{message}</p>}<PurchaseForm supplierName={supplierName} invoiceNo={invoiceNo} purchaseDate={purchaseDate} onSupplierChange={setSupplierName} onInvoiceChange={setInvoiceNo} onDateChange={setPurchaseDate} /><motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-3 shadow-xl backdrop-blur-xl sm:p-5"><div className="mb-3 hidden grid-cols-[minmax(0,2fr)_minmax(90px,0.6fr)_minmax(100px,0.8fr)_minmax(100px,0.8fr)_48px] gap-3 px-3 text-sm font-semibold text-slate-300 md:grid"><span>Product</span><span>Qty</span><span>Rate</span><span>Total</span><span /></div>{products.map((product, index) => <PurchaseRow key={index} index={index} product={product} products={productMaster} productInputRef={(element) => { productRefs.current[index] = element; }} total={Number(product.qty) * Number(product.price)} onChange={handleProductChange} onDelete={deleteRow} onAddRow={addRow} />)}</motion.section><PurchaseSummary grandTotal={grandTotal} onAddRow={addRow} onSave={savePurchase} saving={saving} /></div></main></MotionPage>
+    <MotionPage><main className="p-4 sm:p-8"><div className="mx-auto max-w-7xl"><motion.header initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} className="mb-8"><p className="text-sm font-semibold uppercase tracking-[0.18em] text-sky-300">Inventory</p><h1 className="bg-gradient-to-r from-white to-sky-200 bg-clip-text text-3xl font-bold text-transparent sm:text-4xl">Purchase entry</h1></motion.header>{message && <p role="status" className="mb-5 rounded-xl border border-sky-300/30 bg-sky-300/10 p-4 text-sky-100">{message}</p>}
+    <PurchaseForm
+  supplierName={supplierName}
+  invoiceNo={invoiceNo}
+  purchaseDate={purchaseDate}
+  suppliers={suppliers}
+  onSupplierChange={setSupplierName}
+  onInvoiceChange={setInvoiceNo}
+  onDateChange={setPurchaseDate}
+/>
+        <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-3 shadow-xl backdrop-blur-xl sm:p-5"><div className="mb-3 hidden grid-cols-[minmax(0,2fr)_minmax(90px,0.6fr)_minmax(100px,0.8fr)_minmax(100px,0.8fr)_48px] gap-3 px-3 text-sm font-semibold text-slate-300 md:grid"><span>Product</span><span>Qty</span><span>Rate</span><span>Total</span><span /></div>{products.map((product, index) => <PurchaseRow key={index} index={index} product={product} products={productMaster} productInputRef={(element) => { productRefs.current[index] = element; }} total={Number(product.qty) * Number(product.price)} onChange={handleProductChange} onDelete={deleteRow} onAddRow={addRow} />)}</motion.section><PurchaseSummary grandTotal={grandTotal} onAddRow={addRow} onSave={savePurchase} saving={saving} /></div></main></MotionPage>
   );
 }
