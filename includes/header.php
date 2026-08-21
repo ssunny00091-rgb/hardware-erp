@@ -12,7 +12,7 @@ $activeNav = $activeNav ?? 'home';
 <html lang="hi">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title><?= htmlspecialchars($pageTitle, ENT_QUOTES, 'UTF-8') ?></title>
   <script>
     window.APP_BASE = <?= json_encode(BASE_URL, JSON_UNESCAPED_SLASHES) ?>;
@@ -40,16 +40,16 @@ $activeNav = $activeNav ?? 'home';
     <span class="blob blob-purple"></span>
   </div>
 
-  <nav class="relative z-20 border-b border-white/10 bg-slate-950/70 backdrop-blur-xl">
-    <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-4">
-      <a href="<?= htmlspecialchars(app_url('index.php'), ENT_QUOTES, 'UTF-8') ?>" class="text-lg font-bold"><?= htmlspecialchars($company['name'], ENT_QUOTES, 'UTF-8') ?></a>
-      <div class="flex gap-2">
-        <a href="<?= htmlspecialchars(app_url('index.php'), ENT_QUOTES, 'UTF-8') ?>" class="rounded-lg px-4 py-2 <?= $activeNav === 'home' ? 'bg-green-600' : 'bg-white/10 hover:bg-white/20' ?>">🏠 Dashboard</a>
-        <a href="<?= htmlspecialchars(app_url('products.php'), ENT_QUOTES, 'UTF-8') ?>" class="rounded-lg px-4 py-2 <?= $activeNav === 'products' ? 'bg-green-600' : 'bg-white/10 hover:bg-white/20' ?>">📦 Products</a>
-        <a href="<?= htmlspecialchars(app_url('purchase.php'), ENT_QUOTES, 'UTF-8') ?>" class="rounded-lg px-4 py-2 <?= $activeNav === 'purchase' ? 'bg-green-600' : 'bg-white/10 hover:bg-white/20' ?>">🛒 Purchase</a>
-        <a href="<?= htmlspecialchars(app_url('ledger.php'), ENT_QUOTES, 'UTF-8') ?>" class="rounded-lg px-4 py-2 <?= $activeNav === 'ledger' ? 'bg-green-600' : 'bg-white/10 hover:bg-white/20' ?>">📒 Ledger</a>
+  <nav class="relative z-20 border-b border-white/10 bg-slate-950/80 backdrop-blur-xl">
+    <div class="mx-auto flex max-w-7xl flex-col gap-3 px-3 py-3 sm:px-6 sm:py-4 md:flex-row md:flex-wrap md:items-center md:justify-between">
+      <a href="<?= htmlspecialchars(app_url('index.php'), ENT_QUOTES, 'UTF-8') ?>" class="truncate text-base font-bold sm:text-lg"><?= htmlspecialchars($company['name'], ENT_QUOTES, 'UTF-8') ?></a>
+      <div class="nav-links grid grid-cols-2 gap-2 md:flex md:flex-wrap">
+        <a href="<?= htmlspecialchars(app_url('index.php'), ENT_QUOTES, 'UTF-8') ?>" class="rounded-lg px-3 py-2 text-center text-sm <?= $activeNav === 'home' ? 'bg-green-600' : 'bg-white/10 hover:bg-white/20' ?>">🏠 Home</a>
+        <a href="<?= htmlspecialchars(app_url('products.php'), ENT_QUOTES, 'UTF-8') ?>" class="rounded-lg px-3 py-2 text-center text-sm <?= $activeNav === 'products' ? 'bg-green-600' : 'bg-white/10 hover:bg-white/20' ?>">📦 Products</a>
+        <a href="<?= htmlspecialchars(app_url('purchase.php'), ENT_QUOTES, 'UTF-8') ?>" class="rounded-lg px-3 py-2 text-center text-sm <?= $activeNav === 'purchase' ? 'bg-green-600' : 'bg-white/10 hover:bg-white/20' ?>">🛒 Purchase</a>
+        <a href="<?= htmlspecialchars(app_url('ledger.php'), ENT_QUOTES, 'UTF-8') ?>" class="rounded-lg px-3 py-2 text-center text-sm <?= $activeNav === 'ledger' ? 'bg-green-600' : 'bg-white/10 hover:bg-white/20' ?>">📒 Ledger</a>
       </div>
     </div>
   </nav>
 
-  <main class="relative z-10 mx-auto min-h-screen max-w-7xl p-6">
+  <main class="relative z-10 mx-auto min-h-screen max-w-7xl p-3 sm:p-6">

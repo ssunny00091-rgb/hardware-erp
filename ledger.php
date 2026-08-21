@@ -24,7 +24,7 @@ $types = [
   <?php endforeach; ?>
 </div>
 
-<div class="overflow-auto rounded-2xl border border-white/20 bg-white/10">
+<div class="table-scroll overflow-auto rounded-2xl border border-white/20 bg-white/10">
   <table class="w-full border-collapse text-left">
     <thead>
       <tr class="bg-white/10">
@@ -41,12 +41,12 @@ $types = [
 </div>
 
 <div id="ledger-detail" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 p-4">
-  <div class="max-h-[90vh] w-full max-w-5xl overflow-auto rounded-xl bg-white p-6 text-black">
-    <div class="mb-4 flex items-center justify-between">
-      <h2 id="ledger-party-name" class="text-2xl font-bold">Ledger</h2>
+  <div class="modal-sheet max-h-[100vh] w-full max-w-5xl overflow-auto rounded-none bg-white p-4 text-black sm:max-h-[90vh] sm:rounded-xl sm:p-6">
+    <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <h2 id="ledger-party-name" class="text-xl font-bold sm:text-2xl">Ledger</h2>
       <div class="flex gap-2">
-        <button type="button" id="btn-delete-party" class="rounded-lg bg-red-700 px-4 py-2 text-white">Delete ledger</button>
-        <button type="button" id="btn-close-ledger" class="rounded-lg bg-slate-600 px-4 py-2 text-white">Close</button>
+        <button type="button" id="btn-delete-party" class="flex-1 rounded-lg bg-red-700 px-4 py-2 text-white sm:flex-none">Delete</button>
+        <button type="button" id="btn-close-ledger" class="flex-1 rounded-lg bg-slate-600 px-4 py-2 text-white sm:flex-none">Close</button>
       </div>
     </div>
     <p id="ledger-party-meta" class="mb-4 text-gray-600"></p>

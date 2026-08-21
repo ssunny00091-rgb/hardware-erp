@@ -7,11 +7,11 @@ $activeNav = 'home';
 require __DIR__ . '/includes/header.php';
 ?>
 
-<h1 class="mb-6 text-4xl font-bold">🏪 SATYANARAYAN HARDWARE STORES</h1>
+<h1 class="mb-4 text-2xl font-bold sm:mb-6 sm:text-4xl">🏪 SATYANARAYAN HARDWARE STORES</h1>
 
-<div class="mb-6 flex flex-wrap gap-4 no-print">
-  <button type="button" id="btn-new-sale" class="rounded-lg bg-green-600 px-5 py-3 text-white hover:bg-green-700">➕ New Sale</button>
-  <button type="button" id="btn-sales-history" class="rounded-lg bg-indigo-600 px-5 py-3 text-white hover:bg-indigo-700">🧾 Sales History</button>
+<div class="mb-6 flex flex-col gap-3 no-print sm:flex-row sm:flex-wrap">
+  <button type="button" id="btn-new-sale" class="w-full rounded-lg bg-green-600 px-5 py-3 text-white hover:bg-green-700 sm:w-auto">➕ New Sale</button>
+  <button type="button" id="btn-sales-history" class="w-full rounded-lg bg-indigo-600 px-5 py-3 text-white hover:bg-indigo-700 sm:w-auto">🧾 Sales History</button>
 </div>
 
 <div id="dashboard-cards" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -33,9 +33,9 @@ require __DIR__ . '/includes/header.php';
   </article>
 </div>
 
-<section id="sale-form" class="mt-8 hidden rounded-3xl border border-white/20 bg-white/10 p-8 shadow-2xl backdrop-blur-xl">
-  <div class="mb-8 border-b border-white/10 pb-4">
-    <h2 id="sale-form-title" class="text-3xl font-bold">📝 New Sale</h2>
+<section id="sale-form" class="mt-8 hidden rounded-2xl border border-white/20 bg-white/10 p-4 shadow-2xl backdrop-blur-xl sm:rounded-3xl sm:p-8">
+  <div class="mb-6 border-b border-white/10 pb-4 sm:mb-8">
+    <h2 id="sale-form-title" class="text-2xl font-bold sm:text-3xl">📝 New Sale</h2>
     <p class="mt-2 text-sm text-gray-300">Create a new invoice, add customer details and products.</p>
     <p class="mt-3 text-lg font-semibold text-emerald-300">Invoice No: <span id="next-invoice">—</span></p>
   </div>
@@ -59,7 +59,7 @@ require __DIR__ . '/includes/header.php';
     <input type="text" id="ref-mobile" placeholder="Their mobile (optional)" class="rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none">
   </div>
   <div class="mt-8">
-    <div class="mb-4 grid grid-cols-6 gap-3 rounded-2xl border border-white/10 bg-white/10 p-4 font-semibold">
+    <div class="line-head mb-4 hidden grid-cols-6 gap-3 rounded-2xl border border-white/10 bg-white/10 p-4 font-semibold md:grid">
       <div>📦 Product</div>
       <div>🎨 Colour / Shade</div>
       <div>Qty</div>
@@ -110,13 +110,13 @@ require __DIR__ . '/includes/header.php';
   </div>
 </section>
 
-<div id="history-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60">
-  <div class="w-[95%] max-w-6xl rounded-xl bg-white p-6 text-black shadow-2xl">
-    <div class="mb-5 flex items-center justify-between">
-      <h2 class="text-3xl font-bold">🧾 Sales History</h2>
+<div id="history-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 p-0 sm:p-4">
+  <div class="modal-sheet flex h-full w-full max-w-6xl flex-col overflow-hidden rounded-none bg-white p-4 text-black shadow-2xl sm:h-auto sm:max-h-[90vh] sm:rounded-xl sm:p-6">
+    <div class="mb-4 flex items-center justify-between gap-2">
+      <h2 class="text-xl font-bold sm:text-3xl">🧾 Sales History</h2>
       <button type="button" id="btn-close-history" class="rounded-lg bg-red-600 px-5 py-2 text-white">✖ Close</button>
     </div>
-    <div class="max-h-[70vh] overflow-auto">
+    <div class="table-scroll max-h-[70vh] overflow-auto">
       <table class="w-full border-collapse border">
         <thead>
           <tr class="bg-blue-600 text-white">
@@ -134,17 +134,17 @@ require __DIR__ . '/includes/header.php';
   </div>
 </div>
 
-<div id="preview-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 p-4">
-  <div class="flex max-h-[95vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
-        <div class="flex items-center justify-between border-b bg-white px-6 py-4 text-black print-hide">
-      <h2 class="text-2xl font-bold text-blue-700">Invoice Preview</h2>
+<div id="preview-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 p-0 sm:p-4">
+  <div class="modal-sheet flex h-full max-h-none w-full max-w-6xl flex-col overflow-hidden rounded-none bg-white shadow-2xl sm:h-auto sm:max-h-[95vh] sm:rounded-xl">
+        <div class="flex items-center justify-between border-b bg-white px-3 py-3 text-black print-hide sm:px-6 sm:py-4">
+      <h2 class="text-lg font-bold text-blue-700 sm:text-2xl">Invoice Preview</h2>
       <button type="button" id="btn-close-preview" class="rounded-lg bg-red-500 px-4 py-2 text-white">✕ Close</button>
     </div>
     <div class="flex-1 overflow-y-auto bg-white p-6 text-black" id="invoice-preview-body"></div>
-    <div class="sticky bottom-0 flex flex-wrap justify-center gap-4 border-t bg-white p-4 print-hide">
-      <button type="button" id="btn-edit-sale" class="rounded-lg bg-gray-600 px-5 py-2 text-white">✏️ Edit</button>
-      <button type="button" id="btn-print-invoice" class="rounded-lg bg-blue-600 px-5 py-2 text-white">🖨️ Print</button>
-      <button type="button" id="btn-confirm-save" class="rounded-lg bg-purple-600 px-5 py-2 text-white">💾 Save Sale</button>
+    <div class="sticky bottom-0 flex flex-wrap justify-center gap-2 border-t bg-white p-3 print-hide sm:gap-4 sm:p-4">
+      <button type="button" id="btn-edit-sale" class="w-full rounded-lg bg-gray-600 px-5 py-2 text-white sm:w-auto">✏️ Edit</button>
+      <button type="button" id="btn-print-invoice" class="w-full rounded-lg bg-blue-600 px-5 py-2 text-white sm:w-auto">🖨️ Print</button>
+      <button type="button" id="btn-confirm-save" class="w-full rounded-lg bg-purple-600 px-5 py-2 text-white sm:w-auto">💾 Save Sale</button>
     </div>
   </div>
 </div>
@@ -156,22 +156,35 @@ require __DIR__ . '/includes/header.php';
   function renderRows() {
     const wrap = document.getElementById("product-rows");
     wrap.innerHTML = saleRows.map((row, index) => `
-      <div class="mb-3 grid grid-cols-6 gap-3">
+      <div class="sale-line mb-3">
         <div class="relative">
+          <span class="line-label">Product</span>
           <input data-index="${index}" data-field="name" value="${row.name ?? ""}" placeholder="Search Product..." autocomplete="off" class="w-full rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
-          <div class="suggest hidden absolute left-0 z-50 mt-1 max-h-72 min-w-full overflow-y-auto rounded-lg border bg-white text-gray-900 shadow-xl" data-suggest="${index}" style="min-width:320px"></div>
+          <div class="suggest hidden absolute left-0 z-50 mt-1 max-h-72 w-full overflow-y-auto rounded-lg border bg-white text-gray-900 shadow-xl" data-suggest="${index}"></div>
         </div>
-        <div class="flex items-center gap-2">
-          <input data-index="${index}" data-field="color_hex" type="color" value="${row.color_hex || "#ffffff"}" title="Colour" class="h-11 w-11 cursor-pointer rounded border border-gray-300 bg-white p-0">
-          <input data-index="${index}" data-field="color" list="paint-shades" value="${row.color ?? ""}" placeholder="Shade / code" class="min-w-0 flex-1 rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
+        <div>
+          <span class="line-label">Colour / Shade</span>
+          <div class="flex items-center gap-2">
+            <input data-index="${index}" data-field="color_hex" type="color" value="${row.color_hex || "#ffffff"}" title="Colour" class="h-11 w-11 cursor-pointer rounded border border-gray-300 bg-white p-0">
+            <input data-index="${index}" data-field="color" list="paint-shades" value="${row.color ?? ""}" placeholder="Shade / code" class="min-w-0 flex-1 rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
+          </div>
         </div>
-        <div class="flex gap-2">
-          <input data-index="${index}" data-field="qty" type="number" value="${row.qty ?? ""}" placeholder="Qty" class="w-20 rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
-          <select data-index="${index}" data-field="unit" class="rounded-lg border border-gray-300 bg-white p-3 text-gray-900">${unitOptions(row.unit || "Piece")}</select>
+        <div>
+          <span class="line-label">Qty / Unit</span>
+          <div class="qty-unit flex gap-2">
+            <input data-index="${index}" data-field="qty" type="number" value="${row.qty ?? ""}" placeholder="Qty" class="w-20 rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
+            <select data-index="${index}" data-field="unit" class="min-w-0 flex-1 rounded-lg border border-gray-300 bg-white p-3 text-gray-900">${unitOptions(row.unit || "Piece")}</select>
+          </div>
         </div>
-        <input data-index="${index}" data-field="price" type="number" value="${row.price ?? ""}" placeholder="Price" class="rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
-        <div class="flex items-center font-semibold text-green-400" data-row-total="${index}">₹${formatMoney(rowTotal(row))}</div>
-        <button type="button" data-delete="${index}" class="rounded-lg bg-red-500 px-3 py-2 text-white hover:bg-red-600">🗑️</button>
+        <div>
+          <span class="line-label">Price</span>
+          <input data-index="${index}" data-field="price" type="number" value="${row.price ?? ""}" placeholder="Price" class="w-full rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
+        </div>
+        <div>
+          <span class="line-label">Total</span>
+          <div class="flex items-center font-semibold text-green-400" data-row-total="${index}">₹${formatMoney(rowTotal(row))}</div>
+        </div>
+        <button type="button" data-delete="${index}" class="rounded-lg bg-red-500 px-3 py-2 text-white hover:bg-red-600">🗑️ Remove</button>
       </div>
     `).join("");
     document.getElementById("grand-total").textContent = formatMoney(

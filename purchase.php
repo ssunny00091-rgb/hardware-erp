@@ -20,7 +20,7 @@ require __DIR__ . '/includes/header.php';
 </div>
 
 <div class="mt-8">
-  <div class="mb-4 grid grid-cols-5 gap-3 rounded-xl bg-white/10 p-4">
+  <div class="line-head mb-4 hidden grid-cols-5 gap-3 rounded-xl bg-white/10 p-4 md:grid">
     <div>Product</div>
     <div>Qty</div>
     <div>Purchase Price</div>
@@ -35,7 +35,7 @@ require __DIR__ . '/includes/header.php';
     <h2 class="text-2xl font-bold">💰 Purchase Summary</h2>
     <div class="text-3xl font-bold text-green-400">₹ <span id="purchase-total">0</span></div>
   </div>
-  <div class="flex gap-4">
+  <div class="flex flex-col gap-3 sm:flex-row sm:gap-4">
     <button type="button" id="btn-add-row" class="flex-1 rounded-xl bg-blue-600 py-3 text-lg font-semibold hover:bg-blue-500">➕ Add Product</button>
     <button type="button" id="btn-save-purchase" class="flex-1 rounded-xl bg-green-600 py-3 text-lg font-semibold hover:bg-green-500">💾 Save Purchase</button>
   </div>
@@ -47,15 +47,25 @@ require __DIR__ . '/includes/header.php';
 
   function renderPurchase() {
     document.getElementById("purchase-rows").innerHTML = purchaseRows.map((row, index) => `
-      <div class="mb-3 grid grid-cols-5 gap-3">
+      <div class="purchase-line mb-3">
         <div class="relative">
+          <span class="line-label">Product</span>
           <input data-index="${index}" data-field="name" value="${row.name ?? ""}" placeholder="Product Name" autocomplete="off" class="w-full rounded-xl border border-gray-300 bg-white p-3 text-gray-900">
           <div class="absolute left-0 right-0 z-50 mt-1 hidden max-h-72 overflow-y-auto rounded-lg border bg-white text-gray-900" data-suggest="${index}"></div>
         </div>
-        <input data-index="${index}" data-field="qty" type="number" value="${row.qty ?? ""}" placeholder="Qty" class="rounded-xl border border-gray-300 bg-white p-3 text-gray-900">
-        <input data-index="${index}" data-field="price" type="number" value="${row.price ?? ""}" placeholder="Purchase Price" class="rounded-xl border border-gray-300 bg-white p-3 text-gray-900">
-        <div class="flex items-center justify-center rounded-xl border border-white/20 bg-white/10 font-bold text-green-400" data-row-total="${index}">₹${formatMoney(rowTotal(row))}</div>
-        <button type="button" data-delete="${index}" class="rounded-xl bg-red-500 p-3 text-white hover:bg-red-600">🗑</button>
+        <div>
+          <span class="line-label">Qty</span>
+          <input data-index="${index}" data-field="qty" type="number" value="${row.qty ?? ""}" placeholder="Qty" class="w-full rounded-xl border border-gray-300 bg-white p-3 text-gray-900">
+        </div>
+        <div>
+          <span class="line-label">Purchase Price</span>
+          <input data-index="${index}" data-field="price" type="number" value="${row.price ?? ""}" placeholder="Purchase Price" class="w-full rounded-xl border border-gray-300 bg-white p-3 text-gray-900">
+        </div>
+        <div>
+          <span class="line-label">Total</span>
+          <div class="flex items-center rounded-xl border border-white/20 bg-white/10 p-3 font-bold text-green-400" data-row-total="${index}">₹${formatMoney(rowTotal(row))}</div>
+        </div>
+        <button type="button" data-delete="${index}" class="rounded-xl bg-red-500 p-3 text-white hover:bg-red-600">🗑 Remove</button>
       </div>
     `).join("");
     document.getElementById("purchase-total").textContent = formatMoney(

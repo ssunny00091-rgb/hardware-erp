@@ -7,12 +7,12 @@ $activeNav = 'products';
 require __DIR__ . '/includes/header.php';
 ?>
 
-<div class="mb-8 flex items-center justify-between">
-  <h1 class="text-4xl font-bold">📦 Product Master</h1>
-  <button type="button" id="btn-add-product" class="rounded-xl bg-green-600 px-5 py-3 font-semibold hover:bg-green-500">➕ Add Product</button>
+<div class="mb-6 flex flex-col gap-3 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
+  <h1 class="text-2xl font-bold sm:text-4xl">📦 Product Master</h1>
+  <button type="button" id="btn-add-product" class="w-full rounded-xl bg-green-600 px-5 py-3 font-semibold hover:bg-green-500 sm:w-auto">➕ Add Product</button>
 </div>
 
-<div class="overflow-hidden rounded-2xl border border-white/20 bg-white/10 backdrop-blur-xl">
+<div class="table-scroll overflow-hidden rounded-2xl border border-white/20 bg-white/10 backdrop-blur-xl">
   <table class="w-full">
     <thead class="bg-white/10">
       <tr>
@@ -30,12 +30,12 @@ require __DIR__ . '/includes/header.php';
 </div>
 
 <div id="product-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60">
-  <div class="w-full max-w-2xl rounded-2xl bg-slate-900 p-8 shadow-2xl">
+  <div class="modal-sheet w-full max-w-2xl overflow-y-auto rounded-none bg-slate-900 p-4 shadow-2xl sm:rounded-2xl sm:p-8">
     <div class="mb-6 flex items-center justify-between">
-      <h2 id="product-modal-title" class="text-3xl font-bold">📦 Add Product</h2>
+      <h2 id="product-modal-title" class="text-2xl font-bold sm:text-3xl">📦 Add Product</h2>
       <button type="button" class="close-modal rounded-lg bg-red-500 px-4 py-2">✕</button>
     </div>
-    <form id="product-form" class="grid grid-cols-2 gap-4">
+    <form id="product-form" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <input type="hidden" name="id" id="product-id">
       <input name="product_name" id="product_name" placeholder="Product Name" class="rounded-lg border border-gray-300 bg-white p-3 text-gray-900" required>
       <input name="brand" id="brand" placeholder="Brand" class="rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
@@ -45,8 +45,8 @@ require __DIR__ . '/includes/header.php';
       <input type="number" step="0.01" name="selling_price" id="selling_price" placeholder="Selling Price" class="rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
       <input type="number" step="0.01" name="stock" id="stock" placeholder="Opening Stock" class="rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
       <input type="number" step="0.01" name="gst_percent" id="gst_percent" placeholder="GST %" value="18" class="rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
-      <input name="hsn_code" id="hsn_code" placeholder="HSN Code" class="col-span-2 rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
-      <div class="col-span-2 mt-2 flex gap-3">
+      <input name="hsn_code" id="hsn_code" placeholder="HSN Code" class="rounded-lg border border-gray-300 bg-white p-3 text-gray-900 sm:col-span-2">
+      <div class="mt-2 flex gap-3 sm:col-span-2">
         <button type="button" class="close-modal flex-1 rounded-xl bg-gray-600 py-3 font-semibold">Cancel</button>
         <button type="submit" class="flex-1 rounded-xl bg-green-600 py-3 font-semibold">💾 Save Product</button>
       </div>
