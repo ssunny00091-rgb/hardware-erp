@@ -38,6 +38,10 @@ require __DIR__ . '/includes/header.php';
     <h2 id="sale-form-title" class="text-2xl font-bold sm:text-3xl">📝 New Sale</h2>
     <p class="mt-2 text-sm text-gray-300">Create a new invoice, add customer details and products.</p>
     <p class="mt-3 text-lg font-semibold text-emerald-300">Invoice No: <span id="next-invoice">—</span></p>
+    <label class="mt-3 block max-w-xs text-sm font-medium text-gray-200">
+      Bill Date
+      <input type="date" id="sale-date" class="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-base text-gray-900">
+    </label>
   </div>
 
   <input type="hidden" id="editing-sale-id" value="">
@@ -488,6 +492,7 @@ require __DIR__ . '/includes/header.php';
     document.getElementById("ref-type").value = "";
     document.getElementById("ref-name").value = "";
     document.getElementById("ref-mobile").value = "";
+    document.getElementById("sale-date").value = todayIsoDate();
     document.getElementById("sale-form").classList.remove("hidden");
     renderRows();
     loadNextInvoice();
@@ -666,6 +671,7 @@ require __DIR__ . '/includes/header.php';
         ref_mobile: customer.ref_mobile,
         products,
         received: saleReceivedAmount(),
+        sale_date: document.getElementById("sale-date").value || todayIsoDate(),
       };
       if (editId) payload.id = Number(editId);
       const result = await api("/api/sales.php" + (editId ? "?id=" + editId : ""), {
@@ -695,7 +701,7 @@ require __DIR__ . '/includes/header.php';
         <td class="border p-3">${sale.customer_name || ""}</td>
         <td class="border p-3">${ref}</td>
         <td class="border p-3">₹${formatMoney(sale.total)}</td>
-        <td class="border p-3">${new Date(sale.created_at).toLocaleDateString("en-IN")}</td>
+        <td class="border p-3">${invoiceDateLabel(sale.sale_date || sale.created_at)}</td>
         <td class="border p-3">
           <div class="flex justify-center gap-2">
             <a href="${appUrl("invoice.php?id=" + sale.id)}" target="_blank" class="rounded bg-blue-600 px-3 py-1 text-white">👁</a>
@@ -730,6 +736,7 @@ require __DIR__ . '/includes/header.php';
       document.getElementById("ref-type").value = sale.ref_type || "";
       document.getElementById("ref-name").value = sale.ref_name || "";
       document.getElementById("ref-mobile").value = "";
+      document.getElementById("sale-date").value = isoDateFromValue(sale.sale_date || sale.created_at);
       const rec = sale.received == null || sale.received === "" ? Number(sale.total) : Number(sale.received);
       const tot = Number(sale.total) || 0;
       if (rec <= 0) {

@@ -34,6 +34,7 @@ function sale_payload(array $body): array
     $received = $receivedRaw === null || $receivedRaw === ''
         ? $grandTotal
         : (float) $receivedRaw;
+    $saleDate = parse_sale_date($body['sale_date'] ?? '');
 
     return compact(
         'valid',
@@ -45,7 +46,8 @@ function sale_payload(array $body): array
         'refName',
         'refMobile',
         'grandTotal',
-        'received'
+        'received',
+        'saleDate'
     );
 }
 
@@ -84,6 +86,8 @@ function persist_sale_header(PDO $pdo, array $data, ?int $saleId, ?string $invoi
         'ref_party_id' => $refPartyId,
         'ref_name' => $data['refName'] !== '' ? $data['refName'] : null,
         'customer_party_id' => $customerPartyId,
+        'sale_date' => $data['saleDate'],
+        'created_at' => $data['saleDate'] . ' ' . date('H:i:s'),
     ];
 
     if ($saleId) {
@@ -116,8 +120,10 @@ function persist_sale_header(PDO $pdo, array $data, ?int $saleId, ?string $invoi
         $no = generate_invoice_number($pdo);
         $inserted = false;
         $attempts = [
-            'INSERT INTO sales (invoice_no, customer_id, customer_name, mobile, address, gst, total, received, line_items, ref_type, ref_party_id, ref_name, customer_party_id)
-             VALUES (:invoice_no, :customer_id, :customer_name, :mobile, :address, :gst, :total, :received, :line_items, :ref_type, :ref_party_id, :ref_name, :customer_party_id)',
+            'INSERT INTO sales (invoice_no, customer_id, customer_name, mobile, address, gst, total, received, line_items, ref_type, ref_party_id, ref_name, customer_party_id, sale_date, created_at)
+             VALUES (:invoice_no, :customer_id, :customer_name, :mobile, :address, :gst, :total, :received, :line_items, :ref_type, :ref_party_id, :ref_name, :customer_party_id, :sale_date, :created_at)',
+            'INSERT INTO sales (invoice_no, customer_id, customer_name, mobile, address, gst, total, received, line_items, ref_type, ref_party_id, ref_name, customer_party_id, created_at)
+             VALUES (:invoice_no, :customer_id, :customer_name, :mobile, :address, :gst, :total, :received, :line_items, :ref_type, :ref_party_id, :ref_name, :customer_party_id, :created_at)',
             'INSERT INTO sales (invoice_no, customer_id, customer_name, mobile, address, gst, total, received, line_items)
              VALUES (:invoice_no, :customer_id, :customer_name, :mobile, :address, :gst, :total, :received, :line_items)',
             'INSERT INTO sales (invoice_no, customer_id, customer_name, mobile, address, gst, total)
@@ -134,7 +140,7 @@ function persist_sale_header(PDO $pdo, array $data, ?int $saleId, ?string $invoi
                     'gst' => $data['gst'],
                     'total' => $data['grandTotal'],
                 ];
-                foreach (['received', 'line_items', 'ref_type', 'ref_party_id', 'ref_name', 'customer_party_id'] as $col) {
+                foreach (['received', 'line_items', 'ref_type', 'ref_party_id', 'ref_name', 'customer_party_id', 'sale_date', 'created_at'] as $col) {
                     if (str_contains($sql, ':' . $col)) {
                         $payload[$col] = $fields[$col];
                     }
@@ -211,9 +217,9 @@ try {
 
         try {
             $stmt = $pdo->query(
-                'SELECT id, invoice_no, customer_name, mobile, total, received, ref_type, ref_name, created_at
+                'SELECT id, invoice_no, customer_name, mobile, total, received, ref_type, ref_name, sale_date, created_at
                  FROM sales
-                 ORDER BY created_at DESC, id DESC
+                 ORDER BY COALESCE(sale_date, DATE(created_at)) DESC, id DESC
                  LIMIT 200'
             );
             json_response(['sales' => $stmt->fetchAll()]);
@@ -251,10 +257,10 @@ try {
                 $data,
                 $editId,
                 (string) $row['invoice_no'],
-                date('Y-m-d', strtotime((string) $row['created_at']))
+                $data['saleDate']
             );
         } else {
-            $saved = persist_sale_header($pdo, $data, null, null, date('Y-m-d'));
+            $saved = persist_sale_header($pdo, $data, null, null, $data['saleDate']);
         }
         $pdo->commit();
         json_response(['ok' => true] + $saved);

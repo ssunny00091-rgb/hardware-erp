@@ -8,8 +8,15 @@ try {
     $pdo = db();
     $today = date('Y-m-d');
 
-    $salesToday = $pdo->prepare('SELECT COALESCE(SUM(total), 0) AS total FROM sales WHERE DATE(created_at) = :d');
-    $salesToday->execute(['d' => $today]);
+    try {
+        $salesToday = $pdo->prepare(
+            'SELECT COALESCE(SUM(total), 0) AS total FROM sales WHERE COALESCE(sale_date, DATE(created_at)) = :d'
+        );
+        $salesToday->execute(['d' => $today]);
+    } catch (Throwable $e) {
+        $salesToday = $pdo->prepare('SELECT COALESCE(SUM(total), 0) AS total FROM sales WHERE DATE(created_at) = :d');
+        $salesToday->execute(['d' => $today]);
+    }
 
     $purchaseToday = $pdo->prepare('SELECT COALESCE(SUM(total), 0) AS total FROM purchases WHERE purchase_date = :d');
     $purchaseToday->execute(['d' => $today]);

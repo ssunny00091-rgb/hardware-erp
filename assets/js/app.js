@@ -94,11 +94,37 @@ function formatQty(value) {
 }
 
 function invoiceDateLabel(date) {
-  const d = date ? new Date(date) : new Date();
+  const raw = date || (document.getElementById("sale-date") && document.getElementById("sale-date").value) || todayIsoDate();
+  let d;
+  if (/^\d{4}-\d{2}-\d{2}/.test(String(raw))) {
+    const parts = String(raw).slice(0, 10).split("-").map(Number);
+    d = new Date(parts[0], parts[1] - 1, parts[2]);
+  } else {
+    d = new Date(raw);
+  }
+  if (Number.isNaN(d.getTime())) {
+    d = new Date();
+  }
   const dd = String(d.getDate()).padStart(2, "0");
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const yyyy = d.getFullYear();
   return dd + "-" + mm + "-" + yyyy;
+}
+
+function todayIsoDate() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+
+function isoDateFromValue(value) {
+  if (!value) return todayIsoDate();
+  const s = String(value);
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+    return s.slice(0, 10);
+  }
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return todayIsoDate();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
 }
 
 const PAINT_SHADES = [

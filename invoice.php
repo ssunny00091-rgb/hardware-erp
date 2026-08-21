@@ -58,7 +58,8 @@ $h = static function ($value): string {
     return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 };
 
-$date = date('d-m-Y', strtotime((string) $sale['created_at']));
+$billDate = $sale['sale_date'] ?? $sale['created_at'];
+$date = date('d-m-Y', strtotime((string) $billDate));
 $party = $sale['customer_name'] !== '' ? $sale['customer_name'] : 'Walk-in Customer';
 $totalQty = 0.0;
 foreach ($items as $item) {

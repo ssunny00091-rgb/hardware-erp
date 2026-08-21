@@ -74,6 +74,7 @@ function ensure_commerce_schema(PDO $pdo): void
         "ALTER TABLE sales ADD COLUMN customer_party_id INT UNSIGNED NULL",
         "ALTER TABLE purchases ADD COLUMN supplier_party_id INT UNSIGNED NULL",
         "ALTER TABLE purchases ADD COLUMN paid DECIMAL(12,2) NULL",
+        "ALTER TABLE sales ADD COLUMN sale_date DATE NULL",
     ];
     foreach ($alters as $sql) {
         try {
@@ -82,6 +83,25 @@ function ensure_commerce_schema(PDO $pdo): void
             // Already exists.
         }
     }
+    try {
+        $pdo->exec('UPDATE sales SET sale_date = DATE(created_at) WHERE sale_date IS NULL');
+    } catch (Throwable $e) {
+        // ignore
+    }
+}
+
+function parse_sale_date(mixed $raw): string
+{
+    $raw = trim((string) $raw);
+    if ($raw === '') {
+        return date('Y-m-d');
+    }
+    $dt = DateTime::createFromFormat('Y-m-d', substr($raw, 0, 10));
+    if ($dt instanceof DateTime && $dt->format('Y-m-d') === substr($raw, 0, 10)) {
+        return $dt->format('Y-m-d');
+    }
+    $ts = strtotime($raw);
+    return $ts === false ? date('Y-m-d') : date('Y-m-d', $ts);
 }
 
 function find_or_create_party(PDO $pdo, string $type, string $name, string $mobile = '', string $address = ''): ?int
@@ -515,7 +535,7 @@ function backfill_ledgers(PDO $pdo): void
         $received = isset($sale['received']) && $sale['received'] !== null && $sale['received'] !== ''
             ? (float) $sale['received']
             : $total;
-        $date = date('Y-m-d', strtotime((string) $sale['created_at']));
+        $date = parse_sale_date($sale['sale_date'] ?? $sale['created_at'] ?? '');
         post_sale_ledgers(
             $pdo,
             (int) $sale['id'],
