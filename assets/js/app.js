@@ -48,26 +48,32 @@ function unitOptions(selected) {
 }
 
 function printInvoiceSheet(html) {
-  let frame = document.getElementById("invoice-print-frame");
-  if (!frame) {
-    frame = document.createElement("iframe");
-    frame.id = "invoice-print-frame";
-    frame.setAttribute("style", "position:fixed;right:0;bottom:0;width:0;height:0;border:0;");
-    document.body.appendChild(frame);
+  const win = window.open("", "invoicePrint", "width=900,height=700");
+  if (!win) {
+    alert("Pop-up block ho gaya. Browser mein pop-up allow karo.");
+    return;
   }
-  const css = appUrl("assets/css/invoice-print.css");
-  const doc = frame.contentWindow.document;
-  doc.open();
-  doc.write(
-    "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><link rel=\"stylesheet\" href=\"" +
-      css +
-      "\"></head><body>" +
+  win.document.open();
+  win.document.write(
+    "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>Invoice</title>" +
+      "<style>" +
+      "@page{size:A4 portrait;margin:10mm;}" +
+      "html,body{margin:0;padding:0;background:#fff;color:#111;font-family:Arial,Helvetica,sans-serif;font-size:12px;}" +
+      "table{width:100%;border-collapse:collapse;margin-top:10px;}" +
+      "th,td{border:1px solid #111;padding:5px 6px;text-align:left;}" +
+      "th{background:#e5e7eb;}" +
+      "h1{margin:0 0 4px;font-size:18px;color:#15803d;}" +
+      ".center{text-align:center;border-bottom:2px solid #15803d;padding-bottom:8px;}" +
+      ".meta{display:flex;justify-content:space-between;margin-top:10px;}" +
+      ".total{margin:10px 0 0 auto;width:220px;border:1px solid #111;padding:8px;font-weight:bold;display:flex;justify-content:space-between;}" +
+      ".thanks{text-align:center;font-style:italic;margin-top:14px;}" +
+      "</style></head><body>" +
       html +
       "</body></html>"
   );
-  doc.close();
+  win.document.close();
+  win.focus();
   setTimeout(() => {
-    frame.contentWindow.focus();
-    frame.contentWindow.print();
-  }, 300);
+    win.print();
+  }, 250);
 }

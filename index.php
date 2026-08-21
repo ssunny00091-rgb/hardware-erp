@@ -145,7 +145,20 @@ require __DIR__ . '/includes/header.php';
   }
 
   function validProducts() {
-    return saleRows.filter((row) => row.name.trim() !== "" && Number(row.qty) > 0 && Number(row.price) > 0);
+    syncSaleRowsFromDom();
+    return saleRows.filter((row) => {
+      const name = String(row.name || "").trim();
+      return name !== "" && Number(row.qty) > 0 && Number(row.price) > 0;
+    });
+  }
+
+  function syncSaleRowsFromDom() {
+    document.querySelectorAll("#product-rows [data-field]").forEach((el) => {
+      const index = Number(el.dataset.index);
+      const field = el.dataset.field;
+      if (Number.isNaN(index) || !saleRows[index] || !field) return;
+      saleRows[index][field] = el.value;
+    });
   }
 
   async function loadDashboard() {
@@ -224,16 +237,17 @@ require __DIR__ . '/includes/header.php';
   }
 
   function invoiceSheetHtml(customer, products, grandTotal) {
-    const rows = products.map((p, i) => `
+    const lines = products.length
+      ? products.map((p, i) => `
       <tr>
         <td>${i + 1}</td>
-        <td>${p.name}</td>
+        <td>${String(p.name || "").replace(/</g, "&lt;")}</td>
         <td>${p.qty}</td>
-        <td style="text-align:center">${p.unit}</td>
+        <td style="text-align:center">${p.unit || "Piece"}</td>
         <td style="text-align:right">Rs. ${formatMoney(p.price)}</td>
         <td style="text-align:right">Rs. ${formatMoney(rowTotal(p))}</td>
-      </tr>
-    `).join("");
+      </tr>`).join("")
+      : `<tr><td colspan="6">No products</td></tr>`;
     return `
       <div class="sheet">
         <div class="center">
@@ -258,7 +272,7 @@ require __DIR__ . '/includes/header.php';
               <th>#</th><th>Product</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Amount</th>
             </tr>
           </thead>
-          <tbody>${rows}</tbody>
+          <tbody>${lines}</tbody>
         </table>
         <div class="total"><span>Grand Total</span><span>Rs. ${formatMoney(grandTotal)}</span></div>
         <p class="thanks">Thank You! Visit Again.</p>

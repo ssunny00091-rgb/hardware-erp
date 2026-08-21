@@ -29,7 +29,7 @@ if (!$sale) {
 }
 
 $itemStmt = $pdo->prepare(
-    'SELECT product_name, qty, unit, price, total FROM sale_items WHERE sale_id = :id'
+    'SELECT product_name, qty, unit, price, total FROM sale_items WHERE sale_id = :id ORDER BY id ASC'
 );
 $itemStmt->execute(['id' => $id]);
 $items = $itemStmt->fetchAll();
@@ -42,6 +42,15 @@ $autoPrint = isset($_GET['print']);
   <meta charset="UTF-8">
   <title><?= htmlspecialchars((string) $sale['invoice_no'], ENT_QUOTES, 'UTF-8') ?></title>
   <link rel="stylesheet" href="<?= htmlspecialchars(app_url('assets/css/invoice-print.css'), ENT_QUOTES, 'UTF-8') ?>">
+  <style>
+    @media print {
+      table { display: table !important; width: 100% !important; }
+      thead { display: table-header-group !important; }
+      tbody { display: table-row-group !important; }
+      tr { display: table-row !important; }
+      th, td { display: table-cell !important; }
+    }
+  </style>
 </head>
 <body>
   <div class="no-print">
@@ -75,28 +84,34 @@ $autoPrint = isset($_GET['print']);
       </div>
     </div>
 
-    <table>
+    <table style="width:100%;border-collapse:collapse;margin-top:10px">
       <thead>
         <tr>
-          <th>#</th>
-          <th>Product</th>
-          <th>Qty</th>
-          <th>Unit</th>
-          <th>Rate</th>
-          <th>Amount</th>
+          <th style="border:1px solid #111;padding:5px;background:#e5e7eb">#</th>
+          <th style="border:1px solid #111;padding:5px;background:#e5e7eb">Product</th>
+          <th style="border:1px solid #111;padding:5px;background:#e5e7eb">Qty</th>
+          <th style="border:1px solid #111;padding:5px;background:#e5e7eb">Unit</th>
+          <th style="border:1px solid #111;padding:5px;background:#e5e7eb">Rate</th>
+          <th style="border:1px solid #111;padding:5px;background:#e5e7eb">Amount</th>
         </tr>
       </thead>
       <tbody>
-        <?php foreach ($items as $i => $item): ?>
+        <?php if (!$items): ?>
           <tr>
-            <td><?= $i + 1 ?></td>
-            <td><?= htmlspecialchars((string) $item['product_name'], ENT_QUOTES, 'UTF-8') ?></td>
-            <td><?= htmlspecialchars((string) $item['qty'], ENT_QUOTES, 'UTF-8') ?></td>
-            <td style="text-align:center"><?= htmlspecialchars((string) $item['unit'], ENT_QUOTES, 'UTF-8') ?></td>
-            <td style="text-align:right">Rs. <?= money($item['price']) ?></td>
-            <td style="text-align:right">Rs. <?= money($item['total']) ?></td>
+            <td colspan="6" style="border:1px solid #111;padding:5px">No products</td>
           </tr>
-        <?php endforeach; ?>
+        <?php else: ?>
+          <?php foreach ($items as $i => $item): ?>
+            <tr>
+              <td style="border:1px solid #111;padding:5px"><?= $i + 1 ?></td>
+              <td style="border:1px solid #111;padding:5px"><?= htmlspecialchars((string) $item['product_name'], ENT_QUOTES, 'UTF-8') ?></td>
+              <td style="border:1px solid #111;padding:5px"><?= htmlspecialchars((string) $item['qty'], ENT_QUOTES, 'UTF-8') ?></td>
+              <td style="border:1px solid #111;padding:5px;text-align:center"><?= htmlspecialchars((string) $item['unit'], ENT_QUOTES, 'UTF-8') ?></td>
+              <td style="border:1px solid #111;padding:5px;text-align:right">Rs. <?= money($item['price']) ?></td>
+              <td style="border:1px solid #111;padding:5px;text-align:right">Rs. <?= money($item['total']) ?></td>
+            </tr>
+          <?php endforeach; ?>
+        <?php endif; ?>
       </tbody>
     </table>
 

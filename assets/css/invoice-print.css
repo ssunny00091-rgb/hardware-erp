@@ -85,7 +85,7 @@ body {
 @media print {
   html,
   body {
-    width: 190mm;
+    width: auto !important;
     height: auto !important;
     min-height: 0 !important;
     margin: 0 !important;
@@ -103,5 +103,27 @@ body {
     width: 100%;
     margin: 0;
     box-shadow: none;
+  }
+
+  table {
+    display: table !important;
+    width: 100% !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  tbody {
+    display: table-row-group !important;
+  }
+
+  tr {
+    display: table-row !important;
+  }
+
+  th,
+  td {
+    display: table-cell !important;
   }
 }
