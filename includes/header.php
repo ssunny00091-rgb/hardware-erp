@@ -14,9 +14,13 @@ $activeNav = $activeNav ?? 'home';
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><?= htmlspecialchars($pageTitle, ENT_QUOTES, 'UTF-8') ?></title>
-  <script>window.APP_BASE = <?= json_encode(BASE_URL, JSON_UNESCAPED_SLASHES) ?>;</script>
+  <script>
+    window.APP_BASE = <?= json_encode(BASE_URL, JSON_UNESCAPED_SLASHES) ?>;
+    window.COMPANY = <?= json_encode($company, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="<?= htmlspecialchars(app_url('assets/css/style.css'), ENT_QUOTES, 'UTF-8') ?>">
+  <link rel="stylesheet" href="<?= htmlspecialchars(app_url('assets/css/invoice-print.css'), ENT_QUOTES, 'UTF-8') ?>">
   <style>
     input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]),
     select, textarea {

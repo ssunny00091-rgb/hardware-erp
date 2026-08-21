@@ -30,7 +30,75 @@ function formatMoney(value) {
 }
 
 function emptyRow() {
-  return { name: "", color: "", color_hex: "#ffffff", qty: "", unit: "Piece", price: "", product_id: null };
+  return { name: "", color: "", color_hex: "#ffffff", hsn: "", qty: "", unit: "Piece", price: "", product_id: null };
+}
+
+function twoDigitWords(n) {
+  const ones = [
+    "", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten",
+    "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen",
+  ];
+  const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+  n = Number(n) || 0;
+  if (n < 20) return ones[n];
+  return (tens[Math.floor(n / 10)] + (n % 10 ? " " + ones[n % 10] : "")).trim();
+}
+
+function indianNumberToWords(number) {
+  number = Math.floor(Number(number) || 0);
+  if (number === 0) return "Zero";
+  const parts = [];
+  const crore = Math.floor(number / 10000000);
+  number %= 10000000;
+  const lakh = Math.floor(number / 100000);
+  number %= 100000;
+  const thousand = Math.floor(number / 1000);
+  number %= 1000;
+  const hundred = Math.floor(number / 100);
+  const rest = number % 100;
+  if (crore) parts.push(indianNumberToWords(crore) + " Crore");
+  if (lakh) parts.push(twoDigitWords(lakh) + " Lakh");
+  if (thousand) parts.push(twoDigitWords(thousand) + " Thousand");
+  if (hundred) parts.push(twoDigitWords(hundred) + " Hundred");
+  if (rest) parts.push(twoDigitWords(rest));
+  return parts.join(" ");
+}
+
+function amountInWords(amount) {
+  const value = Math.round((Number(amount) || 0) * 100) / 100;
+  const rupees = Math.floor(value + 0.00001);
+  const paise = Math.round((value - rupees) * 100);
+  let text = indianNumberToWords(rupees) + " Rupees";
+  if (paise > 0) text += " and " + twoDigitWords(paise) + " Paise";
+  return text + " Only";
+}
+
+function gstStateLabel(gst) {
+  const code = String(gst || "").slice(0, 2);
+  const states = { "10": "Bihar" };
+  if (!code) return "";
+  return states[code] ? code + "-" + states[code] : code;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function formatQty(value) {
+  const amount = Number(value) || 0;
+  return String(amount).replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
+}
+
+function invoiceDateLabel(date) {
+  const d = date ? new Date(date) : new Date();
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  return dd + "-" + mm + "-" + yyyy;
 }
 
 const PAINT_SHADES = [
@@ -80,7 +148,7 @@ function printInvoiceSheet(html) {
   win.document.write(
     "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>Invoice</title>" +
       "<link rel=\"stylesheet\" href=\"" + cssHref + "\">" +
-      "</head><body>" + html + "</body></html>"
+      "</head><body class=\"invoice-page\">" + html + "</body></html>"
   );
   win.document.close();
   win.focus();

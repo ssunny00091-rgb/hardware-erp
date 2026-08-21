@@ -37,12 +37,14 @@ require __DIR__ . '/includes/header.php';
   <div class="mb-8 border-b border-white/10 pb-4">
     <h2 class="text-3xl font-bold">📝 New Sale</h2>
     <p class="mt-2 text-sm text-gray-300">Create a new invoice, add customer details and products.</p>
+    <p class="mt-3 text-lg font-semibold text-emerald-300">Invoice No: <span id="next-invoice">—</span></p>
   </div>
 
   <input type="text" id="customer-name" placeholder="Customer Name" class="mb-4 w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none">
   <input type="text" id="customer-mobile" placeholder="Mobile Number" class="mb-4 w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none">
   <input type="text" id="customer-address" placeholder="Address" class="mb-4 w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none">
   <input type="text" id="customer-gst" placeholder="GST Number" class="mb-4 w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none">
+  <input type="number" id="sale-received" placeholder="Received amount (blank = full payment)" class="mb-4 w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none">
 
   <div class="mt-8">
     <div class="mb-4 grid grid-cols-6 gap-3 rounded-2xl border border-white/10 bg-white/10 p-4 font-semibold">
@@ -176,11 +178,14 @@ require __DIR__ . '/includes/header.php';
       const index = Number(el.dataset.index);
       if (Number.isNaN(index)) return;
       if (!byIndex[index]) {
-        byIndex[index] = { name: "", color: "", color_hex: "#ffffff", qty: "", unit: "Piece", price: "", product_id: null };
+        byIndex[index] = { name: "", color: "", color_hex: "#ffffff", hsn: "", qty: "", unit: "Piece", price: "", product_id: null };
       }
       byIndex[index][el.dataset.field] = el.value;
       if (saleRows[index] && saleRows[index].product_id) {
         byIndex[index].product_id = saleRows[index].product_id;
+      }
+      if (saleRows[index] && saleRows[index].hsn) {
+        byIndex[index].hsn = saleRows[index].hsn;
       }
     });
     return Object.values(byIndex).filter((row) => String(row.name || "").trim() !== "").map((row) => {
@@ -270,7 +275,29 @@ require __DIR__ . '/includes/header.php';
     if (box) box.classList.add("hidden");
   }
 
-  function invoiceSheetHtml(customer, products, grandTotal) {
+  let nextInvoiceNo = "";
+
+  async function loadNextInvoice() {
+    try {
+      const data = await api("/api/sales.php?next_invoice=1");
+      nextInvoiceNo = String(data.invoice_no || "");
+      const el = document.getElementById("next-invoice");
+      if (el) el.textContent = nextInvoiceNo || "—";
+    } catch (err) {
+      nextInvoiceNo = "";
+    }
+  }
+
+  function invoiceSheetHtml(customer, products, grandTotal, invoiceNo) {
+    const company = window.COMPANY || {};
+    const name = company.name || "SATYANARAYAN HARDWARE STORES";
+    const email = company.email || "";
+    const state = gstStateLabel(company.gst || "10");
+    const no = invoiceNo || nextInvoiceNo || "—";
+    const receivedRaw = document.getElementById("sale-received")?.value;
+    const received = receivedRaw === "" || receivedRaw == null ? grandTotal : Number(receivedRaw) || 0;
+    const balance = grandTotal - received;
+    const totalQty = products.reduce((sum, p) => sum + (Number(p.qty) || 0), 0);
     const rows = products.length
       ? products.map((p, i) => {
           const colorText = String(p.color || "").trim();
@@ -278,64 +305,96 @@ require __DIR__ . '/includes/header.php';
           const hasColor = colorText || (hex && hex.toLowerCase() !== "#ffffff");
           const colorCell = hasColor
             ? (hex ? "<span class=\"swatch\" style=\"background:" + hex + "\"></span>" : "") +
-              (colorText || hex).replace(/</g, "&lt;")
+              escapeHtml(colorText || hex)
             : "—";
           return (
             "<tr>" +
             "<td class=\"center\">" + (i + 1) + "</td>" +
-            "<td>" + String(p.name || "").replace(/</g, "&lt;") + "</td>" +
+            "<td>" + escapeHtml(p.name) + "</td>" +
             "<td>" + colorCell + "</td>" +
-            "<td class=\"center\">" + p.qty + "</td>" +
-            "<td class=\"center\">" + (p.unit || "Piece") + "</td>" +
-            "<td class=\"num\">Rs. " + formatMoney(p.price) + "</td>" +
-            "<td class=\"num\">Rs. " + formatMoney(rowTotal(p)) + "</td>" +
+            "<td class=\"center\">" + escapeHtml(p.hsn || "—") + "</td>" +
+            "<td class=\"center\">" + formatQty(p.qty) + "</td>" +
+            "<td class=\"center\">" + escapeHtml(p.unit || "Piece") + "</td>" +
+            "<td class=\"num\">" + formatMoney(p.price) + "</td>" +
+            "<td class=\"num\">" + formatMoney(rowTotal(p)) + "</td>" +
             "</tr>"
           );
         }).join("")
-      : "<tr><td colspan=\"7\">No products</td></tr>";
+      : "<tr><td colspan=\"8\">No products</td></tr>";
 
     return `
       <article class="invoice">
-        <header class="invoice-hero">
-          <div class="badge">Tax Invoice</div>
-          <h1>SATYANARAYAN HARDWARE STORES</h1>
-          <p>Main Road, Jayanagar, PIN - 847226</p>
-          <p>Second Branch - Near Anumandal Hospital, Jayanagar</p>
-          <p>Phone: 9431875263, 9831046765 &nbsp;|&nbsp; GSTIN: 10ADTPN8807A1ZP</p>
-        </header>
-        <div class="invoice-body">
-          <div class="meta-grid">
-            <div class="meta-card">
-              <h3>Bill To</h3>
-              <p><strong>${(customer.name || "Walk-in Customer").replace(/</g, "&lt;")}</strong></p>
-              <p>Mobile: ${(customer.mobile || "").replace(/</g, "&lt;")}</p>
-            </div>
-            <div class="meta-card">
-              <h3>Invoice</h3>
-              <p>Date: ${new Date().toLocaleDateString("en-IN")}</p>
-            </div>
+        <div class="inv-title">Tax Invoice</div>
+        <div class="inv-company">
+          <div class="inv-name">${escapeHtml(name)}</div>
+          <p>${escapeHtml(company.address_line1 || "")}</p>
+          <p>${escapeHtml(company.address_line2 || "")}</p>
+          <p>Phone: ${escapeHtml(company.mobile || "")}${email ? " &nbsp;|&nbsp; Email: " + escapeHtml(email) : ""}</p>
+          <p>GSTIN: ${escapeHtml(company.gst || "")}${state ? " &nbsp;|&nbsp; State: " + escapeHtml(state) : ""}</p>
+        </div>
+        <table class="inv-split">
+          <tr>
+            <td>
+              <div class="lbl">Bill To</div>
+              <p class="party">${escapeHtml(customer.name || "Walk-in Customer")}</p>
+              <p>Phone: ${escapeHtml(customer.mobile || "")}</p>
+              ${customer.address ? "<p>" + escapeHtml(customer.address) + "</p>" : ""}
+              ${customer.gst ? "<p>GSTIN: " + escapeHtml(customer.gst) + "</p>" : ""}
+            </td>
+            <td class="right-col">
+              <div class="lbl">Invoice Details</div>
+              <div class="kv"><span>Invoice No.</span><strong>${escapeHtml(no)}</strong></div>
+              <div class="kv"><span>Date</span><strong>${invoiceDateLabel()}</strong></div>
+            </td>
+          </tr>
+        </table>
+        <table class="items">
+          <thead>
+            <tr>
+              <th class="center">#</th>
+              <th>Item Name</th>
+              <th>Colour / Shade</th>
+              <th class="center">HSN/SAC</th>
+              <th class="center">Qty</th>
+              <th class="center">Unit</th>
+              <th class="num">Price/Unit (₹)</th>
+              <th class="num">Amount (₹)</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+          <tfoot>
+            <tr>
+              <td colspan="4">Total</td>
+              <td class="center">${formatQty(totalQty)}</td>
+              <td></td>
+              <td></td>
+              <td class="num">${formatMoney(grandTotal)}</td>
+            </tr>
+          </tfoot>
+        </table>
+        <table class="inv-bottom">
+          <tr>
+            <td class="words-box">
+              <div class="words-label">Invoice Amount In Words</div>
+              <div>${escapeHtml(amountInWords(grandTotal))}</div>
+              <div class="terms">
+                <strong>Terms and Conditions</strong>
+                Thank you for doing business with us.
+              </div>
+            </td>
+            <td class="totals-box">
+              <div class="tot-row"><span>Sub Total</span><span>₹ ${formatMoney(grandTotal)}</span></div>
+              <div class="tot-row grand"><span>Total</span><span>₹ ${formatMoney(grandTotal)}</span></div>
+              <div class="tot-row"><span>Received</span><span>₹ ${formatMoney(received)}</span></div>
+              <div class="tot-row"><span>Balance</span><span>₹ ${formatMoney(balance)}</span></div>
+            </td>
+          </tr>
+        </table>
+        <div class="inv-sign">
+          <div>
+            <div class="who">For ${escapeHtml(name)}</div>
+            <div class="role">Authorized Signatory</div>
           </div>
-          <table class="items">
-            <thead>
-              <tr>
-                <th class="center">#</th>
-                <th>Product</th>
-                <th>Colour / Shade</th>
-                <th class="center">Qty</th>
-                <th class="center">Unit</th>
-                <th class="num">Rate</th>
-                <th class="num">Amount</th>
-              </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
-          <div class="totals">
-            <div class="totals-box">
-              <span>Grand Total</span>
-              <span>Rs. ${formatMoney(grandTotal)}</span>
-            </div>
-          </div>
-          <p class="thanks">Thank you for your business. Visit again.</p>
         </div>
       </article>
     `;
@@ -347,8 +406,10 @@ require __DIR__ . '/includes/header.php';
     document.getElementById("customer-mobile").value = "";
     document.getElementById("customer-address").value = "";
     document.getElementById("customer-gst").value = "";
+    document.getElementById("sale-received").value = "";
     document.getElementById("sale-form").classList.remove("hidden");
     renderRows();
+    loadNextInvoice();
   });
 
   document.getElementById("customer-mobile").addEventListener("blur", async (e) => {
@@ -373,6 +434,7 @@ require __DIR__ . '/includes/header.php';
         saleRows[index].price = String(match.selling_price);
         saleRows[index].unit = match.unit;
         saleRows[index].product_id = match.id;
+        saleRows[index].hsn = match.hsn_code || "";
         setSaleRowField(index, "price", String(match.selling_price));
         setSaleRowField(index, "unit", match.unit);
       } else {
@@ -418,6 +480,7 @@ require __DIR__ . '/includes/header.php';
         saleRows[index].price = String(product.selling_price);
         saleRows[index].unit = product.unit;
         saleRows[index].product_id = product.id;
+        saleRows[index].hsn = product.hsn_code || "";
         renderRows();
       }
       return;
@@ -463,6 +526,7 @@ require __DIR__ . '/includes/header.php';
     try {
       const customer = currentCustomer();
       const products = validProducts();
+      const receivedRaw = document.getElementById("sale-received").value;
       const result = await api("/api/sales.php", {
         method: "POST",
         body: JSON.stringify({
@@ -471,6 +535,7 @@ require __DIR__ . '/includes/header.php';
           address: customer.address,
           gst: customer.gst,
           products,
+          received: receivedRaw === "" ? null : Number(receivedRaw),
         }),
       });
       alert("✅ Sale Saved Successfully\\nInvoice: " + result.invoice_no);
@@ -479,6 +544,7 @@ require __DIR__ . '/includes/header.php';
       window.open(appUrl("invoice.php?id=" + result.id), "_blank");
       loadDashboard();
       loadCatalog();
+      loadNextInvoice();
     } catch (err) {
       alert(err.message);
     }
@@ -524,6 +590,7 @@ require __DIR__ . '/includes/header.php';
     if (go) window.location.href = appUrl("install.php");
   });
   loadCatalog().catch(() => {});
+  loadNextInvoice().catch(() => {});
   renderRows();
 </script>
 

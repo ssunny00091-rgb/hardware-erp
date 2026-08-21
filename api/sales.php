@@ -9,6 +9,10 @@ try {
     $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
     if ($method === 'GET') {
+        if (isset($_GET['next_invoice'])) {
+            json_response(['invoice_no' => peek_next_invoice_number($pdo)]);
+        }
+
         $id = (int) ($_GET['id'] ?? 0);
 
         if ($id > 0) {
@@ -63,6 +67,7 @@ try {
                 'name' => $name,
                 'color' => trim((string) ($product['color'] ?? '')),
                 'color_hex' => trim((string) ($product['color_hex'] ?? '')),
+                'hsn' => trim((string) ($product['hsn'] ?? $product['hsn_code'] ?? '')),
                 'qty' => $qty,
                 'unit' => trim((string) ($product['unit'] ?? 'Piece')) ?: 'Piece',
                 'price' => $price,
@@ -79,9 +84,13 @@ try {
         $address = trim((string) ($body['address'] ?? ''));
         $gst = trim((string) ($body['gst'] ?? ''));
         $grandTotal = array_sum(array_column($valid, 'total'));
-        $invoiceNo = generate_invoice_number();
+        $receivedRaw = $body['received'] ?? null;
+        $received = $receivedRaw === null || $receivedRaw === ''
+            ? $grandTotal
+            : (float) $receivedRaw;
 
         $pdo->beginTransaction();
+        $invoiceNo = generate_invoice_number($pdo);
 
         $customerId = null;
         if ($mobile !== '') {
@@ -114,52 +123,69 @@ try {
         }
 
         $lineItemsJson = json_encode($valid, JSON_UNESCAPED_UNICODE);
-        try {
-            $saleStmt = $pdo->prepare(
-                'INSERT INTO sales (invoice_no, customer_id, customer_name, mobile, address, gst, total, line_items)
-                 VALUES (:invoice_no, :customer_id, :customer_name, :mobile, :address, :gst, :total, :line_items)'
-            );
-            $saleStmt->execute([
-                'invoice_no' => $invoiceNo,
-                'customer_id' => $customerId,
-                'customer_name' => $customerName,
-                'mobile' => $mobile,
-                'address' => $address,
-                'gst' => $gst,
-                'total' => $grandTotal,
-                'line_items' => $lineItemsJson,
-            ]);
-        } catch (Throwable $e) {
-            $saleStmt = $pdo->prepare(
-                'INSERT INTO sales (invoice_no, customer_id, customer_name, mobile, address, gst, total)
-                 VALUES (:invoice_no, :customer_id, :customer_name, :mobile, :address, :gst, :total)'
-            );
-            $saleStmt->execute([
-                'invoice_no' => $invoiceNo,
-                'customer_id' => $customerId,
-                'customer_name' => $customerName,
-                'mobile' => $mobile,
-                'address' => $address,
-                'gst' => $gst,
-                'total' => $grandTotal,
-            ]);
+        $saleInserted = false;
+        $attempts = [
+            'INSERT INTO sales (invoice_no, customer_id, customer_name, mobile, address, gst, total, received, line_items)
+             VALUES (:invoice_no, :customer_id, :customer_name, :mobile, :address, :gst, :total, :received, :line_items)',
+            'INSERT INTO sales (invoice_no, customer_id, customer_name, mobile, address, gst, total, line_items)
+             VALUES (:invoice_no, :customer_id, :customer_name, :mobile, :address, :gst, :total, :line_items)',
+            'INSERT INTO sales (invoice_no, customer_id, customer_name, mobile, address, gst, total)
+             VALUES (:invoice_no, :customer_id, :customer_name, :mobile, :address, :gst, :total)',
+        ];
+        foreach ($attempts as $sql) {
+            try {
+                $saleStmt = $pdo->prepare($sql);
+                $payload = [
+                    'invoice_no' => $invoiceNo,
+                    'customer_id' => $customerId,
+                    'customer_name' => $customerName,
+                    'mobile' => $mobile,
+                    'address' => $address,
+                    'gst' => $gst,
+                    'total' => $grandTotal,
+                ];
+                if (str_contains($sql, ':received')) {
+                    $payload['received'] = $received;
+                }
+                if (str_contains($sql, ':line_items')) {
+                    $payload['line_items'] = $lineItemsJson;
+                }
+                $saleStmt->execute($payload);
+                $saleInserted = true;
+                break;
+            } catch (Throwable $e) {
+                $msg = $e->getMessage();
+                if (!str_contains($msg, 'Unknown column') && !str_contains($msg, "doesn't exist")) {
+                    throw $e;
+                }
+            }
+        }
+        if (!$saleInserted) {
+            throw new RuntimeException('Sale save nahi hua.');
         }
         $saleId = (int) $pdo->lastInsertId();
 
         $itemStmt = $pdo->prepare(
-            'INSERT INTO sale_items (sale_id, product_id, product_name, color_code, color_hex, qty, unit, price, total)
-             VALUES (:sale_id, :product_id, :product_name, :color_code, :color_hex, :qty, :unit, :price, :total)'
+            'INSERT INTO sale_items (sale_id, product_id, product_name, color_code, color_hex, hsn_code, qty, unit, price, total)
+             VALUES (:sale_id, :product_id, :product_name, :color_code, :color_hex, :hsn_code, :qty, :unit, :price, :total)'
         );
         $itemStmtLegacy = $pdo->prepare(
             'INSERT INTO sale_items (sale_id, product_id, product_name, qty, unit, price, total)
              VALUES (:sale_id, :product_id, :product_name, :qty, :unit, :price, :total)'
         );
         $stockStmt = $pdo->prepare('UPDATE products SET stock = stock - :qty WHERE id = :id');
+        $hsnStmt = $pdo->prepare('SELECT hsn_code FROM products WHERE id = :id');
 
         foreach ($valid as $item) {
             $productId = !empty($item['product_id']) ? (int) $item['product_id'] : null;
             if (!$productId) {
                 $productId = find_or_create_product($pdo, $item['name'], $item['unit'], (float) $item['price']);
+            }
+
+            $hsn = $item['hsn'];
+            if ($hsn === '' && $productId) {
+                $hsnStmt->execute(['id' => $productId]);
+                $hsn = trim((string) ($hsnStmt->fetchColumn() ?: ''));
             }
 
             $payload = [
@@ -168,6 +194,7 @@ try {
                 'product_name' => $item['name'],
                 'color_code' => $item['color'] !== '' ? $item['color'] : null,
                 'color_hex' => $item['color_hex'] !== '' ? $item['color_hex'] : null,
+                'hsn_code' => $hsn !== '' ? $hsn : null,
                 'qty' => $item['qty'],
                 'unit' => $item['unit'],
                 'price' => $item['price'],

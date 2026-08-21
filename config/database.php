@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/bootstrap.php';
+require_once dirname(__DIR__) . '/includes/invoice.php';
 
 function db(): PDO
 {
@@ -44,6 +45,16 @@ function db(): PDO
     } catch (Throwable $e) {
         // Column already exists.
     }
+    try {
+        $pdo->exec('ALTER TABLE sale_items ADD COLUMN hsn_code VARCHAR(50) NULL');
+    } catch (Throwable $e) {
+        // Column already exists.
+    }
+    try {
+        $pdo->exec('ALTER TABLE sales ADD COLUMN received DECIMAL(12,2) NULL');
+    } catch (Throwable $e) {
+        // Column already exists.
+    }
 
     return $pdo;
 }
@@ -65,15 +76,6 @@ function read_json_body(): array
 
     $data = json_decode($raw, true);
     return is_array($data) ? $data : [];
-}
-
-function generate_invoice_number(): string
-{
-    return sprintf(
-        'INV-%s-%04d',
-        date('Ymd'),
-        random_int(1000, 9999)
-    );
 }
 
 function money(float|int|string $amount): string
