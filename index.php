@@ -120,13 +120,28 @@ require __DIR__ . '/includes/header.php';
           <select data-index="${index}" data-field="unit" class="rounded-lg border border-gray-300 bg-white p-3 text-gray-900">${unitOptions(row.unit || "Piece")}</select>
         </div>
         <input data-index="${index}" data-field="price" type="number" value="${row.price ?? ""}" placeholder="Price" class="rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
-        <div class="flex items-center font-semibold text-green-400">₹${formatMoney(rowTotal(row))}</div>
+        <div class="flex items-center font-semibold text-green-400" data-row-total="${index}">₹${formatMoney(rowTotal(row))}</div>
         <button type="button" data-delete="${index}" class="rounded-lg bg-red-500 px-3 py-2 text-white hover:bg-red-600">🗑️</button>
       </div>
     `).join("");
     document.getElementById("grand-total").textContent = formatMoney(
       saleRows.reduce((sum, row) => sum + rowTotal(row), 0)
     );
+  }
+
+  function updateSaleTotals() {
+    document.querySelectorAll("#product-rows [data-row-total]").forEach((el) => {
+      const index = Number(el.dataset.rowTotal);
+      el.textContent = "₹" + formatMoney(rowTotal(saleRows[index] || emptyRow()));
+    });
+    document.getElementById("grand-total").textContent = formatMoney(
+      saleRows.reduce((sum, row) => sum + rowTotal(row), 0)
+    );
+  }
+
+  function setSaleRowField(index, field, value) {
+    const el = document.querySelector(`#product-rows [data-index="${index}"][data-field="${field}"]`);
+    if (el) el.value = value;
   }
 
   function validProducts() {
@@ -294,14 +309,14 @@ require __DIR__ . '/includes/header.php';
         saleRows[index].price = String(match.selling_price);
         saleRows[index].unit = match.unit;
         saleRows[index].product_id = match.id;
+        setSaleRowField(index, "price", String(match.selling_price));
+        setSaleRowField(index, "unit", match.unit);
       } else {
         saleRows[index].product_id = null;
       }
       showSuggestions(index, e.target.value);
     }
-    if (field === "qty" || field === "price" || field === "unit") {
-      renderRows();
-    }
+    updateSaleTotals();
   });
 
   document.getElementById("product-rows").addEventListener("keydown", (e) => {

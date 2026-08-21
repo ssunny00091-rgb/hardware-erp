@@ -53,10 +53,20 @@ require __DIR__ . '/includes/header.php';
         </div>
         <input data-index="${index}" data-field="qty" type="number" value="${row.qty ?? ""}" placeholder="Qty" class="rounded-xl border border-gray-300 bg-white p-3 text-gray-900">
         <input data-index="${index}" data-field="price" type="number" value="${row.price ?? ""}" placeholder="Purchase Price" class="rounded-xl border border-gray-300 bg-white p-3 text-gray-900">
-        <div class="flex items-center justify-center rounded-xl border border-white/20 bg-white/10 font-bold text-green-400">₹${formatMoney(rowTotal(row))}</div>
+        <div class="flex items-center justify-center rounded-xl border border-white/20 bg-white/10 font-bold text-green-400" data-row-total="${index}">₹${formatMoney(rowTotal(row))}</div>
         <button type="button" data-delete="${index}" class="rounded-xl bg-red-500 p-3 text-white hover:bg-red-600">🗑</button>
       </div>
     `).join("");
+    document.getElementById("purchase-total").textContent = formatMoney(
+      purchaseRows.reduce((sum, row) => sum + rowTotal(row), 0)
+    );
+  }
+
+  function updatePurchaseTotals() {
+    document.querySelectorAll("#purchase-rows [data-row-total]").forEach((el) => {
+      const index = Number(el.dataset.rowTotal);
+      el.textContent = "₹" + formatMoney(rowTotal(purchaseRows[index] || emptyRow()));
+    });
     document.getElementById("purchase-total").textContent = formatMoney(
       purchaseRows.reduce((sum, row) => sum + rowTotal(row), 0)
     );
@@ -86,9 +96,8 @@ require __DIR__ . '/includes/header.php';
           </div>
         `).join("");
       }
-    } else {
-      renderPurchase();
     }
+    updatePurchaseTotals();
   });
 
   document.getElementById("purchase-rows").addEventListener("keydown", (e) => {
