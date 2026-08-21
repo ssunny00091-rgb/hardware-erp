@@ -46,3 +46,28 @@ function unitOptions(selected) {
     `<option value="${unit}" ${unit === selected ? "selected" : ""}>${unit}</option>`
   )).join("");
 }
+
+function printInvoiceSheet(html) {
+  let frame = document.getElementById("invoice-print-frame");
+  if (!frame) {
+    frame = document.createElement("iframe");
+    frame.id = "invoice-print-frame";
+    frame.setAttribute("style", "position:fixed;right:0;bottom:0;width:0;height:0;border:0;");
+    document.body.appendChild(frame);
+  }
+  const css = appUrl("assets/css/invoice-print.css");
+  const doc = frame.contentWindow.document;
+  doc.open();
+  doc.write(
+    "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><link rel=\"stylesheet\" href=\"" +
+      css +
+      "\"></head><body>" +
+      html +
+      "</body></html>"
+  );
+  doc.close();
+  setTimeout(() => {
+    frame.contentWindow.focus();
+    frame.contentWindow.print();
+  }, 300);
+}

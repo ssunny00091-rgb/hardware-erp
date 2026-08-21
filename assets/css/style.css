@@ -86,50 +86,15 @@ textarea::placeholder {
 
 @page {
   size: A4 portrait;
-  margin: 8mm;
+  margin: 10mm;
 }
 
 @media print {
-  html,
-  body {
-    width: auto !important;
-    height: auto !important;
-    min-height: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    background: #fff !important;
-    color: #000 !important;
-    overflow: visible !important;
-  }
-
   nav,
   .animated-bg,
   .no-print,
   .print-hide {
     display: none !important;
-  }
-
-  body * {
-    visibility: hidden;
-  }
-
-  .print-area,
-  .print-area * {
-    visibility: visible !important;
-  }
-
-  .print-area {
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
-    width: 194mm !important;
-    max-width: none !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    box-shadow: none !important;
-    border-radius: 0 !important;
-    background: #fff !important;
-    color: #000 !important;
   }
 }
 
@@ -137,4 +102,19 @@ textarea::placeholder {
   border: 1px solid rgba(255,255,255,0.2);
   background: rgba(255,255,255,0.1);
   backdrop-filter: blur(16px);
+}
+
+.sheet {
+  color: #111;
+}
+
+.sheet table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.sheet th,
+.sheet td {
+  border: 1px solid #111;
+  padding: 4px 6px;
 }

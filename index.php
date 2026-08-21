@@ -94,7 +94,7 @@ require __DIR__ . '/includes/header.php';
       <h2 class="text-2xl font-bold text-blue-700">Invoice Preview</h2>
       <button type="button" id="btn-close-preview" class="rounded-lg bg-red-500 px-4 py-2 text-white">✕ Close</button>
     </div>
-    <div class="flex-1 overflow-y-auto bg-gray-100 p-6" id="invoice-preview-body"></div>
+    <div class="flex-1 overflow-y-auto bg-white p-6 text-black" id="invoice-preview-body"></div>
     <div class="sticky bottom-0 flex flex-wrap justify-center gap-4 border-t bg-white p-4 print-hide">
       <button type="button" id="btn-edit-sale" class="rounded-lg bg-gray-600 px-5 py-2 text-white">✏️ Edit</button>
       <button type="button" id="btn-print-invoice" class="rounded-lg bg-blue-600 px-5 py-2 text-white">🖨️ Print</button>
@@ -223,56 +223,45 @@ require __DIR__ . '/includes/header.php';
     if (box) box.classList.add("hidden");
   }
 
-  function invoiceHtml(customer, products, grandTotal) {
+  function invoiceSheetHtml(customer, products, grandTotal) {
     const rows = products.map((p, i) => `
       <tr>
-        <td class="border p-2">${i + 1}</td>
-        <td class="border p-2">${p.name}</td>
-        <td class="border p-2">${p.qty}</td>
-        <td class="border p-2 text-center">${p.unit}</td>
-        <td class="border p-2 text-right">₹${p.price}</td>
-        <td class="border p-2 text-right">₹${rowTotal(p)}</td>
+        <td>${i + 1}</td>
+        <td>${p.name}</td>
+        <td>${p.qty}</td>
+        <td style="text-align:center">${p.unit}</td>
+        <td style="text-align:right">Rs. ${formatMoney(p.price)}</td>
+        <td style="text-align:right">Rs. ${formatMoney(rowTotal(p))}</td>
       </tr>
     `).join("");
     return `
-      <div class="print-area mx-auto max-w-4xl rounded-lg bg-white p-4 text-sm text-black shadow-lg">
-        <div class="border-b-2 border-green-700 pb-2 text-center">
-          <h1 class="text-xl font-bold text-green-700">SATYANARAYAN HARDWARE STORES</h1>
-          <p class="text-gray-700">Main Road, Jayanagar, PIN - 847226</p>
-          <p class="text-gray-700">Second Branch - Near Anumandal Hospital, Jayanagar</p>
-          <p class="text-gray-700">📞 9431875263 | 9831046765</p>
-          <p class="text-gray-700">GSTIN : 10ADTPN8807A1ZP</p>
+      <div class="sheet">
+        <div class="center">
+          <h1>SATYANARAYAN HARDWARE STORES</h1>
+          <div>Main Road, Jayanagar, PIN - 847226</div>
+          <div>Second Branch - Near Anumandal Hospital, Jayanagar</div>
+          <div>Phone: 9431875263, 9831046765</div>
+          <div>GSTIN: 10ADTPN8807A1ZP</div>
         </div>
-        <div class="mt-3 flex justify-between">
+        <div class="meta">
           <div>
-            <p><strong>Date :</strong> ${new Date().toLocaleDateString("en-IN")}</p>
+            <div><strong>Date:</strong> ${new Date().toLocaleDateString("en-IN")}</div>
           </div>
-          <div class="text-right">
-            <p><strong>Customer :</strong> ${customer.name}</p>
-            <p><strong>Mobile :</strong> ${customer.mobile}</p>
+          <div style="text-align:right">
+            <div><strong>Customer:</strong> ${customer.name || ""}</div>
+            <div><strong>Mobile:</strong> ${customer.mobile || ""}</div>
           </div>
         </div>
-        <table class="mt-3 w-full border-collapse border">
+        <table>
           <thead>
-            <tr class="bg-gray-200">
-              <th class="border p-2">#</th>
-              <th class="border p-2">Product</th>
-              <th class="border p-2">Qty</th>
-              <th class="border p-2">Unit</th>
-              <th class="border p-2">Rate</th>
-              <th class="border p-2">Amount</th>
+            <tr>
+              <th>#</th><th>Product</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Amount</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
         </table>
-        <div class="mt-3 flex justify-end">
-          <div class="w-64 border p-3">
-            <div class="flex justify-between text-lg font-bold">
-              <span>Grand Total</span>
-              <span>₹${formatMoney(grandTotal)}</span>
-            </div>
-          </div>
-        </div>
+        <div class="total"><span>Grand Total</span><span>Rs. ${formatMoney(grandTotal)}</span></div>
+        <p class="thanks">Thank You! Visit Again.</p>
       </div>
     `;
   }
@@ -369,7 +358,7 @@ require __DIR__ . '/includes/header.php';
   document.getElementById("btn-preview").addEventListener("click", () => {
     const products = validProducts();
     const total = products.reduce((sum, row) => sum + rowTotal(row), 0);
-    document.getElementById("invoice-preview-body").innerHTML = invoiceHtml(currentCustomer(), products, total);
+    document.getElementById("invoice-preview-body").innerHTML = invoiceSheetHtml(currentCustomer(), products, total);
     document.getElementById("preview-modal").classList.remove("hidden");
     document.getElementById("preview-modal").classList.add("flex");
   });
@@ -383,8 +372,9 @@ require __DIR__ . '/includes/header.php';
     document.getElementById("preview-modal").classList.remove("flex");
   });
   document.getElementById("btn-print-invoice").addEventListener("click", () => {
-    document.getElementById("preview-modal").classList.add("print-invoice");
-    window.print();
+    const products = validProducts();
+    const total = products.reduce((sum, row) => sum + rowTotal(row), 0);
+    printInvoiceSheet(invoiceSheetHtml(currentCustomer(), products, total));
   });
 
   document.getElementById("btn-confirm-save").addEventListener("click", async () => {

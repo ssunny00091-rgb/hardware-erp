@@ -1,0 +1,107 @@
+@page {
+  size: A4 portrait;
+  margin: 10mm;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: #fff;
+  color: #111;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.no-print {
+  padding: 12px 16px;
+}
+
+.sheet {
+  width: 190mm;
+  max-width: 100%;
+  margin: 0 auto;
+  background: #fff;
+  color: #111;
+}
+
+.sheet h1 {
+  margin: 0 0 4px;
+  font-size: 18px;
+  color: #15803d;
+}
+
+.sheet .center {
+  text-align: center;
+  border-bottom: 2px solid #15803d;
+  padding-bottom: 8px;
+}
+
+.sheet .meta {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+
+.sheet table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.sheet th,
+.sheet td {
+  border: 1px solid #111;
+  padding: 4px 6px;
+}
+
+.sheet th {
+  background: #e5e7eb;
+}
+
+.sheet .total {
+  margin-top: 10px;
+  margin-left: auto;
+  width: 220px;
+  border: 1px solid #111;
+  padding: 8px;
+  font-size: 14px;
+  font-weight: bold;
+  display: flex;
+  justify-content: space-between;
+}
+
+.sheet .thanks {
+  text-align: center;
+  font-style: italic;
+  margin-top: 14px;
+}
+
+@media print {
+  html,
+  body {
+    width: 190mm;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .sheet {
+    width: 100%;
+    margin: 0;
+    box-shadow: none;
+  }
+}

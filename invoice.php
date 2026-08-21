@@ -34,89 +34,80 @@ $itemStmt = $pdo->prepare(
 $itemStmt->execute(['id' => $id]);
 $items = $itemStmt->fetchAll();
 $date = date('d/m/Y', strtotime((string) $sale['created_at']));
+$autoPrint = isset($_GET['print']);
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <title><?= htmlspecialchars((string) $sale['invoice_no'], ENT_QUOTES, 'UTF-8') ?></title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="<?= htmlspecialchars(app_url('assets/css/style.css'), ENT_QUOTES, 'UTF-8') ?>">
-  <style>
-    @page { size: A4 portrait; margin: 8mm; }
-    @media print {
-      html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; height: auto !important; }
-      .no-print { display: none !important; }
-      .print-area { margin: 0 !important; padding: 0 !important; box-shadow: none !important; max-width: none !important; }
-    }
-  </style>
+  <link rel="stylesheet" href="<?= htmlspecialchars(app_url('assets/css/invoice-print.css'), ENT_QUOTES, 'UTF-8') ?>">
 </head>
-<body class="bg-gray-100 p-4 text-black">
-  <div class="no-print mb-4 flex gap-3">
-    <button onclick="window.print()" class="rounded bg-blue-600 px-4 py-2 text-white">🖨️ Print / Save PDF</button>
-    <a href="<?= htmlspecialchars(app_url('index.php'), ENT_QUOTES, 'UTF-8') ?>" class="rounded bg-gray-700 px-4 py-2 text-white">Back</a>
+<body>
+  <div class="no-print">
+    <button type="button" onclick="window.print()">🖨️ Print / Save PDF</button>
+    <a href="<?= htmlspecialchars(app_url('index.php'), ENT_QUOTES, 'UTF-8') ?>">Back</a>
   </div>
 
-  <div class="print-area mx-auto max-w-3xl bg-white p-4 text-sm">
-    <div class="border-b-2 border-green-700 pb-2 text-center">
-      <h1 class="text-xl font-bold text-green-700"><?= htmlspecialchars($company['name'], ENT_QUOTES, 'UTF-8') ?></h1>
-      <p><?= htmlspecialchars($company['address_line1'], ENT_QUOTES, 'UTF-8') ?></p>
-      <p><?= htmlspecialchars($company['address_line2'], ENT_QUOTES, 'UTF-8') ?></p>
-      <p>📞 <?= htmlspecialchars($company['mobile'], ENT_QUOTES, 'UTF-8') ?></p>
-      <p>GSTIN : <?= htmlspecialchars($company['gst'], ENT_QUOTES, 'UTF-8') ?></p>
+  <div class="sheet">
+    <div class="center">
+      <h1><?= htmlspecialchars($company['name'], ENT_QUOTES, 'UTF-8') ?></h1>
+      <div><?= htmlspecialchars($company['address_line1'], ENT_QUOTES, 'UTF-8') ?></div>
+      <div><?= htmlspecialchars($company['address_line2'], ENT_QUOTES, 'UTF-8') ?></div>
+      <div>Phone: <?= htmlspecialchars($company['mobile'], ENT_QUOTES, 'UTF-8') ?></div>
+      <div>GSTIN: <?= htmlspecialchars($company['gst'], ENT_QUOTES, 'UTF-8') ?></div>
     </div>
 
-    <div class="mt-3 flex justify-between">
+    <div class="meta">
       <div>
-        <p><strong>Invoice No :</strong> <?= htmlspecialchars((string) $sale['invoice_no'], ENT_QUOTES, 'UTF-8') ?></p>
-        <p><strong>Date :</strong> <?= htmlspecialchars($date, ENT_QUOTES, 'UTF-8') ?></p>
+        <div><strong>Invoice No:</strong> <?= htmlspecialchars((string) $sale['invoice_no'], ENT_QUOTES, 'UTF-8') ?></div>
+        <div><strong>Date:</strong> <?= htmlspecialchars($date, ENT_QUOTES, 'UTF-8') ?></div>
       </div>
-      <div class="text-right">
-        <p><strong>Customer :</strong> <?= htmlspecialchars((string) $sale['customer_name'], ENT_QUOTES, 'UTF-8') ?></p>
-        <p><strong>Mobile :</strong> <?= htmlspecialchars((string) $sale['mobile'], ENT_QUOTES, 'UTF-8') ?></p>
+      <div style="text-align:right">
+        <div><strong>Customer:</strong> <?= htmlspecialchars((string) $sale['customer_name'], ENT_QUOTES, 'UTF-8') ?></div>
+        <div><strong>Mobile:</strong> <?= htmlspecialchars((string) $sale['mobile'], ENT_QUOTES, 'UTF-8') ?></div>
         <?php if (!empty($sale['address'])): ?>
-          <p><strong>Address :</strong> <?= htmlspecialchars((string) $sale['address'], ENT_QUOTES, 'UTF-8') ?></p>
+          <div><strong>Address:</strong> <?= htmlspecialchars((string) $sale['address'], ENT_QUOTES, 'UTF-8') ?></div>
         <?php endif; ?>
         <?php if (!empty($sale['gst'])): ?>
-          <p><strong>GST :</strong> <?= htmlspecialchars((string) $sale['gst'], ENT_QUOTES, 'UTF-8') ?></p>
+          <div><strong>GST:</strong> <?= htmlspecialchars((string) $sale['gst'], ENT_QUOTES, 'UTF-8') ?></div>
         <?php endif; ?>
       </div>
     </div>
 
-    <table class="mt-3 w-full border-collapse border">
+    <table>
       <thead>
-        <tr class="bg-gray-200">
-          <th class="border px-2 py-1">#</th>
-          <th class="border px-2 py-1">Product</th>
-          <th class="border px-2 py-1">Qty</th>
-          <th class="border px-2 py-1">Unit</th>
-          <th class="border px-2 py-1">Rate</th>
-          <th class="border px-2 py-1">Amount</th>
+        <tr>
+          <th>#</th>
+          <th>Product</th>
+          <th>Qty</th>
+          <th>Unit</th>
+          <th>Rate</th>
+          <th>Amount</th>
         </tr>
       </thead>
       <tbody>
         <?php foreach ($items as $i => $item): ?>
           <tr>
-            <td class="border px-2 py-1"><?= $i + 1 ?></td>
-            <td class="border px-2 py-1"><?= htmlspecialchars((string) $item['product_name'], ENT_QUOTES, 'UTF-8') ?></td>
-            <td class="border px-2 py-1"><?= htmlspecialchars((string) $item['qty'], ENT_QUOTES, 'UTF-8') ?></td>
-            <td class="border px-2 py-1 text-center"><?= htmlspecialchars((string) $item['unit'], ENT_QUOTES, 'UTF-8') ?></td>
-            <td class="border px-2 py-1 text-right">₹<?= money($item['price']) ?></td>
-            <td class="border px-2 py-1 text-right">₹<?= money($item['total']) ?></td>
+            <td><?= $i + 1 ?></td>
+            <td><?= htmlspecialchars((string) $item['product_name'], ENT_QUOTES, 'UTF-8') ?></td>
+            <td><?= htmlspecialchars((string) $item['qty'], ENT_QUOTES, 'UTF-8') ?></td>
+            <td style="text-align:center"><?= htmlspecialchars((string) $item['unit'], ENT_QUOTES, 'UTF-8') ?></td>
+            <td style="text-align:right">Rs. <?= money($item['price']) ?></td>
+            <td style="text-align:right">Rs. <?= money($item['total']) ?></td>
           </tr>
         <?php endforeach; ?>
       </tbody>
     </table>
 
-    <div class="mt-3 flex justify-end">
-      <div class="w-64 border p-3 text-lg font-bold">
-        <div class="flex justify-between">
-          <span>Grand Total</span>
-          <span>₹<?= money($sale['total']) ?></span>
-        </div>
-      </div>
+    <div class="total">
+      <span>Grand Total</span>
+      <span>Rs. <?= money($sale['total']) ?></span>
     </div>
-    <p class="mt-4 text-center italic">Thank You! Visit Again.</p>
+    <p class="thanks">Thank You! Visit Again.</p>
   </div>
+  <?php if ($autoPrint): ?>
+    <script>window.addEventListener("load", function () { window.print(); });</script>
+  <?php endif; ?>
 </body>
 </html>
