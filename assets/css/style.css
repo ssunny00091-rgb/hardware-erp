@@ -220,16 +220,59 @@ textarea::placeholder {
   padding: 0.75rem 1rem;
 }
 
-.chat-user {
-  align-self: flex-end;
-  background: #16a34a;
-  color: #fff;
-}
-
 .chat-bot {
   align-self: flex-start;
   background: #fff;
   color: #111827;
+  max-width: 100%;
+}
+
+.chat-para {
+  white-space: pre-wrap;
+  margin-bottom: 0.4rem;
+}
+
+.chat-table-wrap {
+  overflow-x: auto;
+  margin: 0.5rem 0 0.25rem;
+  max-width: 100%;
+}
+
+.chat-table-title {
+  font-weight: 700;
+  font-size: 0.8rem;
+  margin-bottom: 0.3rem;
+}
+
+.chat-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+  color: #111827;
+  background: #fff;
+}
+
+.chat-table th,
+.chat-table td {
+  border: 1px solid #cbd5e1;
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.chat-table th {
+  background: #e2e8f0;
+  font-weight: 700;
+}
+
+.chat-table td:nth-child(n+4) {
+  text-align: right;
+}
+
+.chat-user {
+  align-self: flex-end;
+  background: #16a34a;
+  color: #fff;
 }
 
 .chat-role {

@@ -55,6 +55,14 @@ Voice/text commands you should automate:
 Dates from users may be dd/mm/yyyy. Pass them as-is to tools.
 Amounts are Indian rupees.
 After tools, summarise what was saved: names, invoice nos, ₹ amounts, due, and next step if any.
+
+TABLE FORMAT (required):
+- Any list, comparison, ledger, stock, bill, dashboard, or more than one number/name MUST be a GitHub markdown table.
+- First one short Hindi line, then the table. Example:
+| Date | Particulars | Debit | Credit | Balance |
+| --- | --- | --- | --- | --- |
+| 21/08/2026 | Sale INV-1 | 1500 | 0 | 1500 |
+- Use columns that fit the question. Never answer such data as a long paragraph or bullet dump.
 PROMPT;
 }
 
@@ -971,5 +979,187 @@ function assistant_chat(PDO $pdo, string $userText, array $history, array $fileP
     if ($reply === '' && $actions) {
         $reply = 'Kaam ho gaya.';
     }
-    return ['reply' => $reply, 'actions' => $actions];
+    return [
+        'reply' => $reply,
+        'actions' => $actions,
+        'tables' => assistant_tables_from_actions($actions),
+    ];
+}
+
+function assistant_table_pack(string $title, array $headers, array $rows): ?array
+{
+    if ($rows === []) {
+        return null;
+    }
+    return [
+        'title' => $title,
+        'headers' => $headers,
+        'rows' => $rows,
+    ];
+}
+
+function assistant_inr(mixed $value): string
+{
+    return '₹' . money((float) $value);
+}
+
+function assistant_tables_from_actions(array $actions): array
+{
+    $tables = [];
+    $push = static function (?array $table) use (&$tables): void {
+        if ($table) {
+            $tables[] = $table;
+        }
+    };
+
+    foreach ($actions as $action) {
+        if (!is_array($action)) {
+            continue;
+        }
+        $tool = (string) ($action['tool'] ?? '');
+        $r = is_array($action['result'] ?? null) ? $action['result'] : [];
+        if (!empty($r['error'])) {
+            continue;
+        }
+
+        if ($tool === 'get_dashboard') {
+            $push(assistant_table_pack('Dashboard', ['Item', 'Amount'], [
+                ['Aaj ki sales', assistant_inr($r['today_sales'] ?? 0)],
+                ['Aaj ki purchase', assistant_inr($r['today_purchase'] ?? 0)],
+                ['Cash in hand', assistant_inr($r['cash_in_hand'] ?? 0)],
+                ['Pending', assistant_inr($r['pending_payment'] ?? 0)],
+            ]));
+        }
+
+        if ($tool === 'search_products' && !empty($r['products']) && is_array($r['products'])) {
+            $rows = [];
+            foreach ($r['products'] as $p) {
+                if (!is_array($p)) {
+                    continue;
+                }
+                $rows[] = [
+                    (string) ($p['product_name'] ?? ''),
+                    (string) ($p['brand'] ?? ''),
+                    (string) ($p['unit'] ?? ''),
+                    (string) ($p['stock'] ?? ''),
+                    assistant_inr($p['selling_price'] ?? 0),
+                    assistant_inr($p['purchase_price'] ?? 0),
+                ];
+            }
+            $push(assistant_table_pack('Products / Stock', ['Name', 'Brand', 'Unit', 'Stock', 'Sale', 'Purchase'], $rows));
+        }
+
+        if (($tool === 'search_parties' || $tool === 'get_ledger') && !empty($r['parties']) && is_array($r['parties'])) {
+            $rows = [];
+            foreach ($r['parties'] as $p) {
+                if (!is_array($p)) {
+                    continue;
+                }
+                $rows[] = [
+                    (string) ($p['name'] ?? ''),
+                    (string) ($p['type'] ?? ''),
+                    (string) ($p['mobile'] ?? ''),
+                    (string) ($p['address'] ?? ''),
+                ];
+            }
+            $push(assistant_table_pack('Paas ke naam', ['Name', 'Type', 'Mobile', 'Address'], $rows));
+        }
+
+        if ($tool === 'get_ledger') {
+            if (!empty($r['nearby']) && is_array($r['nearby'])) {
+                $rows = [];
+                foreach ($r['nearby'] as $p) {
+                    if (!is_array($p)) {
+                        continue;
+                    }
+                    $rows[] = [
+                        (string) ($p['name'] ?? ''),
+                        (string) ($p['type'] ?? ''),
+                        (string) ($p['mobile'] ?? ''),
+                    ];
+                }
+                $push(assistant_table_pack('Spelling ke aaspaas', ['Name', 'Type', 'Mobile'], $rows));
+            }
+            if (!empty($r['party']) && is_array($r['party'])) {
+                $push(assistant_table_pack(
+                    (string) ($r['party']['name'] ?? 'Ledger') . ' — summary',
+                    ['Debit', 'Credit', 'Balance'],
+                    [[assistant_inr($r['debit'] ?? 0), assistant_inr($r['credit'] ?? 0), assistant_inr($r['balance'] ?? 0)]]
+                ));
+            }
+            if (!empty($r['entries']) && is_array($r['entries'])) {
+                $rows = [];
+                foreach ($r['entries'] as $e) {
+                    if (!is_array($e)) {
+                        continue;
+                    }
+                    $rows[] = [
+                        (string) ($e['date'] ?? $e['entry_date'] ?? ''),
+                        (string) ($e['particulars'] ?? ''),
+                        (string) ($e['ref_no'] ?? ''),
+                        assistant_inr($e['debit'] ?? 0),
+                        assistant_inr($e['credit'] ?? 0),
+                        assistant_inr($e['balance'] ?? 0),
+                    ];
+                }
+                $who = (string) (($r['party']['name'] ?? '') ?: 'Ledger');
+                $push(assistant_table_pack($who . ' — hisaab', ['Date', 'Particulars', 'Ref', 'Debit', 'Credit', 'Balance'], $rows));
+            }
+        }
+
+        if ($tool === 'list_recent_sales' && !empty($r['sales']) && is_array($r['sales'])) {
+            $rows = [];
+            foreach ($r['sales'] as $s) {
+                if (!is_array($s)) {
+                    continue;
+                }
+                $rows[] = [
+                    (string) ($s['invoice_no'] ?? ''),
+                    (string) ($s['customer_name'] ?? ''),
+                    (string) ($s['date'] ?? ''),
+                    assistant_inr($s['total'] ?? 0),
+                    assistant_inr($s['received'] ?? $s['total'] ?? 0),
+                ];
+            }
+            $push(assistant_table_pack('Recent sales', ['Invoice', 'Customer', 'Date', 'Total', 'Received'], $rows));
+        }
+
+        if ($tool === 'list_recent_purchases' && !empty($r['purchases']) && is_array($r['purchases'])) {
+            $rows = [];
+            foreach ($r['purchases'] as $s) {
+                if (!is_array($s)) {
+                    continue;
+                }
+                $rows[] = [
+                    (string) ($s['invoice_no'] ?? ''),
+                    (string) ($s['supplier_name'] ?? ''),
+                    (string) ($s['date'] ?? $s['purchase_date'] ?? ''),
+                    assistant_inr($s['total'] ?? 0),
+                    assistant_inr($s['paid'] ?? 0),
+                ];
+            }
+            $push(assistant_table_pack('Recent purchases', ['Bill', 'Supplier', 'Date', 'Total', 'Paid'], $rows));
+        }
+
+        if ($tool === 'import_supplier_bill' && !empty($r['id'])) {
+            $push(assistant_table_pack('Supplier bill saved', ['Field', 'Value'], [
+                ['Supplier', (string) ($r['supplier_name'] ?? '')],
+                ['Bill no', (string) ($r['invoice_no'] ?? '')],
+                ['Date', format_display_date($r['purchase_date'] ?? '')],
+                ['Total', assistant_inr($r['total'] ?? 0)],
+                ['Paid', assistant_inr($r['paid'] ?? 0)],
+                ['Due', assistant_inr($r['due'] ?? 0)],
+            ]));
+        }
+
+        if ($tool === 'create_sale' && !empty($r['invoice_no'])) {
+            $push(assistant_table_pack('Sale saved', ['Field', 'Value'], [
+                ['Invoice', (string) ($r['invoice_no'] ?? '')],
+                ['Total', assistant_inr($r['total'] ?? 0)],
+                ['Date', format_display_date($r['sale_date'] ?? '')],
+            ]));
+        }
+    }
+
+    return $tables;
 }

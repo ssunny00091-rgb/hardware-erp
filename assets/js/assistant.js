@@ -13,12 +13,21 @@ let listening = false;
 let recognition = null;
 let busy = false;
 
-function addBubble(role, text, extra) {
+function addBubble(role, text, extra, tables) {
   const wrap = document.createElement("div");
   wrap.className = "chat-bubble " + (role === "user" ? "chat-user" : "chat-bot");
-  wrap.innerHTML = "<div class='chat-role'>" + (role === "user" ? "Aap" : "Assistant") + "</div>" +
-    "<div class='chat-text'></div>";
-  wrap.querySelector(".chat-text").textContent = text;
+  const roleEl = document.createElement("div");
+  roleEl.className = "chat-role";
+  roleEl.textContent = role === "user" ? "Aap" : "Assistant";
+  wrap.appendChild(roleEl);
+  const body = document.createElement("div");
+  body.className = "chat-text";
+  if (role === "assistant") {
+    renderRichReply(body, text, tables || []);
+  } else {
+    body.textContent = text;
+  }
+  wrap.appendChild(body);
   if (extra) {
     const meta = document.createElement("div");
     meta.className = "chat-meta";
@@ -27,6 +36,89 @@ function addBubble(role, text, extra) {
   }
   chatLog.appendChild(wrap);
   chatLog.scrollTop = chatLog.scrollHeight;
+}
+
+function isMdTableSep(line) {
+  return /^\s*\|?[\s:|-]+\|[\s:|-]+\|?\s*$/.test(line) && line.indexOf("-") !== -1;
+}
+
+function splitMdRow(line) {
+  let s = String(line).trim();
+  if (s.startsWith("|")) s = s.slice(1);
+  if (s.endsWith("|")) s = s.slice(0, -1);
+  return s.split("|").map((c) => c.trim());
+}
+
+function appendHtmlTable(parent, title, headers, rows) {
+  if (!headers || !headers.length || !rows || !rows.length) return;
+  const box = document.createElement("div");
+  box.className = "chat-table-wrap";
+  if (title) {
+    const h = document.createElement("div");
+    h.className = "chat-table-title";
+    h.textContent = title;
+    box.appendChild(h);
+  }
+  const table = document.createElement("table");
+  table.className = "chat-table";
+  const thead = document.createElement("thead");
+  const hr = document.createElement("tr");
+  headers.forEach((h) => {
+    const th = document.createElement("th");
+    th.textContent = h;
+    hr.appendChild(th);
+  });
+  thead.appendChild(hr);
+  table.appendChild(thead);
+  const tb = document.createElement("tbody");
+  rows.forEach((row) => {
+    const tr = document.createElement("tr");
+    headers.forEach((_, i) => {
+      const td = document.createElement("td");
+      td.textContent = row[i] == null ? "" : String(row[i]);
+      tr.appendChild(td);
+    });
+    tb.appendChild(tr);
+  });
+  table.appendChild(tb);
+  box.appendChild(table);
+  parent.appendChild(box);
+}
+
+function renderRichReply(el, text, tables) {
+  el.innerHTML = "";
+  const apiTables = tables || [];
+  const lines = String(text || "").replace(/\r\n/g, "\n").split("\n");
+  let i = 0;
+  const para = [];
+  const flushPara = () => {
+    if (!para.length) return;
+    const p = document.createElement("div");
+    p.className = "chat-para";
+    p.textContent = para.join("\n");
+    el.appendChild(p);
+    para.length = 0;
+  };
+  while (i < lines.length) {
+    if (apiTables.length === 0 && i + 1 < lines.length && lines[i].includes("|") && isMdTableSep(lines[i + 1])) {
+      flushPara();
+      const headers = splitMdRow(lines[i]);
+      i += 2;
+      const rows = [];
+      while (i < lines.length && lines[i].includes("|") && !isMdTableSep(lines[i])) {
+        rows.push(splitMdRow(lines[i]));
+        i++;
+      }
+      appendHtmlTable(el, "", headers, rows);
+      continue;
+    }
+    para.push(lines[i]);
+    i++;
+  }
+  flushPara();
+  apiTables.forEach((t) => {
+    appendHtmlTable(el, t.title || "", t.headers || [], t.rows || []);
+  });
 }
 
 function speak(text) {
@@ -128,7 +220,7 @@ async function sendChat(text) {
     if (!response.ok) throw new Error(data.error || "Assistant fail");
     const reply = data.reply || "Ho gaya.";
     const extra = actionSummary(data.actions || []);
-    addBubble("assistant", reply, extra);
+    addBubble("assistant", reply, extra, data.tables || []);
     history.push({ role: "user", content: message || "Photo/PDF bheji hai" });
     history.push({ role: "assistant", content: reply });
     speak(reply);
