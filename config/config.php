@@ -22,6 +22,10 @@ if (!isset($GLOBALS['APP_CONFIG']) || !is_array($GLOBALS['APP_CONFIG'])) {
             'email' => 'sunnynayak01@gmail.com',
             'gst' => '10ADTPN8807A1ZP',
         ],
+        'openrouter' => [
+            'api_key' => (string) (getenv('OPENROUTER_API_KEY') ?: ''),
+            'model' => (string) (getenv('OPENROUTER_MODEL') ?: 'google/gemini-2.5-flash'),
+        ],
     ];
 }
 

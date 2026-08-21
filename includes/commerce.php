@@ -589,3 +589,132 @@ function backfill_ledgers(PDO $pdo): void
         );
     }
 }
+
+function persist_purchase(PDO $pdo, array $body): array
+{
+    $products = $body['products'] ?? [];
+    if (!is_array($products)) {
+        throw new InvalidArgumentException('Invalid products');
+    }
+
+    $valid = [];
+    foreach ($products as $product) {
+        if (!is_array($product)) {
+            continue;
+        }
+        $name = trim((string) ($product['name'] ?? ''));
+        $qty = (float) ($product['qty'] ?? 0);
+        $price = (float) ($product['price'] ?? 0);
+        if ($name === '' || $qty <= 0 || $price <= 0) {
+            continue;
+        }
+        $valid[] = [
+            'product_id' => isset($product['product_id']) ? (int) $product['product_id'] : null,
+            'name' => $name,
+            'qty' => $qty,
+            'unit' => trim((string) ($product['unit'] ?? 'Piece')) ?: 'Piece',
+            'price' => $price,
+            'total' => $qty * $price,
+        ];
+    }
+
+    $supplier = trim((string) ($body['supplier_name'] ?? ''));
+    $mobile = trim((string) ($body['mobile'] ?? $body['supplier_mobile'] ?? ''));
+    $address = trim((string) ($body['address'] ?? $body['supplier_address'] ?? ''));
+    $invoiceNo = trim((string) ($body['invoice_no'] ?? ''));
+    $purchaseDate = parse_sale_date($body['purchase_date'] ?? '');
+    $grandHint = (float) ($body['total'] ?? 0);
+    if ($valid === [] && $grandHint > 0 && $supplier !== '') {
+        $valid[] = [
+            'product_id' => null,
+            'name' => 'As per supplier bill',
+            'qty' => 1.0,
+            'unit' => 'Lot',
+            'price' => $grandHint,
+            'total' => $grandHint,
+        ];
+    }
+    if ($valid === []) {
+        throw new InvalidArgumentException('Add at least one valid product');
+    }
+
+    $grandTotal = array_sum(array_column($valid, 'total'));
+    $paidRaw = $body['paid'] ?? null;
+    $paid = $paidRaw === null || $paidRaw === '' ? 0.0 : (float) $paidRaw;
+
+    $supplierPartyId = $supplier !== '' ? find_or_create_party($pdo, 'supplier', $supplier, $mobile, $address) : null;
+
+    try {
+        $purchaseStmt = $pdo->prepare(
+            'INSERT INTO purchases (supplier_name, invoice_no, purchase_date, total, paid, supplier_party_id)
+             VALUES (:supplier_name, :invoice_no, :purchase_date, :total, :paid, :supplier_party_id)'
+        );
+        $purchaseStmt->execute([
+            'supplier_name' => $supplier,
+            'invoice_no' => $invoiceNo,
+            'purchase_date' => $purchaseDate,
+            'total' => $grandTotal,
+            'paid' => $paid,
+            'supplier_party_id' => $supplierPartyId,
+        ]);
+    } catch (Throwable $e) {
+        $purchaseStmt = $pdo->prepare(
+            'INSERT INTO purchases (supplier_name, invoice_no, purchase_date, total)
+             VALUES (:supplier_name, :invoice_no, :purchase_date, :total)'
+        );
+        $purchaseStmt->execute([
+            'supplier_name' => $supplier,
+            'invoice_no' => $invoiceNo,
+            'purchase_date' => $purchaseDate,
+            'total' => $grandTotal,
+        ]);
+    }
+    $purchaseId = (int) $pdo->lastInsertId();
+
+    $itemStmt = $pdo->prepare(
+        'INSERT INTO purchase_items (purchase_id, product_id, product_name, qty, unit, price, total)
+         VALUES (:purchase_id, :product_id, :product_name, :qty, :unit, :price, :total)'
+    );
+    $stockStmt = $pdo->prepare(
+        'UPDATE products SET stock = stock + :qty, purchase_price = :price WHERE id = :id'
+    );
+
+    foreach ($valid as $item) {
+        $productId = $item['product_id'] ?: null;
+        if (!$productId) {
+            $productId = find_or_create_product($pdo, $item['name'], $item['unit'], 0.0, $item['price']);
+        }
+
+        $itemStmt->execute([
+            'purchase_id' => $purchaseId,
+            'product_id' => $productId,
+            'product_name' => $item['name'],
+            'qty' => $item['qty'],
+            'unit' => $item['unit'],
+            'price' => $item['price'],
+            'total' => $item['total'],
+        ]);
+
+        if ($productId) {
+            $stockStmt->execute([
+                'qty' => $item['qty'],
+                'price' => $item['price'],
+                'id' => $productId,
+            ]);
+        }
+    }
+
+    post_purchase_ledgers($pdo, $purchaseId, $invoiceNo, $purchaseDate, $grandTotal, $paid, $supplierPartyId);
+
+    return [
+        'ok' => true,
+        'id' => $purchaseId,
+        'total' => $grandTotal,
+        'paid' => $paid,
+        'due' => max(0, $grandTotal - $paid),
+        'supplier_party_id' => $supplierPartyId,
+        'invoice_no' => $invoiceNo,
+        'purchase_date' => $purchaseDate,
+        'supplier_name' => $supplier,
+    ];
+}

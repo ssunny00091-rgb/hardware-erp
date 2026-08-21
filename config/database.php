@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/bootstrap.php';
 require_once dirname(__DIR__) . '/includes/invoice.php';
 require_once dirname(__DIR__) . '/includes/commerce.php';
+require_once dirname(__DIR__) . '/includes/sales_ops.php';
 
 function db(): PDO
 {

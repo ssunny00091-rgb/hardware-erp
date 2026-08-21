@@ -6,24 +6,40 @@ if (!defined('APP_ROOT')) {
     define('APP_ROOT', dirname(__DIR__));
 }
 
-function load_env_file(?string $path = null): void
+function parse_env_line(string $line): ?array
+{
+    $line = trim($line);
+    if ($line === '' || str_starts_with($line, '#')) {
+        return null;
+    }
+    [$key, $value] = array_pad(explode('=', $line, 2), 2, '');
+    $key = trim($key);
+    $value = trim($value);
+    if ($key === '') {
+        return null;
+    }
+    return [$key, $value];
+}
+
+function read_env_file(?string $path = null): array
 {
     $path = $path ?? APP_ROOT . '/.env';
+    $out = [];
     if (!is_readable($path)) {
-        return;
+        return $out;
     }
-
     foreach (file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $line) {
-        $line = trim($line);
-        if ($line === '' || str_starts_with($line, '#')) {
-            continue;
+        $parsed = parse_env_line($line);
+        if ($parsed) {
+            $out[$parsed[0]] = $parsed[1];
         }
-        [$key, $value] = array_pad(explode('=', $line, 2), 2, '');
-        $key = trim($key);
-        $value = trim($value);
-        if ($key === '') {
-            continue;
-        }
+    }
+    return $out;
+}
+
+function load_env_file(?string $path = null): void
+{
+    foreach (read_env_file($path) as $key => $value) {
         putenv($key . '=' . $value);
         $_ENV[$key] = $value;
         $_SERVER[$key] = $value;
@@ -32,15 +48,19 @@ function load_env_file(?string $path = null): void
 
 function save_env_file(array $values): void
 {
-    $lines = [];
+    $merged = read_env_file();
     foreach ($values as $key => $value) {
-        $lines[] = $key . '=' . str_replace(["\r", "\n"], '', (string) $value);
+        $merged[(string) $key] = str_replace(["\r", "\n"], '', (string) $value);
     }
-
+    $lines = [];
+    foreach ($merged as $key => $value) {
+        $lines[] = $key . '=' . $value;
+    }
     $target = APP_ROOT . '/.env';
     if (file_put_contents($target, implode("\n", $lines) . "\n") === false) {
         throw new RuntimeException('.env file nahi likh paye. Folder writable hona chahiye.');
     }
+    load_env_file();
 }
 
 function app_base_url(): string

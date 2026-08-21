@@ -73,106 +73,19 @@ try {
         }
 
         $products = $body['products'] ?? [];
-    if (!is_array($products)) {
-        json_response(['error' => 'Invalid products'], 422);
-    }
-
-    $valid = [];
-    foreach ($products as $product) {
-        $name = trim((string) ($product['name'] ?? ''));
-        $qty = (float) ($product['qty'] ?? 0);
-        $price = (float) ($product['price'] ?? 0);
-        if ($name === '' || $qty <= 0 || $price <= 0) {
-            continue;
-        }
-        $valid[] = [
-            'product_id' => isset($product['product_id']) ? (int) $product['product_id'] : null,
-            'name' => $name,
-            'qty' => $qty,
-            'unit' => trim((string) ($product['unit'] ?? 'Piece')) ?: 'Piece',
-            'price' => $price,
-            'total' => $qty * $price,
-        ];
-    }
-
-    if ($valid === []) {
-        json_response(['error' => 'Add at least one valid product'], 422);
-    }
-
-    $supplier = trim((string) ($body['supplier_name'] ?? ''));
-    $invoiceNo = trim((string) ($body['invoice_no'] ?? ''));
-    $purchaseDate = parse_sale_date($body['purchase_date'] ?? '');
-    $grandTotal = array_sum(array_column($valid, 'total'));
-    $paidRaw = $body['paid'] ?? null;
-    $paid = $paidRaw === null || $paidRaw === '' ? 0.0 : (float) $paidRaw;
-
-    $pdo->beginTransaction();
-
-    $supplierPartyId = $supplier !== '' ? find_or_create_party($pdo, 'supplier', $supplier) : null;
-
-    try {
-        $purchaseStmt = $pdo->prepare(
-            'INSERT INTO purchases (supplier_name, invoice_no, purchase_date, total, paid, supplier_party_id)
-             VALUES (:supplier_name, :invoice_no, :purchase_date, :total, :paid, :supplier_party_id)'
-        );
-        $purchaseStmt->execute([
-            'supplier_name' => $supplier,
-            'invoice_no' => $invoiceNo,
-            'purchase_date' => $purchaseDate,
-            'total' => $grandTotal,
-            'paid' => $paid,
-            'supplier_party_id' => $supplierPartyId,
-        ]);
-    } catch (Throwable $e) {
-        $purchaseStmt = $pdo->prepare(
-            'INSERT INTO purchases (supplier_name, invoice_no, purchase_date, total)
-             VALUES (:supplier_name, :invoice_no, :purchase_date, :total)'
-        );
-        $purchaseStmt->execute([
-            'supplier_name' => $supplier,
-            'invoice_no' => $invoiceNo,
-            'purchase_date' => $purchaseDate,
-            'total' => $grandTotal,
-        ]);
-    }
-    $purchaseId = (int) $pdo->lastInsertId();
-
-    $itemStmt = $pdo->prepare(
-        'INSERT INTO purchase_items (purchase_id, product_id, product_name, qty, unit, price, total)
-         VALUES (:purchase_id, :product_id, :product_name, :qty, :unit, :price, :total)'
-    );
-    $stockStmt = $pdo->prepare(
-        'UPDATE products SET stock = stock + :qty, purchase_price = :price WHERE id = :id'
-    );
-
-    foreach ($valid as $item) {
-        $productId = $item['product_id'] ?: null;
-        if (!$productId) {
-            $productId = find_or_create_product($pdo, $item['name'], $item['unit'], 0.0, $item['price']);
+        if (!is_array($products)) {
+            json_response(['error' => 'Invalid products'], 422);
         }
 
-        $itemStmt->execute([
-            'purchase_id' => $purchaseId,
-            'product_id' => $productId,
-            'product_name' => $item['name'],
-            'qty' => $item['qty'],
-            'unit' => $item['unit'],
-            'price' => $item['price'],
-            'total' => $item['total'],
-        ]);
-
-        if ($productId) {
-            $stockStmt->execute([
-                'qty' => $item['qty'],
-                'price' => $item['price'],
-                'id' => $productId,
-            ]);
+        $pdo->beginTransaction();
+        try {
+            $result = persist_purchase($pdo, $body);
+        } catch (InvalidArgumentException $e) {
+            $pdo->rollBack();
+            json_response(['error' => $e->getMessage()], 422);
         }
-    }
-
-    post_purchase_ledgers($pdo, $purchaseId, $invoiceNo, $purchaseDate, $grandTotal, $paid, $supplierPartyId);
-    $pdo->commit();
-    json_response(['ok' => true, 'id' => $purchaseId, 'total' => $grandTotal]);
+        $pdo->commit();
+        json_response($result);
     }
 
     json_response(['error' => 'Method not allowed'], 405);

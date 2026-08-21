@@ -11,6 +11,7 @@ require __DIR__ . '/includes/header.php';
 
 <div class="mb-6 flex flex-col gap-3 no-print sm:flex-row sm:flex-wrap">
   <button type="button" id="btn-new-sale" class="w-full rounded-lg bg-green-600 px-5 py-3 text-white hover:bg-green-700 sm:w-auto">➕ New Sale</button>
+  <a href="<?= htmlspecialchars(app_url('assistant.php'), ENT_QUOTES, 'UTF-8') ?>" class="w-full rounded-lg bg-rose-600 px-5 py-3 text-center text-white hover:bg-rose-500 sm:w-auto">🤖 Bolke / Photo se kaam</a>
   <button type="button" id="btn-sales-history" class="w-full rounded-lg bg-indigo-600 px-5 py-3 text-white hover:bg-indigo-700 sm:w-auto">🧾 Sales History</button>
 </div>
 
