@@ -12,25 +12,7 @@ try {
         json_response(['error' => 'Invalid type'], 422);
     }
 
-    $sql = 'SELECT id, name, mobile, address, type FROM parties';
-    $params = [];
-    $where = [];
-    if ($type !== '') {
-        $where[] = 'type = :type';
-        $params['type'] = $type;
-    }
-    if ($q !== '') {
-        $where[] = '(name LIKE :q OR mobile LIKE :q2)';
-        $params['q'] = '%' . $q . '%';
-        $params['q2'] = '%' . $q . '%';
-    }
-    if ($where) {
-        $sql .= ' WHERE ' . implode(' AND ', $where);
-    }
-    $sql .= ' ORDER BY name ASC LIMIT 80';
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
-    json_response(['parties' => $stmt->fetchAll()]);
+    json_response(['parties' => search_parties_fuzzy($pdo, $q, $type, 80)]);
 } catch (Throwable $e) {
     json_response(['error' => $e->getMessage()], 500);
 }

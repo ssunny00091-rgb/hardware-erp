@@ -182,6 +182,166 @@ function find_or_create_party(PDO $pdo, string $type, string $name, string $mobi
     return (int) $pdo->lastInsertId();
 }
 
+function normalize_search_name(string $value): string
+{
+    $value = trim($value);
+    $value = function_exists('mb_strtolower') ? mb_strtolower($value, 'UTF-8') : strtolower($value);
+    $value = preg_replace('/[^\p{L}\p{N}]+/u', ' ', $value) ?? $value;
+    $value = preg_replace('/\s+/u', ' ', $value) ?? $value;
+    return trim($value);
+}
+
+function compact_search_name(string $value): string
+{
+    return str_replace(' ', '', normalize_search_name($value));
+}
+
+function party_match_score(string $query, string $name, string $mobile = ''): int
+{
+    $q = normalize_search_name($query);
+    $n = normalize_search_name($name);
+    if ($q === '' || $n === '') {
+        return 0;
+    }
+    if ($q === $n) {
+        return 1000;
+    }
+    $qc = compact_search_name($query);
+    $nc = compact_search_name($name);
+    if ($qc !== '' && $qc === $nc) {
+        return 960;
+    }
+    if ($qc !== '' && str_contains($nc, $qc)) {
+        return 900;
+    }
+    if ($nc !== '' && str_contains($qc, $nc) && strlen($nc) >= 3) {
+        return 860;
+    }
+
+    $qTokens = array_values(array_filter(explode(' ', $q)));
+    $nTokens = array_values(array_filter(explode(' ', $n)));
+    $tokenHits = 0;
+    foreach ($qTokens as $token) {
+        foreach ($nTokens as $nt) {
+            if ($token === $nt || str_starts_with($nt, $token) || str_starts_with($token, $nt)) {
+                $tokenHits++;
+                continue 2;
+            }
+            $a = substr($token, 0, 255);
+            $b = substr($nt, 0, 255);
+            $allow = max(1, (int) floor(max(strlen($b), strlen($a)) / 3));
+            if (function_exists('levenshtein') && levenshtein($a, $b) <= $allow) {
+                $tokenHits++;
+                continue 2;
+            }
+        }
+    }
+    if ($tokenHits === count($qTokens) && $tokenHits > 0) {
+        return 720 + ($tokenHits * 25);
+    }
+    if ($tokenHits > 0) {
+        return 420 + ($tokenHits * 50);
+    }
+
+    similar_text($qc, $nc, $pct);
+    $pct = (float) $pct;
+    $lev = 99;
+    if (function_exists('levenshtein') && $qc !== '' && $nc !== '') {
+        $lev = levenshtein(substr($qc, 0, 255), substr($nc, 0, 255));
+    }
+    $maxLen = max(strlen($qc), strlen($nc), 1);
+    if ($lev <= 2 || ($lev / $maxLen) <= 0.35) {
+        return max(200, 640 - ($lev * 25));
+    }
+    if ($pct >= 50) {
+        return (int) (180 + $pct);
+    }
+
+    $digits = preg_replace('/\D+/', '', $query) ?? '';
+    $mob = preg_replace('/\D+/', '', $mobile) ?? '';
+    if (strlen($digits) >= 4 && $mob !== '' && str_contains($mob, $digits)) {
+        return 930;
+    }
+
+    return (int) $pct;
+}
+
+function search_parties_fuzzy(PDO $pdo, string $query, string $type = '', int $limit = 12): array
+{
+    $query = trim($query);
+    $type = strtolower(trim($type));
+    $sql = 'SELECT id, name, mobile, address, type FROM parties';
+    $params = [];
+    if ($type !== '' && in_array($type, party_types(), true)) {
+        $sql .= ' WHERE type = :type';
+        $params['type'] = $type;
+    }
+    $sql .= ' ORDER BY name ASC LIMIT 800';
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $rows = $stmt->fetchAll() ?: [];
+    if ($query === '') {
+        return array_slice($rows, 0, $limit);
+    }
+
+    $scored = [];
+    $digits = preg_replace('/\D+/', '', $query) ?? '';
+    foreach ($rows as $row) {
+        $score = party_match_score($query, (string) ($row['name'] ?? ''), (string) ($row['mobile'] ?? ''));
+        if ($digits !== '' && strlen($digits) >= 4) {
+            $mob = preg_replace('/\D+/', '', (string) ($row['mobile'] ?? '')) ?? '';
+            if ($mob !== '' && str_contains($mob, $digits)) {
+                $score = max($score, 930);
+            }
+        }
+        $row['match_score'] = $score;
+        $scored[] = $row;
+    }
+    usort($scored, static fn (array $a, array $b): int => ((int) $b['match_score']) <=> ((int) $a['match_score']));
+
+    $best = (int) ($scored[0]['match_score'] ?? 0);
+    if ($best < 35) {
+        return array_slice($scored, 0, $limit);
+    }
+    $filtered = array_values(array_filter($scored, static fn (array $row): bool => ((int) $row['match_score']) >= 35));
+    if ($filtered === []) {
+        $filtered = $scored;
+    }
+    return array_slice($filtered, 0, $limit);
+}
+
+function load_party_ledger(PDO $pdo, int $partyId): ?array
+{
+    $party = $pdo->prepare('SELECT id, name, mobile, address, type FROM parties WHERE id = :id');
+    $party->execute(['id' => $partyId]);
+    $row = $party->fetch();
+    if (!$row) {
+        return null;
+    }
+    $entries = $pdo->prepare(
+        'SELECT id, entry_date, particulars, ref_no, debit, credit, sale_id, purchase_id
+         FROM ledger_entries
+         WHERE party_id = :id
+         ORDER BY entry_date ASC, id ASC'
+    );
+    $entries->execute(['id' => $partyId]);
+    $list = $entries->fetchAll() ?: [];
+    $balance = 0.0;
+    foreach ($list as &$entry) {
+        $balance += (float) $entry['debit'] - (float) $entry['credit'];
+        $entry['balance'] = $balance;
+        $entry['date'] = format_display_date($entry['entry_date'] ?? '');
+    }
+    unset($entry);
+    return [
+        'party' => $row,
+        'entries' => $list,
+        'debit' => array_sum(array_map(static fn ($e) => (float) $e['debit'], $list)),
+        'credit' => array_sum(array_map(static fn ($e) => (float) $e['credit'], $list)),
+        'balance' => $balance,
+    ];
+}
+
 function add_ledger_entry(
     PDO $pdo,
     int $partyId,

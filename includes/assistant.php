@@ -38,10 +38,17 @@ When the user sends a photo, screenshot, scan, or PDF of a supplier bill / invoi
 4. If line items are unreadable but supplier name + total are visible, still import using total.
 5. If supplier name is readable but items are not, still call add_or_update_party for the supplier.
 
+When user asks for ledger / hisaab / khata / "kitna lena dena":
+1. Call get_ledger with the spoken name even if spelling looks wrong.
+2. Always mention nearby similar names from the tool (match_score / nearby).
+3. If one party is chosen, read dates (dd/mm/yyyy), debit, credit, running balance in ₹.
+4. Do not create a new party just to view ledger.
+
 Voice/text commands you should automate:
 - New sale / bill banana (customer, items, qty, rate, paid/due, date, painter/plumber ref)
 - Product add/update, stock poochna
 - Purchase / supplier bill
+- Ledger dikhana (spelling galat ho to bhi paas ke naam)
 - Ledger receipt/payment
 - Dashboard totals, recent sales/purchases
 
@@ -116,12 +123,27 @@ function assistant_tool_schemas(): array
             'type' => 'function',
             'function' => [
                 'name' => 'search_parties',
-                'description' => 'Find customers, suppliers, painters, plumbers, electricians',
+                'description' => 'Fuzzy search people in ledger. Works with spelling mistakes and returns nearby similar names.',
                 'parameters' => [
                     'type' => 'object',
                     'properties' => [
                         'type' => ['type' => 'string', 'enum' => ['customer', 'supplier', 'painter', 'plumber', 'electrician']],
-                        'q' => ['type' => 'string'],
+                        'q' => ['type' => 'string', 'description' => 'Name or mobile as spoken, even if misspelled'],
+                    ],
+                ],
+            ],
+        ],
+        [
+            'type' => 'function',
+            'function' => [
+                'name' => 'get_ledger',
+                'description' => 'Show one party ledger (entries, debit, credit, balance). Use spoken name with typos; returns nearby matches too.',
+                'parameters' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'party_id' => ['type' => 'integer'],
+                        'name' => ['type' => 'string', 'description' => 'Spoken name, spelling can be wrong'],
+                        'type' => ['type' => 'string', 'enum' => ['customer', 'supplier', 'painter', 'plumber', 'electrician']],
                     ],
                 ],
             ],
@@ -263,6 +285,7 @@ function assistant_run_tool(PDO $pdo, string $name, array $args): array
             'search_products' => assistant_tool_search_products($pdo, $args),
             'save_product' => assistant_tool_save_product($pdo, $args),
             'search_parties' => assistant_tool_search_parties($pdo, $args),
+            'get_ledger' => assistant_tool_get_ledger($pdo, $args),
             'add_or_update_party' => assistant_tool_party($pdo, $args),
             'import_supplier_bill' => assistant_tool_import_bill($pdo, $args),
             'create_sale' => assistant_tool_create_sale($pdo, $args),
@@ -368,26 +391,107 @@ function assistant_tool_save_product(PDO $pdo, array $args): array
 function assistant_tool_search_parties(PDO $pdo, array $args): array
 {
     $type = strtolower(trim((string) ($args['type'] ?? '')));
-    $q = trim((string) ($args['q'] ?? ''));
-    $sql = 'SELECT id, name, mobile, address, type FROM parties';
-    $params = [];
-    $where = [];
-    if ($type !== '' && in_array($type, party_types(), true)) {
-        $where[] = 'type = :type';
-        $params['type'] = $type;
+    $q = trim((string) ($args['q'] ?? $args['name'] ?? ''));
+    $parties = search_parties_fuzzy($pdo, $q, $type, 12);
+    return [
+        'query' => $q,
+        'parties' => $parties,
+        'note' => $parties === []
+            ? 'Koi naam nahi mila'
+            : 'Spelling galat ho to bhi paas ke naam yahan hain. Sabse upar sabse close match hai.',
+    ];
+}
+
+function assistant_pick_party(array $matches): array
+{
+    if ($matches === []) {
+        return ['party' => null, 'confident' => false, 'nearby' => []];
     }
-    if ($q !== '') {
-        $where[] = '(name LIKE :q OR mobile LIKE :q2)';
-        $params['q'] = '%' . $q . '%';
-        $params['q2'] = '%' . $q . '%';
+    $best = $matches[0];
+    $second = (int) ($matches[1]['match_score'] ?? 0);
+    $score = (int) ($best['match_score'] ?? 0);
+    if ($score < 40) {
+        return ['party' => null, 'confident' => false, 'nearby' => $matches];
     }
-    if ($where) {
-        $sql .= ' WHERE ' . implode(' AND ', $where);
+    $confident = $score >= 700 && ($score - $second) >= 40;
+    if (count($matches) === 1 && $score >= 40) {
+        $confident = true;
     }
-    $sql .= ' ORDER BY name ASC LIMIT 40';
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
-    return ['parties' => $stmt->fetchAll()];
+    return [
+        'party' => $best,
+        'confident' => $confident,
+        'nearby' => $matches,
+    ];
+}
+
+function assistant_tool_get_ledger(PDO $pdo, array $args): array
+{
+    $partyId = (int) ($args['party_id'] ?? 0);
+    $type = strtolower(trim((string) ($args['type'] ?? '')));
+    $name = trim((string) ($args['name'] ?? $args['q'] ?? ''));
+    $nearby = [];
+
+    if ($partyId <= 0) {
+        if ($name === '') {
+            return ['error' => 'Naam ya party_id bhejo'];
+        }
+        $nearby = search_parties_fuzzy($pdo, $name, $type, 12);
+        if ($nearby === [] || (int) ($nearby[0]['match_score'] ?? 0) < 50) {
+            $all = search_parties_fuzzy($pdo, $name, '', 12);
+            if ($all !== []) {
+                $nearby = $all;
+            }
+        }
+        $pick = assistant_pick_party($nearby);
+        if (!$pick['party']) {
+            return [
+                'found' => false,
+                'query' => $name,
+                'nearby' => $nearby,
+                'note' => 'Exact naam nahi mila. Spelling ke aaspaas ye log hain — inme se sahi naam bolo.',
+            ];
+        }
+        if (!$pick['confident']) {
+            return [
+                'found' => false,
+                'need_pick' => true,
+                'query' => $name,
+                'nearby' => $nearby,
+                'note' => 'Spelling ke aaspaas ye log mile. Inme se sahi naam batao, phir poora ledger dikhaunga.',
+            ];
+        }
+        $partyId = (int) $pick['party']['id'];
+        $nearby = $pick['nearby'];
+    } else {
+        $partyRow = $pdo->prepare('SELECT name, type FROM parties WHERE id = :id');
+        $partyRow->execute(['id' => $partyId]);
+        $got = $partyRow->fetch();
+        if ($got) {
+            $nearby = search_parties_fuzzy($pdo, (string) $got['name'], (string) $got['type'], 8);
+        }
+    }
+
+    $ledger = load_party_ledger($pdo, $partyId);
+    if (!$ledger) {
+        return ['error' => 'Party not found', 'nearby' => $nearby];
+    }
+    $others = array_values(array_filter(
+        $nearby,
+        static fn (array $row): bool => (int) $row['id'] !== $partyId
+    ));
+    return [
+        'found' => true,
+        'query' => $name,
+        'party' => $ledger['party'],
+        'debit' => $ledger['debit'],
+        'credit' => $ledger['credit'],
+        'balance' => $ledger['balance'],
+        'entries' => $ledger['entries'],
+        'nearby' => array_slice($others, 0, 8),
+        'note' => $others
+            ? 'Yeh ledger open hai. Spelling ke aaspaas aur ye naam bhi hain.'
+            : 'Yeh ledger open hai.',
+    ];
 }
 
 function assistant_tool_party(PDO $pdo, array $args): array
@@ -552,12 +656,23 @@ function assistant_tool_ledger_pay(PDO $pdo, array $args): array
         return ['error' => 'amount required'];
     }
     if ($partyId <= 0) {
-        $type = normalize_party_type((string) ($args['type'] ?? 'customer'));
+        $type = strtolower(trim((string) ($args['type'] ?? '')));
         $name = trim((string) ($args['name'] ?? ''));
         if ($name === '') {
             return ['error' => 'party_id or name required'];
         }
-        $partyId = (int) find_or_create_party($pdo, $type, $name);
+        $matches = search_parties_fuzzy($pdo, $name, $type, 12);
+        if ($matches === [] && $type !== '') {
+            $matches = search_parties_fuzzy($pdo, $name, '', 12);
+        }
+        $pick = assistant_pick_party($matches);
+        if (!$pick['confident'] || !$pick['party']) {
+            return [
+                'error' => 'Sahi naam confirm karo. Naya party nahi banaya.',
+                'nearby' => $matches,
+            ];
+        }
+        $partyId = (int) $pick['party']['id'];
     }
     $party = $pdo->prepare('SELECT * FROM parties WHERE id = :id');
     $party->execute(['id' => $partyId]);
