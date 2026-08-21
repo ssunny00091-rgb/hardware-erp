@@ -132,6 +132,9 @@ $email = (string) ($company['email'] ?? '');
             <div class="section-lbl">Invoice Details</div>
             <div class="meta-line"><span>Invoice No.</span><span><?= $h($sale['invoice_no']) ?></span></div>
             <div class="meta-line"><span>Date</span><span><?= $h($date) ?></span></div>
+            <?php if (!empty($sale['ref_name'])): ?>
+              <div class="meta-line"><span><?= $h(ucfirst((string) ($sale['ref_type'] ?: 'Ref'))) ?></span><span><?= $h($sale['ref_name']) ?></span></div>
+            <?php endif; ?>
           </td>
         </tr>
         <tr>

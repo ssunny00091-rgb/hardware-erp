@@ -57,19 +57,38 @@ try {
         $purchaseDate = date('Y-m-d');
     }
     $grandTotal = array_sum(array_column($valid, 'total'));
+    $paidRaw = $body['paid'] ?? null;
+    $paid = $paidRaw === null || $paidRaw === '' ? 0.0 : (float) $paidRaw;
 
     $pdo->beginTransaction();
 
-    $purchaseStmt = $pdo->prepare(
-        'INSERT INTO purchases (supplier_name, invoice_no, purchase_date, total)
-         VALUES (:supplier_name, :invoice_no, :purchase_date, :total)'
-    );
-    $purchaseStmt->execute([
-        'supplier_name' => $supplier,
-        'invoice_no' => $invoiceNo,
-        'purchase_date' => $purchaseDate,
-        'total' => $grandTotal,
-    ]);
+    $supplierPartyId = $supplier !== '' ? find_or_create_party($pdo, 'supplier', $supplier) : null;
+
+    try {
+        $purchaseStmt = $pdo->prepare(
+            'INSERT INTO purchases (supplier_name, invoice_no, purchase_date, total, paid, supplier_party_id)
+             VALUES (:supplier_name, :invoice_no, :purchase_date, :total, :paid, :supplier_party_id)'
+        );
+        $purchaseStmt->execute([
+            'supplier_name' => $supplier,
+            'invoice_no' => $invoiceNo,
+            'purchase_date' => $purchaseDate,
+            'total' => $grandTotal,
+            'paid' => $paid,
+            'supplier_party_id' => $supplierPartyId,
+        ]);
+    } catch (Throwable $e) {
+        $purchaseStmt = $pdo->prepare(
+            'INSERT INTO purchases (supplier_name, invoice_no, purchase_date, total)
+             VALUES (:supplier_name, :invoice_no, :purchase_date, :total)'
+        );
+        $purchaseStmt->execute([
+            'supplier_name' => $supplier,
+            'invoice_no' => $invoiceNo,
+            'purchase_date' => $purchaseDate,
+            'total' => $grandTotal,
+        ]);
+    }
     $purchaseId = (int) $pdo->lastInsertId();
 
     $itemStmt = $pdo->prepare(
@@ -105,6 +124,7 @@ try {
         }
     }
 
+    post_purchase_ledgers($pdo, $purchaseId, $invoiceNo, $purchaseDate, $grandTotal, $paid, $supplierPartyId);
     $pdo->commit();
     json_response(['ok' => true, 'id' => $purchaseId, 'total' => $grandTotal]);
 } catch (Throwable $e) {

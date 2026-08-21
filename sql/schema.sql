@@ -39,6 +39,10 @@ CREATE TABLE IF NOT EXISTS sales (
   gst VARCHAR(50) DEFAULT '',
   total DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   received DECIMAL(12,2) DEFAULT NULL,
+  ref_type VARCHAR(30) DEFAULT NULL,
+  ref_party_id INT UNSIGNED DEFAULT NULL,
+  ref_name VARCHAR(255) DEFAULT NULL,
+  customer_party_id INT UNSIGNED DEFAULT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uniq_sales_invoice (invoice_no),
   KEY idx_sales_created (created_at),
@@ -67,6 +71,8 @@ CREATE TABLE IF NOT EXISTS purchases (
   invoice_no VARCHAR(100) DEFAULT '',
   purchase_date DATE NOT NULL,
   total DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  paid DECIMAL(12,2) DEFAULT NULL,
+  supplier_party_id INT UNSIGNED DEFAULT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   KEY idx_purchases_date (purchase_date)
 ) ENGINE=InnoDB;
@@ -82,4 +88,31 @@ CREATE TABLE IF NOT EXISTS purchase_items (
   total DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   CONSTRAINT fk_purchase_items_purchase FOREIGN KEY (purchase_id) REFERENCES purchases(id) ON DELETE CASCADE,
   CONSTRAINT fk_purchase_items_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS parties (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  mobile VARCHAR(20) DEFAULT '',
+  address TEXT,
+  type VARCHAR(30) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_parties_type_name (type, name),
+  KEY idx_parties_mobile (mobile)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS ledger_entries (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  party_id INT UNSIGNED NOT NULL,
+  entry_date DATE NOT NULL,
+  particulars VARCHAR(255) NOT NULL,
+  ref_no VARCHAR(50) DEFAULT '',
+  debit DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  credit DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  sale_id INT UNSIGNED NULL,
+  purchase_id INT UNSIGNED NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_ledger_party (party_id),
+  KEY idx_ledger_sale (sale_id),
+  KEY idx_ledger_purchase (purchase_id)
 ) ENGINE=InnoDB;

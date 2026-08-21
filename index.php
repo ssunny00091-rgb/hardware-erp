@@ -35,15 +35,29 @@ require __DIR__ . '/includes/header.php';
 
 <section id="sale-form" class="mt-8 hidden rounded-3xl border border-white/20 bg-white/10 p-8 shadow-2xl backdrop-blur-xl">
   <div class="mb-8 border-b border-white/10 pb-4">
-    <h2 class="text-3xl font-bold">📝 New Sale</h2>
+    <h2 id="sale-form-title" class="text-3xl font-bold">📝 New Sale</h2>
     <p class="mt-2 text-sm text-gray-300">Create a new invoice, add customer details and products.</p>
     <p class="mt-3 text-lg font-semibold text-emerald-300">Invoice No: <span id="next-invoice">—</span></p>
   </div>
 
+  <input type="hidden" id="editing-sale-id" value="">
   <input type="text" id="customer-name" placeholder="Customer Name" class="mb-4 w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none">
   <input type="text" id="customer-mobile" placeholder="Mobile Number" class="mb-4 w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none">
   <input type="text" id="customer-address" placeholder="Address" class="mb-4 w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none">
   <input type="text" id="customer-gst" placeholder="GST Number" class="mb-4 w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none">
+  <div class="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+    <select id="ref-type" class="rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-900">
+      <option value="">Reference: None</option>
+      <option value="painter">Painter</option>
+      <option value="plumber">Plumber</option>
+      <option value="electrician">Electrician</option>
+    </select>
+    <div class="relative md:col-span-1">
+      <input type="text" id="ref-name" placeholder="Painter / Plumber / Electrician name" autocomplete="off" class="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none">
+      <div id="ref-suggest" class="suggest hidden absolute left-0 right-0 z-50 mt-1 max-h-72 overflow-y-auto rounded-lg border bg-white text-gray-900 shadow-xl"></div>
+    </div>
+    <input type="text" id="ref-mobile" placeholder="Their mobile (optional)" class="rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none">
+  </div>
   <input type="number" id="sale-received" placeholder="Received amount (blank = full payment)" class="mb-4 w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none">
 
   <div class="mt-8">
@@ -100,7 +114,7 @@ require __DIR__ . '/includes/header.php';
           <tr class="bg-blue-600 text-white">
             <th class="border p-3">Invoice</th>
             <th class="border p-3">Customer</th>
-            <th class="border p-3">Mobile</th>
+            <th class="border p-3">Reference</th>
             <th class="border p-3">Total</th>
             <th class="border p-3">Date</th>
             <th class="border p-3">Action</th>
@@ -353,6 +367,7 @@ require __DIR__ . '/includes/header.php';
                 <div class="section-lbl">Invoice Details</div>
                 <div class="meta-line"><span>Invoice No.</span><span>${escapeHtml(no)}</span></div>
                 <div class="meta-line"><span>Date</span><span>${invoiceDateLabel()}</span></div>
+                ${customer.ref_type && customer.ref_name ? '<div class="meta-line"><span>' + escapeHtml(customer.ref_type) + '</span><span>' + escapeHtml(customer.ref_name) + '</span></div>' : ""}
               </td>
             </tr>
             <tr>
@@ -406,12 +421,17 @@ require __DIR__ . '/includes/header.php';
   }
 
   document.getElementById("btn-new-sale").addEventListener("click", () => {
+    document.getElementById("editing-sale-id").value = "";
+    document.getElementById("sale-form-title").textContent = "📝 New Sale";
     saleRows = [emptyRow()];
     document.getElementById("customer-name").value = "";
     document.getElementById("customer-mobile").value = "";
     document.getElementById("customer-address").value = "";
     document.getElementById("customer-gst").value = "";
     document.getElementById("sale-received").value = "";
+    document.getElementById("ref-type").value = "";
+    document.getElementById("ref-name").value = "";
+    document.getElementById("ref-mobile").value = "";
     document.getElementById("sale-form").classList.remove("hidden");
     renderRows();
     loadNextInvoice();
@@ -507,8 +527,46 @@ require __DIR__ . '/includes/header.php';
       mobile: document.getElementById("customer-mobile").value,
       address: document.getElementById("customer-address").value,
       gst: document.getElementById("customer-gst").value,
+      ref_type: document.getElementById("ref-type").value,
+      ref_name: document.getElementById("ref-name").value,
+      ref_mobile: document.getElementById("ref-mobile").value,
     };
   }
+
+  async function showRefSuggestions() {
+    const type = document.getElementById("ref-type").value;
+    const box = document.getElementById("ref-suggest");
+    const search = document.getElementById("ref-name").value.trim();
+    if (!type || !search) {
+      box.classList.add("hidden");
+      return;
+    }
+    const data = await api("/api/parties.php?type=" + encodeURIComponent(type) + "&q=" + encodeURIComponent(search));
+    const parties = data.parties || [];
+    if (!parties.length) {
+      box.classList.add("hidden");
+      return;
+    }
+    box.innerHTML = parties.map((p) => `
+      <div class="cursor-pointer border-b p-3 hover:bg-blue-100" data-ref-pick="${p.id}" data-name="${escapeHtml(p.name)}" data-mobile="${escapeHtml(p.mobile || "")}">
+        <div class="font-medium">${escapeHtml(p.name)}</div>
+        <div class="text-sm text-gray-500">${escapeHtml(p.mobile || "")}</div>
+      </div>
+    `).join("");
+    box.classList.remove("hidden");
+    setSuggestActive(box, 0);
+  }
+
+  document.getElementById("ref-name").addEventListener("input", () => {
+    showRefSuggestions().catch(() => {});
+  });
+  document.getElementById("ref-suggest").addEventListener("click", (e) => {
+    const pick = e.target.closest("[data-ref-pick]");
+    if (!pick) return;
+    document.getElementById("ref-name").value = pick.dataset.name || "";
+    document.getElementById("ref-mobile").value = pick.dataset.mobile || "";
+    document.getElementById("ref-suggest").classList.add("hidden");
+  });
 
   document.getElementById("btn-preview").addEventListener("click", () => {
     const products = validProducts();
@@ -537,18 +595,25 @@ require __DIR__ . '/includes/header.php';
       const customer = currentCustomer();
       const products = validProducts();
       const receivedRaw = document.getElementById("sale-received").value;
-      const result = await api("/api/sales.php", {
-        method: "POST",
-        body: JSON.stringify({
-          customer_name: customer.name,
-          mobile: customer.mobile,
-          address: customer.address,
-          gst: customer.gst,
-          products,
-          received: receivedRaw === "" ? null : Number(receivedRaw),
-        }),
+      const editId = document.getElementById("editing-sale-id").value;
+      const payload = {
+        customer_name: customer.name,
+        mobile: customer.mobile,
+        address: customer.address,
+        gst: customer.gst,
+        ref_type: customer.ref_type,
+        ref_name: customer.ref_name,
+        ref_mobile: customer.ref_mobile,
+        products,
+        received: receivedRaw === "" ? null : Number(receivedRaw),
+      };
+      if (editId) payload.id = Number(editId);
+      const result = await api("/api/sales.php" + (editId ? "?id=" + editId : ""), {
+        method: editId ? "PUT" : "POST",
+        body: JSON.stringify(payload),
       });
-      alert("✅ Sale Saved Successfully\\nInvoice: " + result.invoice_no);
+      alert((editId ? "✅ Sale Updated\\nInvoice: " : "✅ Sale Saved Successfully\\nInvoice: ") + result.invoice_no);
+      document.getElementById("editing-sale-id").value = "";
       document.getElementById("preview-modal").classList.add("hidden");
       document.getElementById("preview-modal").classList.remove("flex");
       window.open(appUrl("invoice.php?id=" + result.id), "_blank");
@@ -562,21 +627,25 @@ require __DIR__ . '/includes/header.php';
 
   document.getElementById("btn-sales-history").addEventListener("click", async () => {
     const data = await api("/api/sales.php");
-    document.getElementById("sales-history-body").innerHTML = (data.sales || []).map((sale) => `
+    document.getElementById("sales-history-body").innerHTML = (data.sales || []).map((sale) => {
+      const ref = sale.ref_name ? (sale.ref_type || "ref") + ": " + sale.ref_name : "—";
+      return `
       <tr>
         <td class="border p-3">${sale.invoice_no}</td>
         <td class="border p-3">${sale.customer_name || ""}</td>
-        <td class="border p-3">${sale.mobile || ""}</td>
+        <td class="border p-3">${ref}</td>
         <td class="border p-3">₹${formatMoney(sale.total)}</td>
         <td class="border p-3">${new Date(sale.created_at).toLocaleDateString("en-IN")}</td>
         <td class="border p-3">
           <div class="flex justify-center gap-2">
             <a href="${appUrl("invoice.php?id=" + sale.id)}" target="_blank" class="rounded bg-blue-600 px-3 py-1 text-white">👁</a>
+            <button type="button" data-sale-edit="${sale.id}" class="rounded bg-amber-500 px-3 py-1 text-white">✏️</button>
             <button type="button" data-sale-delete="${sale.id}" class="rounded bg-red-600 px-3 py-1 text-white">🗑</button>
           </div>
         </td>
       </tr>
-    `).join("");
+    `;
+    }).join("");
     document.getElementById("history-modal").classList.remove("hidden");
     document.getElementById("history-modal").classList.add("flex");
   });
@@ -587,6 +656,40 @@ require __DIR__ . '/includes/header.php';
   });
 
   document.getElementById("sales-history-body").addEventListener("click", async (e) => {
+    const editBtn = e.target.closest("[data-sale-edit]");
+    if (editBtn) {
+      const data = await api("/api/sales.php?id=" + editBtn.dataset.saleEdit);
+      const sale = data.sale;
+      document.getElementById("editing-sale-id").value = sale.id;
+      document.getElementById("sale-form-title").textContent = "✏️ Edit Sale";
+      document.getElementById("next-invoice").textContent = sale.invoice_no;
+      document.getElementById("customer-name").value = sale.customer_name || "";
+      document.getElementById("customer-mobile").value = sale.mobile || "";
+      document.getElementById("customer-address").value = sale.address || "";
+      document.getElementById("customer-gst").value = sale.gst || "";
+      document.getElementById("ref-type").value = sale.ref_type || "";
+      document.getElementById("ref-name").value = sale.ref_name || "";
+      document.getElementById("ref-mobile").value = "";
+      document.getElementById("sale-received").value = sale.received ?? "";
+      saleRows = (sale.products || []).length
+        ? sale.products.map((row) => ({
+            name: row.name || "",
+            color: row.color || "",
+            color_hex: row.color_hex || "#ffffff",
+            hsn: row.hsn || "",
+            qty: row.qty,
+            unit: row.unit || "Piece",
+            price: row.price,
+            product_id: row.product_id || null,
+          }))
+        : [emptyRow()];
+      renderRows();
+      document.getElementById("sale-form").classList.remove("hidden");
+      document.getElementById("history-modal").classList.add("hidden");
+      document.getElementById("history-modal").classList.remove("flex");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
     const btn = e.target.closest("[data-sale-delete]");
     if (!btn) return;
     if (!confirm("Delete this sale?")) return;

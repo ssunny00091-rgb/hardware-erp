@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/bootstrap.php';
 require_once dirname(__DIR__) . '/includes/invoice.php';
+require_once dirname(__DIR__) . '/includes/commerce.php';
 
 function db(): PDO
 {
@@ -55,6 +56,8 @@ function db(): PDO
     } catch (Throwable $e) {
         // Column already exists.
     }
+
+    ensure_commerce_schema($pdo);
 
     return $pdo;
 }

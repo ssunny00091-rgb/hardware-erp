@@ -11,10 +11,11 @@ require __DIR__ . '/includes/header.php';
 
 <div class="mb-8 rounded-2xl border border-white/20 bg-white/10 p-6 backdrop-blur-xl">
   <h2 class="mb-6 text-2xl font-bold">🛒 Purchase Details</h2>
-  <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+  <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
     <input type="text" id="supplier-name" placeholder="Supplier Name" class="rounded-xl border border-gray-300 bg-white p-3 text-gray-900">
     <input type="text" id="invoice-no" placeholder="Invoice Number" class="rounded-xl border border-gray-300 bg-white p-3 text-gray-900">
     <input type="date" id="purchase-date" class="rounded-xl border border-gray-300 bg-white p-3 text-gray-900" value="<?= htmlspecialchars(date('Y-m-d'), ENT_QUOTES, 'UTF-8') ?>">
+    <input type="number" id="purchase-paid" placeholder="Paid now (optional)" class="rounded-xl border border-gray-300 bg-white p-3 text-gray-900">
   </div>
 </div>
 
@@ -147,6 +148,7 @@ require __DIR__ . '/includes/header.php';
           supplier_name: document.getElementById("supplier-name").value,
           invoice_no: document.getElementById("invoice-no").value,
           purchase_date: document.getElementById("purchase-date").value,
+          paid: document.getElementById("purchase-paid").value,
           products: purchaseRows,
         }),
       });
