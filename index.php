@@ -271,48 +271,73 @@ require __DIR__ . '/includes/header.php';
   }
 
   function invoiceSheetHtml(customer, products, grandTotal) {
-    const lines = products.length
+    const rows = products.length
       ? products.map((p, i) => {
           const colorText = String(p.color || "").trim();
           const hex = String(p.color_hex || "").trim();
           const hasColor = colorText || (hex && hex.toLowerCase() !== "#ffffff");
-          const swatch = hasColor && hex
-            ? "<span style=\"display:inline-block;width:12px;height:12px;border:1px solid #000;background:" + hex + ";vertical-align:middle;margin-right:4px;\"></span>"
-            : "";
-          const colorPart = hasColor
-            ? " | Colour: " + swatch + (colorText || hex)
-            : "";
+          const colorCell = hasColor
+            ? (hex ? "<span class=\"swatch\" style=\"background:" + hex + "\"></span>" : "") +
+              (colorText || hex).replace(/</g, "&lt;")
+            : "—";
           return (
-          "<p style=\"margin:0;padding:6px 0;border-bottom:1px solid #000;\">" +
-          (i + 1) + ") " +
-          String(p.name || "").replace(/</g, "&lt;") +
-          colorPart +
-          " | Qty: " + p.qty + " " + (p.unit || "Piece") +
-          " | Rate: Rs. " + formatMoney(p.price) +
-          " | Amount: Rs. " + formatMoney(rowTotal(p)) +
-          "</p>"
+            "<tr>" +
+            "<td class=\"center\">" + (i + 1) + "</td>" +
+            "<td>" + String(p.name || "").replace(/</g, "&lt;") + "</td>" +
+            "<td>" + colorCell + "</td>" +
+            "<td class=\"center\">" + p.qty + "</td>" +
+            "<td class=\"center\">" + (p.unit || "Piece") + "</td>" +
+            "<td class=\"num\">Rs. " + formatMoney(p.price) + "</td>" +
+            "<td class=\"num\">Rs. " + formatMoney(rowTotal(p)) + "</td>" +
+            "</tr>"
           );
         }).join("")
-      : "<p>No products</p>";
+      : "<tr><td colspan=\"7\">No products</td></tr>";
+
     return `
-      <div style="font-family:Arial,Helvetica,sans-serif;color:#000;">
-        <div style="text-align:center;border-bottom:2px solid #000;padding-bottom:8px;">
-          <div style="font-size:20px;font-weight:bold;">SATYANARAYAN HARDWARE STORES</div>
-          <div>Main Road, Jayanagar, PIN - 847226</div>
-          <div>Second Branch - Near Anumandal Hospital, Jayanagar</div>
-          <div>Phone: 9431875263, 9831046765</div>
-          <div>GSTIN: 10ADTPN8807A1ZP</div>
+      <article class="invoice">
+        <header class="invoice-hero">
+          <div class="badge">Tax Invoice</div>
+          <h1>SATYANARAYAN HARDWARE STORES</h1>
+          <p>Main Road, Jayanagar, PIN - 847226</p>
+          <p>Second Branch - Near Anumandal Hospital, Jayanagar</p>
+          <p>Phone: 9431875263, 9831046765 &nbsp;|&nbsp; GSTIN: 10ADTPN8807A1ZP</p>
+        </header>
+        <div class="invoice-body">
+          <div class="meta-grid">
+            <div class="meta-card">
+              <h3>Bill To</h3>
+              <p><strong>${(customer.name || "Walk-in Customer").replace(/</g, "&lt;")}</strong></p>
+              <p>Mobile: ${(customer.mobile || "").replace(/</g, "&lt;")}</p>
+            </div>
+            <div class="meta-card">
+              <h3>Invoice</h3>
+              <p>Date: ${new Date().toLocaleDateString("en-IN")}</p>
+            </div>
+          </div>
+          <table class="items">
+            <thead>
+              <tr>
+                <th class="center">#</th>
+                <th>Product</th>
+                <th>Colour / Shade</th>
+                <th class="center">Qty</th>
+                <th class="center">Unit</th>
+                <th class="num">Rate</th>
+                <th class="num">Amount</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <div class="totals">
+            <div class="totals-box">
+              <span>Grand Total</span>
+              <span>Rs. ${formatMoney(grandTotal)}</span>
+            </div>
+          </div>
+          <p class="thanks">Thank you for your business. Visit again.</p>
         </div>
-        <p>
-          <strong>Date:</strong> ${new Date().toLocaleDateString("en-IN")}<br>
-          <strong>Customer:</strong> ${customer.name || ""}<br>
-          <strong>Mobile:</strong> ${customer.mobile || ""}
-        </p>
-        <p style="font-weight:bold;">Products</p>
-        ${lines}
-        <p style="font-size:18px;font-weight:bold;">Grand Total: Rs. ${formatMoney(grandTotal)}</p>
-        <p style="text-align:center;">Thank You! Visit Again.</p>
-      </div>
+      </article>
     `;
   }
 

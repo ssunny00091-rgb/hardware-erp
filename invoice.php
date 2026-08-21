@@ -25,9 +25,7 @@ if (!$sale) {
     exit;
 }
 
-$itemStmt = $pdo->prepare(
-    'SELECT * FROM sale_items WHERE sale_id = :id ORDER BY id ASC'
-);
+$itemStmt = $pdo->prepare('SELECT * FROM sale_items WHERE sale_id = :id ORDER BY id ASC');
 $itemStmt->execute(['id' => $id]);
 $items = $itemStmt->fetchAll();
 
@@ -58,65 +56,98 @@ $h = static function ($value): string {
 <head>
   <meta charset="UTF-8">
   <title><?= $h($sale['invoice_no']) ?></title>
+  <link rel="stylesheet" href="<?= $h(app_url('assets/css/invoice-print.css')) ?>">
 </head>
-<body style="margin:0;padding:12px;font-family:Arial,Helvetica,sans-serif;color:#000;background:#fff;font-size:14px;">
-  <div style="margin-bottom:12px;">
-    <button type="button" onclick="window.print()">Print</button>
+<body>
+  <div class="no-print">
+    <button type="button" onclick="window.print()">Print / Save PDF</button>
     <a href="<?= $h(app_url('index.php')) ?>">Back</a>
   </div>
 
-  <div style="text-align:center;border-bottom:2px solid #000;padding-bottom:8px;">
-    <div style="font-size:20px;font-weight:bold;"><?= $h($company['name']) ?></div>
-    <div><?= $h($company['address_line1']) ?></div>
-    <div><?= $h($company['address_line2']) ?></div>
-    <div>Phone: <?= $h($company['mobile']) ?></div>
-    <div>GSTIN: <?= $h($company['gst']) ?></div>
-  </div>
+  <article class="invoice">
+    <header class="invoice-hero">
+      <div class="badge">Tax Invoice</div>
+      <h1><?= $h($company['name']) ?></h1>
+      <p><?= $h($company['address_line1']) ?></p>
+      <p><?= $h($company['address_line2']) ?></p>
+      <p>Phone: <?= $h($company['mobile']) ?> &nbsp;|&nbsp; GSTIN: <?= $h($company['gst']) ?></p>
+    </header>
 
-  <p>
-    <strong>Invoice No:</strong> <?= $h($sale['invoice_no']) ?><br>
-    <strong>Date:</strong> <?= $h($date) ?><br>
-    <strong>Customer:</strong> <?= $h($sale['customer_name']) ?><br>
-    <strong>Mobile:</strong> <?= $h($sale['mobile']) ?>
-  </p>
-
-  <p style="font-weight:bold;margin-bottom:4px;">Products</p>
-  <?php if (!$items): ?>
-    <p>No products saved on this invoice.</p>
-  <?php else: ?>
-    <?php foreach ($items as $i => $item): ?>
-      <?php
-        $colorLabel = trim((string) ($item['color_code'] ?? $item['color'] ?? ''));
-        $colorHex = trim((string) ($item['color_hex'] ?? ''));
-        $showColor = $colorLabel !== '' || ($colorHex !== '' && strcasecmp($colorHex, '#ffffff') !== 0);
-      ?>
-      <p style="margin:0;padding:6px 0;border-bottom:1px solid #000;">
-        <?= $i + 1 ?>)
-        <?= $h($item['product_name']) ?>
-        <?php if ($showColor): ?>
-          &nbsp;|&nbsp; Colour:
-          <?php if ($colorHex !== ''): ?>
-            <span style="display:inline-block;width:12px;height:12px;border:1px solid #000;background:<?= $h($colorHex) ?>;vertical-align:middle;"></span>
+    <div class="invoice-body">
+      <div class="meta-grid">
+        <div class="meta-card">
+          <h3>Bill To</h3>
+          <p><strong><?= $h($sale['customer_name'] !== '' ? $sale['customer_name'] : 'Walk-in Customer') ?></strong></p>
+          <p>Mobile: <?= $h($sale['mobile']) ?></p>
+          <?php if (!empty($sale['address'])): ?>
+            <p><?= $h($sale['address']) ?></p>
           <?php endif; ?>
-          <?= $h($colorLabel !== '' ? $colorLabel : $colorHex) ?>
-        <?php endif; ?>
-        &nbsp;|&nbsp; Qty: <?= $h($item['qty']) ?> <?= $h($item['unit']) ?>
-        &nbsp;|&nbsp; Rate: Rs. <?= money($item['price']) ?>
-        &nbsp;|&nbsp; Amount: Rs. <?= money($item['total']) ?>
-      </p>
-    <?php endforeach; ?>
-  <?php endif; ?>
+          <?php if (!empty($sale['gst'])): ?>
+            <p>GST: <?= $h($sale['gst']) ?></p>
+          <?php endif; ?>
+        </div>
+        <div class="meta-card">
+          <h3>Invoice</h3>
+          <p><strong><?= $h($sale['invoice_no']) ?></strong></p>
+          <p>Date: <?= $h($date) ?></p>
+        </div>
+      </div>
 
-  <p style="font-size:18px;font-weight:bold;margin-top:12px;">
-    Grand Total: Rs. <?= money($sale['total']) ?>
-  </p>
-  <p style="text-align:center;">Thank You! Visit Again.</p>
+      <table class="items">
+        <thead>
+          <tr>
+            <th class="center" style="width:36px">#</th>
+            <th>Product</th>
+            <th>Colour / Shade</th>
+            <th class="center">Qty</th>
+            <th class="center">Unit</th>
+            <th class="num">Rate</th>
+            <th class="num">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php if (!$items): ?>
+            <tr>
+              <td colspan="7">No products on this invoice.</td>
+            </tr>
+          <?php else: ?>
+            <?php foreach ($items as $i => $item): ?>
+              <?php
+                $colorLabel = trim((string) ($item['color_code'] ?? $item['color'] ?? ''));
+                $colorHex = trim((string) ($item['color_hex'] ?? ''));
+                $showColor = $colorLabel !== '' || ($colorHex !== '' && strcasecmp($colorHex, '#ffffff') !== 0);
+              ?>
+              <tr>
+                <td class="center"><?= $i + 1 ?></td>
+                <td><?= $h($item['product_name']) ?></td>
+                <td>
+                  <?php if ($showColor): ?>
+                    <?php if ($colorHex !== ''): ?>
+                      <span class="swatch" style="background:<?= $h($colorHex) ?>"></span>
+                    <?php endif; ?>
+                    <?= $h($colorLabel !== '' ? $colorLabel : $colorHex) ?>
+                  <?php else: ?>
+                    —
+                  <?php endif; ?>
+                </td>
+                <td class="center"><?= $h($item['qty']) ?></td>
+                <td class="center"><?= $h($item['unit']) ?></td>
+                <td class="num">Rs. <?= money($item['price']) ?></td>
+                <td class="num">Rs. <?= money($item['total']) ?></td>
+              </tr>
+            <?php endforeach; ?>
+          <?php endif; ?>
+        </tbody>
+      </table>
 
-  <style>
-    @media print {
-      button, a { display: none !important; }
-      body { padding: 0 !important; }
-    }
-  </style>
+      <div class="totals">
+        <div class="totals-box">
+          <span>Grand Total</span>
+          <span>Rs. <?= money($sale['total']) ?></span>
+        </div>
+      </div>
+      <p class="thanks">Thank you for your business. Visit again.</p>
+    </div>
+  </article>
 </body>
 </html>

@@ -70,21 +70,21 @@ function unitOptions(selected) {
 }
 
 function printInvoiceSheet(html) {
-  const win = window.open("", "invoicePrint", "width=900,height=700");
+  const win = window.open("", "invoicePrint", "width=920,height=740");
   if (!win) {
     alert("Pop-up block ho gaya. Browser mein pop-up allow karo.");
     return;
   }
+  const cssHref = window.location.origin + appUrl("assets/css/invoice-print.css");
   win.document.open();
   win.document.write(
-    "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>Invoice</title></head>" +
-      "<body style=\"margin:12px;font-family:Arial,Helvetica,sans-serif;color:#000;background:#fff;\">" +
-      html +
-      "</body></html>"
+    "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>Invoice</title>" +
+      "<link rel=\"stylesheet\" href=\"" + cssHref + "\">" +
+      "</head><body>" + html + "</body></html>"
   );
   win.document.close();
   win.focus();
   setTimeout(() => {
     win.print();
-  }, 250);
+  }, 400);
 }
