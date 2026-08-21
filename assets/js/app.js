@@ -93,38 +93,75 @@ function formatQty(value) {
   return String(amount).replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
 }
 
-function invoiceDateLabel(date) {
-  const raw = date || (document.getElementById("sale-date") && document.getElementById("sale-date").value) || todayIsoDate();
-  let d;
-  if (/^\d{4}-\d{2}-\d{2}/.test(String(raw))) {
-    const parts = String(raw).slice(0, 10).split("-").map(Number);
-    d = new Date(parts[0], parts[1] - 1, parts[2]);
-  } else {
-    d = new Date(raw);
-  }
-  if (Number.isNaN(d.getTime())) {
-    d = new Date();
-  }
-  const dd = String(d.getDate()).padStart(2, "0");
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const yyyy = d.getFullYear();
-  return dd + "-" + mm + "-" + yyyy;
-}
-
 function todayIsoDate() {
   const d = new Date();
   return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
 }
 
-function isoDateFromValue(value) {
-  if (!value) return todayIsoDate();
-  const s = String(value);
+function parseToIsoDate(value) {
+  const s = String(value || "").trim();
+  if (!s) return todayIsoDate();
   if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
     return s.slice(0, 10);
+  }
+  const m = s.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})$/);
+  if (m) {
+    let day = Number(m[1]);
+    let month = Number(m[2]);
+    let year = Number(m[3]);
+    if (year < 100) year += 2000;
+    const dt = new Date(year, month - 1, day);
+    if (dt.getFullYear() === year && dt.getMonth() === month - 1 && dt.getDate() === day) {
+      return year + "-" + String(month).padStart(2, "0") + "-" + String(day).padStart(2, "0");
+    }
   }
   const d = new Date(s);
   if (Number.isNaN(d.getTime())) return todayIsoDate();
   return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+
+function formatDisplayDate(value) {
+  const iso = parseToIsoDate(value);
+  const parts = iso.split("-");
+  return parts[2] + "/" + parts[1] + "/" + parts[0];
+}
+
+function invoiceDateLabel(date) {
+  const raw = date || (document.getElementById("sale-date") && document.getElementById("sale-date").value) || todayIsoDate();
+  return formatDisplayDate(raw);
+}
+
+function isoDateFromValue(value) {
+  return parseToIsoDate(value);
+}
+
+function saleDateIso() {
+  const el = document.getElementById("sale-date");
+  return parseToIsoDate(el ? el.value : todayIsoDate());
+}
+
+function setDateField(textId, pickerId, value) {
+  const text = document.getElementById(textId);
+  const picker = document.getElementById(pickerId);
+  const iso = parseToIsoDate(value);
+  if (text) text.value = formatDisplayDate(iso);
+  if (picker) picker.value = iso;
+}
+
+function bindDateField(textId, pickerId) {
+  const text = document.getElementById(textId);
+  const picker = document.getElementById(pickerId);
+  if (!text) return;
+  if (picker) {
+    picker.addEventListener("change", () => {
+      if (picker.value) text.value = formatDisplayDate(picker.value);
+    });
+  }
+  text.addEventListener("blur", () => {
+    const iso = parseToIsoDate(text.value);
+    text.value = formatDisplayDate(iso);
+    if (picker) picker.value = iso;
+  });
 }
 
 const PAINT_SHADES = [

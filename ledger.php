@@ -51,7 +51,10 @@ $types = [
     </div>
     <p id="ledger-party-meta" class="mb-4 text-gray-600"></p>
     <div class="mb-4 flex flex-wrap gap-2">
-      <input type="date" id="pay-date" class="rounded-lg border p-2" value="<?= htmlspecialchars(date('Y-m-d'), ENT_QUOTES, 'UTF-8') ?>">
+      <span class="date-field">
+        <input type="text" id="pay-date" inputmode="numeric" placeholder="dd/mm/yyyy" maxlength="10" autocomplete="off" class="rounded-lg border p-2">
+        <input type="date" id="pay-date-picker" title="Calendar" aria-label="Calendar">
+      </span>
       <input type="number" id="pay-amount" placeholder="Amount" class="rounded-lg border p-2">
       <input type="text" id="pay-notes" placeholder="Receipt / Payment note" class="min-w-[200px] flex-1 rounded-lg border p-2">
       <button type="button" id="btn-add-payment" class="rounded-lg bg-green-600 px-4 py-2 text-white">Add Receipt / Payment</button>
@@ -111,7 +114,7 @@ $types = [
       "  |  Balance ₹" + formatMoney(data.balance);
     document.getElementById("ledger-entries").innerHTML = (data.entries || []).map((row) => `
       <tr>
-        <td class="border p-2">${row.entry_date}</td>
+        <td class="border p-2">${invoiceDateLabel(row.entry_date)}</td>
         <td class="border p-2">${escapeHtml(row.particulars)}</td>
         <td class="border p-2">${escapeHtml(row.ref_no || "")}${row.sale_id ? ' <a class="text-blue-600" href="' + appUrl("invoice.php?id=" + row.sale_id) + '" target="_blank">sale</a>' : ""}${row.purchase_id ? ' <a class="text-blue-600" href="' + appUrl("purchase-bill.php?id=" + row.purchase_id) + '" target="_blank">bill</a>' : ""}</td>
         <td class="border p-2 text-right">${Number(row.debit) ? formatMoney(row.debit) : ""}</td>
@@ -184,7 +187,7 @@ $types = [
           party_id: currentPartyId,
           amount: document.getElementById("pay-amount").value,
           notes: document.getElementById("pay-notes").value,
-          entry_date: document.getElementById("pay-date").value,
+          entry_date: parseToIsoDate(document.getElementById("pay-date").value),
         }),
       });
       document.getElementById("pay-amount").value = "";
@@ -196,6 +199,8 @@ $types = [
     }
   });
 
+  bindDateField("pay-date", "pay-date-picker");
+  setDateField("pay-date", "pay-date-picker", todayIsoDate());
   loadList().catch((err) => alert(err.message));
 </script>
 

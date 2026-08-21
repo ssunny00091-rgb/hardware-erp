@@ -62,10 +62,7 @@ try {
         $partyId = (int) ($body['party_id'] ?? 0);
         $amount = (float) ($body['amount'] ?? 0);
         $notes = trim((string) ($body['notes'] ?? ''));
-        $date = trim((string) ($body['entry_date'] ?? date('Y-m-d')));
-        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-            $date = date('Y-m-d');
-        }
+        $date = parse_sale_date($body['entry_date'] ?? '');
         if ($partyId <= 0 || $amount <= 0) {
             json_response(['error' => 'Party and amount required'], 422);
         }

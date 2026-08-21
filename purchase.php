@@ -14,7 +14,10 @@ require __DIR__ . '/includes/header.php';
   <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
     <input type="text" id="supplier-name" placeholder="Supplier Name" class="rounded-xl border border-gray-300 bg-white p-3 text-gray-900">
     <input type="text" id="invoice-no" placeholder="Invoice Number" class="rounded-xl border border-gray-300 bg-white p-3 text-gray-900">
-    <input type="date" id="purchase-date" class="rounded-xl border border-gray-300 bg-white p-3 text-gray-900" value="<?= htmlspecialchars(date('Y-m-d'), ENT_QUOTES, 'UTF-8') ?>">
+    <span class="date-field">
+      <input type="text" id="purchase-date" inputmode="numeric" placeholder="dd/mm/yyyy" maxlength="10" autocomplete="off" class="rounded-xl border border-gray-300 bg-white p-3 text-gray-900">
+      <input type="date" id="purchase-date-picker" title="Calendar" aria-label="Calendar">
+    </span>
     <input type="number" id="purchase-paid" placeholder="Paid now (optional)" class="rounded-xl border border-gray-300 bg-white p-3 text-gray-900">
   </div>
 </div>
@@ -177,7 +180,7 @@ require __DIR__ . '/includes/header.php';
         body: JSON.stringify({
           supplier_name: document.getElementById("supplier-name").value,
           invoice_no: document.getElementById("invoice-no").value,
-          purchase_date: document.getElementById("purchase-date").value,
+          purchase_date: parseToIsoDate(document.getElementById("purchase-date").value),
           paid: document.getElementById("purchase-paid").value,
           products: purchaseRows,
         }),
@@ -203,7 +206,7 @@ require __DIR__ . '/includes/header.php';
       const due = Math.max(0, total - paid);
       return `
         <tr class="border-t border-white/10">
-          <td class="p-3">${row.purchase_date || ""}</td>
+          <td class="p-3">${row.purchase_date ? invoiceDateLabel(row.purchase_date) : ""}</td>
           <td class="p-3">${escapeHtml(row.supplier_name || "")}</td>
           <td class="p-3">${escapeHtml(row.invoice_no || ("#" + row.id))}</td>
           <td class="p-3 text-right">₹${formatMoney(total)}</td>
@@ -216,6 +219,8 @@ require __DIR__ . '/includes/header.php';
       `;
     }).join("") || `<tr><td class="p-4" colspan="7">Abhi koi supplier bill nahi.</td></tr>`;
   }
+  bindDateField("purchase-date", "purchase-date-picker");
+  setDateField("purchase-date", "purchase-date-picker", todayIsoDate());
   loadPurchaseHistory().catch(() => {});
 </script>
 

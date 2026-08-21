@@ -209,6 +209,27 @@ textarea::placeholder {
   }
 }
 
+.date-field {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.date-field input[type="text"] {
+  flex: 1;
+  min-width: 0;
+}
+
+.date-field input[type="date"] {
+  width: 2.85rem;
+  flex: 0 0 2.85rem;
+  padding: 0.35rem 0.1rem;
+  cursor: pointer;
+  border-radius: 0.75rem;
+  border: 1px solid #d1d5db;
+  background: #fff;
+}
+
 @media (min-width: 768px) {
   .sale-line {
     display: grid;

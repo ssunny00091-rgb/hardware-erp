@@ -39,8 +39,11 @@ require __DIR__ . '/includes/header.php';
     <p class="mt-2 text-sm text-gray-300">Create a new invoice, add customer details and products.</p>
     <p class="mt-3 text-lg font-semibold text-emerald-300">Invoice No: <span id="next-invoice">—</span></p>
     <label class="mt-3 block max-w-xs text-sm font-medium text-gray-200">
-      Bill Date
-      <input type="date" id="sale-date" class="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-base text-gray-900">
+      Bill Date (dd/mm/yyyy)
+      <span class="date-field mt-1">
+        <input type="text" id="sale-date" inputmode="numeric" placeholder="dd/mm/yyyy" maxlength="10" autocomplete="off" class="rounded-xl border border-gray-300 bg-white px-3 py-2 text-base text-gray-900">
+        <input type="date" id="sale-date-picker" title="Calendar" aria-label="Calendar">
+      </span>
     </label>
   </div>
 
@@ -492,7 +495,7 @@ require __DIR__ . '/includes/header.php';
     document.getElementById("ref-type").value = "";
     document.getElementById("ref-name").value = "";
     document.getElementById("ref-mobile").value = "";
-    document.getElementById("sale-date").value = todayIsoDate();
+    setDateField("sale-date", "sale-date-picker", todayIsoDate());
     document.getElementById("sale-form").classList.remove("hidden");
     renderRows();
     loadNextInvoice();
@@ -671,7 +674,7 @@ require __DIR__ . '/includes/header.php';
         ref_mobile: customer.ref_mobile,
         products,
         received: saleReceivedAmount(),
-        sale_date: document.getElementById("sale-date").value || todayIsoDate(),
+        sale_date: saleDateIso(),
       };
       if (editId) payload.id = Number(editId);
       const result = await api("/api/sales.php" + (editId ? "?id=" + editId : ""), {
@@ -736,7 +739,7 @@ require __DIR__ . '/includes/header.php';
       document.getElementById("ref-type").value = sale.ref_type || "";
       document.getElementById("ref-name").value = sale.ref_name || "";
       document.getElementById("ref-mobile").value = "";
-      document.getElementById("sale-date").value = isoDateFromValue(sale.sale_date || sale.created_at);
+      setDateField("sale-date", "sale-date-picker", sale.sale_date || sale.created_at);
       const rec = sale.received == null || sale.received === "" ? Number(sale.total) : Number(sale.received);
       const tot = Number(sale.total) || 0;
       if (rec <= 0) {
@@ -775,6 +778,9 @@ require __DIR__ . '/includes/header.php';
     btn.closest("tr").remove();
     loadDashboard();
   });
+
+  bindDateField("sale-date", "sale-date-picker");
+  setDateField("sale-date", "sale-date-picker", todayIsoDate());
 
   loadDashboard().catch((err) => {
     const go = confirm("MySQL connect nahi hua: " + err.message + "\n\nSetup wizard (install.php) kholun?");

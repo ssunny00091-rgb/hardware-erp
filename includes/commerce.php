@@ -96,12 +96,27 @@ function parse_sale_date(mixed $raw): string
     if ($raw === '') {
         return date('Y-m-d');
     }
-    $dt = DateTime::createFromFormat('Y-m-d', substr($raw, 0, 10));
-    if ($dt instanceof DateTime && $dt->format('Y-m-d') === substr($raw, 0, 10)) {
+    $iso = substr($raw, 0, 10);
+    $dt = DateTime::createFromFormat('Y-m-d', $iso);
+    if ($dt instanceof DateTime && $dt->format('Y-m-d') === $iso) {
         return $dt->format('Y-m-d');
+    }
+    foreach (['d/m/Y', 'd-m-Y', 'd.m.Y'] as $fmt) {
+        $parsed = DateTime::createFromFormat('!' . $fmt, $raw);
+        if ($parsed instanceof DateTime) {
+            $errors = DateTime::getLastErrors();
+            if ($errors === false || (((int) ($errors['warning_count'] ?? 0) === 0) && ((int) ($errors['error_count'] ?? 0) === 0))) {
+                return $parsed->format('Y-m-d');
+            }
+        }
     }
     $ts = strtotime($raw);
     return $ts === false ? date('Y-m-d') : date('Y-m-d', $ts);
+}
+
+function format_display_date(mixed $raw): string
+{
+    return date('d/m/Y', strtotime(parse_sale_date($raw)));
 }
 
 function find_or_create_party(PDO $pdo, string $type, string $name, string $mobile = '', string $address = ''): ?int

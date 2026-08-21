@@ -59,7 +59,7 @@ $h = static function ($value): string {
 };
 
 $billDate = $sale['sale_date'] ?? $sale['created_at'];
-$date = date('d-m-Y', strtotime((string) $billDate));
+$date = format_display_date($billDate);
 $party = $sale['customer_name'] !== '' ? $sale['customer_name'] : 'Walk-in Customer';
 $totalQty = 0.0;
 foreach ($items as $item) {

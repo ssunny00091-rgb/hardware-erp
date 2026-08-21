@@ -64,10 +64,7 @@ try {
         $payPurchaseId = (int) ($body['purchase_id'] ?? 0);
         if ($payPurchaseId > 0 && !isset($body['products'])) {
             $amount = (float) ($body['amount'] ?? 0);
-            $date = trim((string) ($body['paid_on'] ?? $body['entry_date'] ?? date('Y-m-d')));
-            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-                $date = date('Y-m-d');
-            }
+            $date = parse_sale_date($body['paid_on'] ?? $body['entry_date'] ?? '');
             $notes = trim((string) ($body['notes'] ?? ''));
             $pdo->beginTransaction();
             $result = record_purchase_payment($pdo, $payPurchaseId, $amount, $date, $notes);
@@ -104,10 +101,7 @@ try {
 
     $supplier = trim((string) ($body['supplier_name'] ?? ''));
     $invoiceNo = trim((string) ($body['invoice_no'] ?? ''));
-    $purchaseDate = trim((string) ($body['purchase_date'] ?? date('Y-m-d')));
-    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $purchaseDate)) {
-        $purchaseDate = date('Y-m-d');
-    }
+    $purchaseDate = parse_sale_date($body['purchase_date'] ?? '');
     $grandTotal = array_sum(array_column($valid, 'total'));
     $paidRaw = $body['paid'] ?? null;
     $paid = $paidRaw === null || $paidRaw === '' ? 0.0 : (float) $paidRaw;

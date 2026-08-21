@@ -55,7 +55,7 @@ if ($payments) {
 }
 $due = max(0, $grand - $paid);
 $billNo = (string) ($purchase['invoice_no'] !== '' ? $purchase['invoice_no'] : '#' . $purchase['id']);
-$billDate = date('d-m-Y', strtotime((string) $purchase['purchase_date']));
+$billDate = format_display_date($purchase['purchase_date']);
 ?>
 
 <div class="no-print mb-4 flex flex-wrap gap-2">
@@ -143,7 +143,7 @@ $billDate = date('d-m-Y', strtotime((string) $purchase['purchase_date']));
         <?php else: ?>
           <?php foreach ($payments as $row): ?>
             <tr>
-              <td class="border p-2"><?= $h(date('d-m-Y', strtotime((string) $row['paid_on']))) ?></td>
+              <td class="border p-2"><?= $h(format_display_date($row['paid_on'])) ?></td>
               <td class="border p-2 text-right">₹ <?= money($row['amount']) ?></td>
               <td class="border p-2"><?= $h($row['notes'] ?? '') ?></td>
             </tr>
@@ -155,7 +155,10 @@ $billDate = date('d-m-Y', strtotime((string) $purchase['purchase_date']));
 
   <?php if ($due > 0.009): ?>
     <div class="grid grid-cols-1 gap-3 md:grid-cols-4">
-      <input type="date" id="pay-on" class="rounded-xl border border-gray-300 bg-white p-3 text-gray-900" value="<?= htmlspecialchars(date('Y-m-d'), ENT_QUOTES, 'UTF-8') ?>">
+      <span class="date-field">
+        <input type="text" id="pay-on" inputmode="numeric" placeholder="dd/mm/yyyy" maxlength="10" autocomplete="off" class="rounded-xl border border-gray-300 bg-white p-3 text-gray-900">
+        <input type="date" id="pay-on-picker" title="Calendar" aria-label="Calendar">
+      </span>
       <input type="number" id="pay-amt" placeholder="Amount paid now" class="rounded-xl border border-gray-300 bg-white p-3 text-gray-900">
       <input type="text" id="pay-note" placeholder="Note (cash / UPI / cheque)" class="rounded-xl border border-gray-300 bg-white p-3 text-gray-900 md:col-span-1">
       <button type="button" id="btn-pay" class="rounded-xl bg-green-600 py-3 font-semibold">💰 Add Payment</button>
@@ -169,6 +172,8 @@ $billDate = date('d-m-Y', strtotime((string) $purchase['purchase_date']));
 <script>
   const billId = <?= (int) $id ?>;
   const dueNow = <?= json_encode($due) ?>;
+  bindDateField("pay-on", "pay-on-picker");
+  setDateField("pay-on", "pay-on-picker", todayIsoDate());
   const btn = document.getElementById("btn-pay");
   if (btn) {
     btn.addEventListener("click", async () => {
@@ -186,7 +191,7 @@ $billDate = date('d-m-Y', strtotime((string) $purchase['purchase_date']));
           body: JSON.stringify({
             purchase_id: billId,
             amount,
-            paid_on: document.getElementById("pay-on").value,
+            paid_on: parseToIsoDate(document.getElementById("pay-on").value),
             notes: document.getElementById("pay-note").value,
           }),
         });
