@@ -34,6 +34,16 @@ function db(): PDO
     } catch (Throwable $e) {
         // Column already exists.
     }
+    try {
+        $pdo->exec('ALTER TABLE sale_items ADD COLUMN color_code VARCHAR(120) NULL');
+    } catch (Throwable $e) {
+        // Column already exists.
+    }
+    try {
+        $pdo->exec('ALTER TABLE sale_items ADD COLUMN color_hex VARCHAR(7) NULL');
+    } catch (Throwable $e) {
+        // Column already exists.
+    }
 
     return $pdo;
 }

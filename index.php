@@ -45,13 +45,35 @@ require __DIR__ . '/includes/header.php';
   <input type="text" id="customer-gst" placeholder="GST Number" class="mb-4 w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none">
 
   <div class="mt-8">
-    <div class="mb-4 grid grid-cols-5 gap-3 rounded-2xl border border-white/10 bg-white/10 p-4 font-semibold">
+    <div class="mb-4 grid grid-cols-6 gap-3 rounded-2xl border border-white/10 bg-white/10 p-4 font-semibold">
       <div>📦 Product</div>
+      <div>🎨 Colour / Shade</div>
       <div>Qty</div>
       <div>Price</div>
       <div>Total</div>
       <div>Action</div>
     </div>
+    <datalist id="paint-shades">
+      <option value="White"></option>
+      <option value="Off White"></option>
+      <option value="Ivory"></option>
+      <option value="Cream"></option>
+      <option value="Snow White"></option>
+      <option value="Yellow"></option>
+      <option value="Golden Yellow"></option>
+      <option value="Orange"></option>
+      <option value="Red"></option>
+      <option value="Maroon"></option>
+      <option value="Pink"></option>
+      <option value="Blue"></option>
+      <option value="Sky Blue"></option>
+      <option value="Green"></option>
+      <option value="Mint"></option>
+      <option value="Grey"></option>
+      <option value="Brown"></option>
+      <option value="Beige"></option>
+      <option value="Black"></option>
+    </datalist>
     <div id="product-rows"></div>
   </div>
 
@@ -110,10 +132,14 @@ require __DIR__ . '/includes/header.php';
   function renderRows() {
     const wrap = document.getElementById("product-rows");
     wrap.innerHTML = saleRows.map((row, index) => `
-      <div class="mb-3 grid grid-cols-5 gap-3">
+      <div class="mb-3 grid grid-cols-6 gap-3">
         <div class="relative">
           <input data-index="${index}" data-field="name" value="${row.name ?? ""}" placeholder="Search Product..." class="w-full rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
           <div class="suggest hidden absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto rounded-lg border bg-white text-gray-900 shadow-xl" data-suggest="${index}"></div>
+        </div>
+        <div class="flex items-center gap-2">
+          <input data-index="${index}" data-field="color_hex" type="color" value="${row.color_hex || "#ffffff"}" title="Colour" class="h-11 w-11 cursor-pointer rounded border border-gray-300 bg-white p-0">
+          <input data-index="${index}" data-field="color" list="paint-shades" value="${row.color ?? ""}" placeholder="Shade / code" class="min-w-0 flex-1 rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
         </div>
         <div class="flex gap-2">
           <input data-index="${index}" data-field="qty" type="number" value="${row.qty ?? ""}" placeholder="Qty" class="w-20 rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
@@ -150,7 +176,7 @@ require __DIR__ . '/includes/header.php';
       const index = Number(el.dataset.index);
       if (Number.isNaN(index)) return;
       if (!byIndex[index]) {
-        byIndex[index] = { name: "", qty: "", unit: "Piece", price: "", product_id: null };
+        byIndex[index] = { name: "", color: "", color_hex: "#ffffff", qty: "", unit: "Piece", price: "", product_id: null };
       }
       byIndex[index][el.dataset.field] = el.value;
       if (saleRows[index] && saleRows[index].product_id) {
@@ -246,15 +272,27 @@ require __DIR__ . '/includes/header.php';
 
   function invoiceSheetHtml(customer, products, grandTotal) {
     const lines = products.length
-      ? products.map((p, i) => (
+      ? products.map((p, i) => {
+          const colorText = String(p.color || "").trim();
+          const hex = String(p.color_hex || "").trim();
+          const hasColor = colorText || (hex && hex.toLowerCase() !== "#ffffff");
+          const swatch = hasColor && hex
+            ? "<span style=\"display:inline-block;width:12px;height:12px;border:1px solid #000;background:" + hex + ";vertical-align:middle;margin-right:4px;\"></span>"
+            : "";
+          const colorPart = hasColor
+            ? " | Colour: " + swatch + (colorText || hex)
+            : "";
+          return (
           "<p style=\"margin:0;padding:6px 0;border-bottom:1px solid #000;\">" +
           (i + 1) + ") " +
           String(p.name || "").replace(/</g, "&lt;") +
+          colorPart +
           " | Qty: " + p.qty + " " + (p.unit || "Piece") +
           " | Rate: Rs. " + formatMoney(p.price) +
           " | Amount: Rs. " + formatMoney(rowTotal(p)) +
           "</p>"
-        )).join("")
+          );
+        }).join("")
       : "<p>No products</p>";
     return `
       <div style="font-family:Arial,Helvetica,sans-serif;color:#000;">
@@ -316,6 +354,13 @@ require __DIR__ . '/includes/header.php';
         saleRows[index].product_id = null;
       }
       showSuggestions(index, e.target.value);
+    }
+    if (field === "color") {
+      const shade = PAINT_SHADES.find((item) => item[0].toLowerCase() === e.target.value.trim().toLowerCase());
+      if (shade) {
+        saleRows[index].color_hex = shade[1];
+        setSaleRowField(index, "color_hex", shade[1]);
+      }
     }
     updateSaleTotals();
   });

@@ -23,7 +23,7 @@ try {
             }
 
             $itemStmt = $pdo->prepare(
-                'SELECT product_name AS name, qty, unit, price, total
+                'SELECT product_name AS name, color_code AS color, color_hex, qty, unit, price, total
                  FROM sale_items WHERE sale_id = :id'
             );
             $itemStmt->execute(['id' => $id]);
@@ -61,6 +61,8 @@ try {
             $valid[] = [
                 'product_id' => isset($product['product_id']) ? (int) $product['product_id'] : null,
                 'name' => $name,
+                'color' => trim((string) ($product['color'] ?? '')),
+                'color_hex' => trim((string) ($product['color_hex'] ?? '')),
                 'qty' => $qty,
                 'unit' => trim((string) ($product['unit'] ?? 'Piece')) ?: 'Piece',
                 'price' => $price,
@@ -145,6 +147,10 @@ try {
         $saleId = (int) $pdo->lastInsertId();
 
         $itemStmt = $pdo->prepare(
+            'INSERT INTO sale_items (sale_id, product_id, product_name, color_code, color_hex, qty, unit, price, total)
+             VALUES (:sale_id, :product_id, :product_name, :color_code, :color_hex, :qty, :unit, :price, :total)'
+        );
+        $itemStmtLegacy = $pdo->prepare(
             'INSERT INTO sale_items (sale_id, product_id, product_name, qty, unit, price, total)
              VALUES (:sale_id, :product_id, :product_name, :qty, :unit, :price, :total)'
         );
@@ -156,20 +162,23 @@ try {
                 $productId = find_or_create_product($pdo, $item['name'], $item['unit'], (float) $item['price']);
             }
 
+            $payload = [
+                'sale_id' => $saleId,
+                'product_id' => $productId,
+                'product_name' => $item['name'],
+                'color_code' => $item['color'] !== '' ? $item['color'] : null,
+                'color_hex' => $item['color_hex'] !== '' ? $item['color_hex'] : null,
+                'qty' => $item['qty'],
+                'unit' => $item['unit'],
+                'price' => $item['price'],
+                'total' => $item['total'],
+            ];
             try {
-                $itemStmt->execute([
-                    'sale_id' => $saleId,
-                    'product_id' => $productId,
-                    'product_name' => $item['name'],
-                    'qty' => $item['qty'],
-                    'unit' => $item['unit'],
-                    'price' => $item['price'],
-                    'total' => $item['total'],
-                ]);
+                $itemStmt->execute($payload);
             } catch (Throwable $e) {
-                $itemStmt->execute([
+                $itemStmtLegacy->execute([
                     'sale_id' => $saleId,
-                    'product_id' => null,
+                    'product_id' => $productId ?: null,
                     'product_name' => $item['name'],
                     'qty' => $item['qty'],
                     'unit' => $item['unit'],

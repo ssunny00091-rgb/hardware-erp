@@ -26,7 +26,7 @@ if (!$sale) {
 }
 
 $itemStmt = $pdo->prepare(
-    'SELECT product_name, qty, unit, price, total FROM sale_items WHERE sale_id = :id ORDER BY id ASC'
+    'SELECT * FROM sale_items WHERE sale_id = :id ORDER BY id ASC'
 );
 $itemStmt->execute(['id' => $id]);
 $items = $itemStmt->fetchAll();
@@ -37,6 +37,8 @@ if (!$items && !empty($sale['line_items'])) {
         foreach ($decoded as $row) {
             $items[] = [
                 'product_name' => (string) ($row['name'] ?? $row['product_name'] ?? ''),
+                'color_code' => (string) ($row['color'] ?? $row['color_code'] ?? ''),
+                'color_hex' => (string) ($row['color_hex'] ?? ''),
                 'qty' => $row['qty'] ?? '',
                 'unit' => $row['unit'] ?? 'Piece',
                 'price' => $row['price'] ?? 0,
@@ -83,9 +85,21 @@ $h = static function ($value): string {
     <p>No products saved on this invoice.</p>
   <?php else: ?>
     <?php foreach ($items as $i => $item): ?>
+      <?php
+        $colorLabel = trim((string) ($item['color_code'] ?? $item['color'] ?? ''));
+        $colorHex = trim((string) ($item['color_hex'] ?? ''));
+        $showColor = $colorLabel !== '' || ($colorHex !== '' && strcasecmp($colorHex, '#ffffff') !== 0);
+      ?>
       <p style="margin:0;padding:6px 0;border-bottom:1px solid #000;">
         <?= $i + 1 ?>)
         <?= $h($item['product_name']) ?>
+        <?php if ($showColor): ?>
+          &nbsp;|&nbsp; Colour:
+          <?php if ($colorHex !== ''): ?>
+            <span style="display:inline-block;width:12px;height:12px;border:1px solid #000;background:<?= $h($colorHex) ?>;vertical-align:middle;"></span>
+          <?php endif; ?>
+          <?= $h($colorLabel !== '' ? $colorLabel : $colorHex) ?>
+        <?php endif; ?>
         &nbsp;|&nbsp; Qty: <?= $h($item['qty']) ?> <?= $h($item['unit']) ?>
         &nbsp;|&nbsp; Rate: Rs. <?= money($item['price']) ?>
         &nbsp;|&nbsp; Amount: Rs. <?= money($item['total']) ?>

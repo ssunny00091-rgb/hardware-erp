@@ -30,8 +30,30 @@ function formatMoney(value) {
 }
 
 function emptyRow() {
-  return { name: "", qty: "", unit: "Piece", price: "", product_id: null };
+  return { name: "", color: "", color_hex: "#ffffff", qty: "", unit: "Piece", price: "", product_id: null };
 }
+
+const PAINT_SHADES = [
+  ["White", "#FFFFFF"],
+  ["Off White", "#F4F1E8"],
+  ["Ivory", "#FFFFF0"],
+  ["Cream", "#FFFDD0"],
+  ["Snow White", "#FFFAFA"],
+  ["Yellow", "#F5E642"],
+  ["Golden Yellow", "#FFD700"],
+  ["Orange", "#FF8C00"],
+  ["Red", "#C41E3A"],
+  ["Maroon", "#800000"],
+  ["Pink", "#FFC0CB"],
+  ["Blue", "#1E4D8C"],
+  ["Sky Blue", "#87CEEB"],
+  ["Green", "#2E8B57"],
+  ["Mint", "#98FF98"],
+  ["Grey", "#808080"],
+  ["Brown", "#8B4513"],
+  ["Beige", "#F5F5DC"],
+  ["Black", "#111111"],
+];
 
 function rowTotal(row) {
   return (Number(row.qty) || 0) * (Number(row.price) || 0);
