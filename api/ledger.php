@@ -43,14 +43,14 @@ try {
 
         $type = normalize_party_type((string) ($_GET['type'] ?? 'customer'));
         $stmt = $pdo->prepare(
-            'SELECT p.id, p.name, p.mobile, p.type,
+            'SELECT p.id, p.name, p.mobile, p.address, p.type,
                     COALESCE(SUM(l.debit), 0) AS debit,
                     COALESCE(SUM(l.credit), 0) AS credit,
                     COALESCE(SUM(l.debit), 0) - COALESCE(SUM(l.credit), 0) AS balance
              FROM parties p
              LEFT JOIN ledger_entries l ON l.party_id = p.id
              WHERE p.type = :type
-             GROUP BY p.id, p.name, p.mobile, p.type
+             GROUP BY p.id, p.name, p.mobile, p.address, p.type
              ORDER BY p.name ASC'
         );
         $stmt->execute(['type' => $type]);
@@ -83,6 +83,30 @@ try {
         json_response(['ok' => true]);
     }
 
+    if ($method === 'PUT') {
+        $body = read_json_body();
+        $entryId = (int) ($body['id'] ?? $body['entry_id'] ?? $_GET['id'] ?? 0);
+        $partyId = (int) ($body['party_id'] ?? 0);
+
+        if ($entryId > 0) {
+            update_ledger_entry($pdo, $entryId, $body);
+            json_response(['ok' => true]);
+        }
+
+        if ($partyId > 0) {
+            update_party_details(
+                $pdo,
+                $partyId,
+                (string) ($body['name'] ?? ''),
+                (string) ($body['mobile'] ?? ''),
+                (string) ($body['address'] ?? '')
+            );
+            json_response(['ok' => true]);
+        }
+
+        json_response(['error' => 'Specify party_id or entry id'], 422);
+    }
+
     if ($method === 'DELETE') {
         $entryId = (int) ($_GET['id'] ?? 0);
         $partyId = (int) ($_GET['party_id'] ?? 0);
@@ -110,6 +134,8 @@ try {
     }
 
     json_response(['error' => 'Method not allowed'], 405);
+} catch (InvalidArgumentException $e) {
+    json_response(['error' => $e->getMessage()], 422);
 } catch (Throwable $e) {
     json_response(['error' => $e->getMessage()], 500);
 }

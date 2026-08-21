@@ -182,6 +182,64 @@ function find_or_create_party(PDO $pdo, string $type, string $name, string $mobi
     return (int) $pdo->lastInsertId();
 }
 
+function update_party_details(PDO $pdo, int $id, string $name, string $mobile = '', string $address = ''): void
+{
+    $name = trim($name);
+    if ($id <= 0 || $name === '') {
+        throw new InvalidArgumentException('Name required');
+    }
+    $exists = $pdo->prepare('SELECT id FROM parties WHERE id = :id');
+    $exists->execute(['id' => $id]);
+    if (!$exists->fetch()) {
+        throw new InvalidArgumentException('Party not found');
+    }
+    $pdo->prepare('UPDATE parties SET name = :name, mobile = :mobile, address = :address WHERE id = :id')->execute([
+        'name' => $name,
+        'mobile' => trim($mobile),
+        'address' => trim($address),
+        'id' => $id,
+    ]);
+}
+
+function update_ledger_entry(PDO $pdo, int $id, array $body): void
+{
+    $stmt = $pdo->prepare('SELECT * FROM ledger_entries WHERE id = :id');
+    $stmt->execute(['id' => $id]);
+    $row = $stmt->fetch();
+    if (!$row) {
+        throw new InvalidArgumentException('Entry not found');
+    }
+    $date = parse_sale_date($body['entry_date'] ?? $row['entry_date']);
+    $particulars = trim((string) ($body['particulars'] ?? $row['particulars']));
+    if ($particulars === '') {
+        $particulars = (string) $row['particulars'];
+    }
+    $refNo = trim((string) ($body['ref_no'] ?? $row['ref_no'] ?? ''));
+    $debit = array_key_exists('debit', $body) ? (float) $body['debit'] : (float) $row['debit'];
+    $credit = array_key_exists('credit', $body) ? (float) $body['credit'] : (float) $row['credit'];
+    if ($debit < 0) {
+        $debit = 0;
+    }
+    if ($credit < 0) {
+        $credit = 0;
+    }
+    if ($debit <= 0 && $credit <= 0) {
+        throw new InvalidArgumentException('Debit ya credit amount likho');
+    }
+    $pdo->prepare(
+        'UPDATE ledger_entries
+         SET entry_date = :entry_date, particulars = :particulars, ref_no = :ref_no, debit = :debit, credit = :credit
+         WHERE id = :id'
+    )->execute([
+        'entry_date' => $date,
+        'particulars' => $particulars,
+        'ref_no' => $refNo,
+        'debit' => $debit,
+        'credit' => $credit,
+        'id' => $id,
+    ]);
+}
+
 function normalize_search_name(string $value): string
 {
     $value = trim($value);

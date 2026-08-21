@@ -44,12 +44,19 @@ $types = [
   <div class="modal-sheet max-h-[100vh] w-full max-w-5xl overflow-auto rounded-none bg-white p-4 text-black sm:max-h-[90vh] sm:rounded-xl sm:p-6">
     <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <h2 id="ledger-party-name" class="text-xl font-bold sm:text-2xl">Ledger</h2>
-      <div class="flex gap-2">
+      <div class="flex flex-wrap gap-2">
+        <a id="btn-download-ledger" href="#" target="_blank" class="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-center text-white sm:flex-none">⬇ Download</a>
         <button type="button" id="btn-delete-party" class="flex-1 rounded-lg bg-red-700 px-4 py-2 text-white sm:flex-none">Delete</button>
         <button type="button" id="btn-close-ledger" class="flex-1 rounded-lg bg-slate-600 px-4 py-2 text-white sm:flex-none">Close</button>
       </div>
     </div>
     <p id="ledger-party-meta" class="mb-4 text-gray-600"></p>
+    <div class="mb-4 grid grid-cols-1 gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 md:grid-cols-4">
+      <input type="text" id="edit-party-name" placeholder="Name" class="rounded-lg border p-2">
+      <input type="text" id="edit-party-mobile" placeholder="Mobile" class="rounded-lg border p-2">
+      <input type="text" id="edit-party-address" placeholder="Address" class="rounded-lg border p-2 md:col-span-1">
+      <button type="button" id="btn-save-party" class="rounded-lg bg-amber-500 px-4 py-2 font-semibold text-white">✏️ Save details</button>
+    </div>
     <div class="mb-4 flex flex-wrap gap-2">
       <span class="date-field">
         <input type="text" id="pay-date" inputmode="numeric" placeholder="dd/mm/yyyy" maxlength="10" autocomplete="off" class="rounded-lg border p-2">
@@ -98,7 +105,11 @@ $types = [
         <td class="cursor-pointer p-3 text-right">₹${formatMoney(row.credit)}</td>
         <td class="cursor-pointer p-3 text-right font-bold">₹${formatMoney(row.balance)}</td>
         <td class="p-3">
-          <button type="button" data-del-party="${row.id}" class="rounded bg-red-600 px-3 py-1 text-white">🗑</button>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" data-party-edit="${row.id}" class="rounded bg-amber-500 px-3 py-1 text-white">✏️</button>
+            <a href="${appUrl("ledger-print.php?id=" + row.id)}" target="_blank" class="rounded bg-blue-600 px-3 py-1 text-white">⬇</a>
+            <button type="button" data-del-party="${row.id}" class="rounded bg-red-600 px-3 py-1 text-white">🗑</button>
+          </div>
         </td>
       </tr>
     `).join("") || `<tr><td class="p-4" colspan="6">Is type ka koi ledger nahi mila.</td></tr>`;
@@ -107,20 +118,35 @@ $types = [
   async function openParty(id) {
     currentPartyId = id;
     const data = await api("/api/ledger.php?party_id=" + id);
-    document.getElementById("ledger-party-name").textContent = data.party.name + " (" + data.party.type + ")";
+    const party = data.party || {};
+    document.getElementById("ledger-party-name").textContent = (party.name || "") + " (" + (party.type || "") + ")";
     document.getElementById("ledger-party-meta").textContent =
-      (data.party.mobile ? "Mobile: " + data.party.mobile + "  |  " : "") +
+      (party.mobile ? "Mobile: " + party.mobile + "  |  " : "") +
       "Debit ₹" + formatMoney(data.debit) + "  Credit ₹" + formatMoney(data.credit) +
       "  |  Balance ₹" + formatMoney(data.balance);
+    document.getElementById("edit-party-name").value = party.name || "";
+    document.getElementById("edit-party-mobile").value = party.mobile || "";
+    document.getElementById("edit-party-address").value = party.address || "";
+    const dl = document.getElementById("btn-download-ledger");
+    dl.href = appUrl("ledger-print.php?id=" + id);
     document.getElementById("ledger-entries").innerHTML = (data.entries || []).map((row) => `
-      <tr>
-        <td class="border p-2">${invoiceDateLabel(row.entry_date)}</td>
-        <td class="border p-2">${escapeHtml(row.particulars)}</td>
-        <td class="border p-2">${escapeHtml(row.ref_no || "")}${row.sale_id ? ' <a class="text-blue-600" href="' + appUrl("invoice.php?id=" + row.sale_id) + '" target="_blank">sale</a>' : ""}${row.purchase_id ? ' <a class="text-blue-600" href="' + appUrl("purchase-bill.php?id=" + row.purchase_id) + '" target="_blank">bill</a>' : ""}</td>
-        <td class="border p-2 text-right">${Number(row.debit) ? formatMoney(row.debit) : ""}</td>
-        <td class="border p-2 text-right">${Number(row.credit) ? formatMoney(row.credit) : ""}</td>
+      <tr data-entry-id="${row.id}">
+        <td class="border p-2"><input type="text" data-f="entry_date" value="${escapeHtml(invoiceDateLabel(row.entry_date))}" class="w-28 rounded border p-1"></td>
+        <td class="border p-2"><input type="text" data-f="particulars" value="${escapeHtml(row.particulars || "")}" class="w-full min-w-[140px] rounded border p-1"></td>
+        <td class="border p-2">
+          <input type="text" data-f="ref_no" value="${escapeHtml(row.ref_no || "")}" class="w-24 rounded border p-1">
+          ${row.sale_id ? ' <a class="text-blue-600" href="' + appUrl("invoice.php?id=" + row.sale_id) + '" target="_blank">sale</a>' : ""}
+          ${row.purchase_id ? ' <a class="text-blue-600" href="' + appUrl("purchase-bill.php?id=" + row.purchase_id) + '" target="_blank">bill</a>' : ""}
+        </td>
+        <td class="border p-2 text-right"><input type="number" step="0.01" data-f="debit" value="${Number(row.debit) || ""}" class="w-24 rounded border p-1 text-right"></td>
+        <td class="border p-2 text-right"><input type="number" step="0.01" data-f="credit" value="${Number(row.credit) || ""}" class="w-24 rounded border p-1 text-right"></td>
         <td class="border p-2 text-right">${formatMoney(row.balance)}</td>
-        <td class="border p-2"><button type="button" data-del-entry="${row.id}" class="rounded bg-red-600 px-2 py-1 text-white">🗑</button></td>
+        <td class="border p-2">
+          <div class="flex gap-1">
+            <button type="button" data-save-entry="${row.id}" class="rounded bg-amber-500 px-2 py-1 text-white">✏️</button>
+            <button type="button" data-del-entry="${row.id}" class="rounded bg-red-600 px-2 py-1 text-white">🗑</button>
+          </div>
+        </td>
       </tr>
     `).join("");
     document.getElementById("ledger-detail").classList.remove("hidden");
@@ -144,16 +170,65 @@ $types = [
         .catch((err) => alert(err.message));
       return;
     }
+    const edit = e.target.closest("[data-party-edit]");
+    if (edit) {
+      e.stopPropagation();
+      openParty(Number(edit.dataset.partyEdit)).catch((err) => alert(err.message));
+      return;
+    }
+    if (e.target.closest("a")) return;
     const row = e.target.closest("[data-party]");
     if (row) openParty(Number(row.dataset.party)).catch((err) => alert(err.message));
   });
 
   document.getElementById("ledger-entries").addEventListener("click", async (e) => {
+    const saveBtn = e.target.closest("[data-save-entry]");
+    if (saveBtn) {
+      const tr = saveBtn.closest("tr");
+      const val = (name) => (tr.querySelector('[data-f="' + name + '"]') || {}).value || "";
+      try {
+        await api("/api/ledger.php", {
+          method: "PUT",
+          body: JSON.stringify({
+            id: Number(saveBtn.dataset.saveEntry),
+            entry_date: parseToIsoDate(val("entry_date")),
+            particulars: val("particulars"),
+            ref_no: val("ref_no"),
+            debit: val("debit"),
+            credit: val("credit"),
+          }),
+        });
+        await openParty(currentPartyId);
+        await loadList();
+      } catch (err) {
+        alert(err.message);
+      }
+      return;
+    }
     const btn = e.target.closest("[data-del-entry]");
     if (!btn) return;
     if (!confirm("Is ledger entry ko delete karein?")) return;
     try {
       await api("/api/ledger.php?id=" + btn.dataset.delEntry, { method: "DELETE" });
+      await openParty(currentPartyId);
+      await loadList();
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+
+  document.getElementById("btn-save-party").addEventListener("click", async () => {
+    if (!currentPartyId) return;
+    try {
+      await api("/api/ledger.php", {
+        method: "PUT",
+        body: JSON.stringify({
+          party_id: currentPartyId,
+          name: document.getElementById("edit-party-name").value,
+          mobile: document.getElementById("edit-party-mobile").value,
+          address: document.getElementById("edit-party-address").value,
+        }),
+      });
       await openParty(currentPartyId);
       await loadList();
     } catch (err) {
