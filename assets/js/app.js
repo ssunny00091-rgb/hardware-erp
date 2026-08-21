@@ -1,5 +1,12 @@
+function appUrl(path) {
+  const base = window.APP_BASE || "";
+  if (!path) return base || "/";
+  if (path.startsWith("http")) return path;
+  return base + (path.startsWith("/") ? path : "/" + path);
+}
+
 async function api(url, options = {}) {
-  const response = await fetch(url, {
+  const response = await fetch(appUrl(url), {
     headers: {
       "Content-Type": "application/json",
       ...(options.headers || {}),

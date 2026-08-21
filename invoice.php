@@ -41,12 +41,12 @@ $date = date('d/m/Y', strtotime((string) $sale['created_at']));
   <meta charset="UTF-8">
   <title><?= htmlspecialchars((string) $sale['invoice_no'], ENT_QUOTES, 'UTF-8') ?></title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="/assets/css/style.css">
+  <link rel="stylesheet" href="<?= htmlspecialchars(app_url('assets/css/style.css'), ENT_QUOTES, 'UTF-8') ?>">
 </head>
 <body class="bg-gray-100 p-6 text-black">
   <div class="no-print mb-4 flex gap-3">
     <button onclick="window.print()" class="rounded bg-blue-600 px-4 py-2 text-white">🖨️ Print / Save PDF</button>
-    <a href="/index.php" class="rounded bg-gray-700 px-4 py-2 text-white">Back</a>
+    <a href="<?= htmlspecialchars(app_url('index.php'), ENT_QUOTES, 'UTF-8') ?>" class="rounded bg-gray-700 px-4 py-2 text-white">Back</a>
   </div>
 
   <div class="print-area mx-auto max-w-4xl rounded-lg bg-white p-8 shadow-lg">

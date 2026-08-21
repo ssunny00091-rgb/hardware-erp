@@ -340,7 +340,7 @@ require __DIR__ . '/includes/header.php';
       alert("✅ Sale Saved Successfully\\nInvoice: " + result.invoice_no);
       document.getElementById("preview-modal").classList.add("hidden");
       document.getElementById("preview-modal").classList.remove("flex");
-      window.open("/invoice.php?id=" + result.id, "_blank");
+      window.open(appUrl("invoice.php?id=" + result.id), "_blank");
       loadDashboard();
     } catch (err) {
       alert(err.message);
@@ -358,7 +358,7 @@ require __DIR__ . '/includes/header.php';
         <td class="border p-3">${new Date(sale.created_at).toLocaleDateString("en-IN")}</td>
         <td class="border p-3">
           <div class="flex justify-center gap-2">
-            <a href="/invoice.php?id=${sale.id}" target="_blank" class="rounded bg-blue-600 px-3 py-1 text-white">👁</a>
+            <a href="${appUrl("invoice.php?id=" + sale.id)}" target="_blank" class="rounded bg-blue-600 px-3 py-1 text-white">👁</a>
             <button type="button" data-sale-delete="${sale.id}" class="rounded bg-red-600 px-3 py-1 text-white">🗑</button>
           </div>
         </td>
@@ -382,7 +382,10 @@ require __DIR__ . '/includes/header.php';
     loadDashboard();
   });
 
-  loadDashboard().catch((err) => alert("MySQL connect failed: " + err.message));
+  loadDashboard().catch((err) => {
+    const go = confirm("MySQL connect nahi hua: " + err.message + "\n\nSetup wizard (install.php) kholun?");
+    if (go) window.location.href = appUrl("install.php");
+  });
   loadCatalog().catch(() => {});
   renderRows();
 </script>
