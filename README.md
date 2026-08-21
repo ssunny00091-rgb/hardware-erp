@@ -40,13 +40,12 @@ Uske baad browser: http://localhost/hardware-erp/index.php
 
 http://localhost/hardware-erp/install.php
 
+## Linux / PHP CLI
 
 ```bash
-cp .env.example .env
+php setup.php --yes --host=127.0.0.1 --user=root --pass= --name=hardware_erp
 php -S localhost:8000
 ```
-
-Browser: http://localhost:8000/install.php
 
 PHP 8.1+ with `pdo_mysql` chahiye.
 

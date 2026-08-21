@@ -128,14 +128,11 @@ try {
              VALUES (:sale_id, :product_id, :product_name, :qty, :unit, :price, :total)'
         );
         $stockStmt = $pdo->prepare('UPDATE products SET stock = stock - :qty WHERE id = :id');
-        $findProduct = $pdo->prepare('SELECT id FROM products WHERE product_name = :name LIMIT 1');
 
         foreach ($valid as $item) {
             $productId = $item['product_id'] ?: null;
             if (!$productId) {
-                $findProduct->execute(['name' => $item['name']]);
-                $found = $findProduct->fetch();
-                $productId = $found ? (int) $found['id'] : null;
+                $productId = find_or_create_product($pdo, $item['name'], $item['unit'], $item['price']);
             }
 
             $itemStmt->execute([

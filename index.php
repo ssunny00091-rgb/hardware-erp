@@ -39,10 +39,10 @@ require __DIR__ . '/includes/header.php';
     <p class="mt-2 text-sm text-gray-300">Create a new invoice, add customer details and products.</p>
   </div>
 
-  <input type="text" id="customer-name" placeholder="Customer Name" class="mb-4 w-full rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-white placeholder:text-gray-300 outline-none">
-  <input type="text" id="customer-mobile" placeholder="Mobile Number" class="mb-4 w-full rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-white placeholder:text-gray-300 outline-none">
-  <input type="text" id="customer-address" placeholder="Address" class="mb-4 w-full rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-white placeholder:text-gray-300 outline-none">
-  <input type="text" id="customer-gst" placeholder="GST Number" class="mb-4 w-full rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-white placeholder:text-gray-300 outline-none">
+  <input type="text" id="customer-name" placeholder="Customer Name" class="mb-4 w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none">
+  <input type="text" id="customer-mobile" placeholder="Mobile Number" class="mb-4 w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none">
+  <input type="text" id="customer-address" placeholder="Address" class="mb-4 w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none">
+  <input type="text" id="customer-gst" placeholder="GST Number" class="mb-4 w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none">
 
   <div class="mt-8">
     <div class="mb-4 grid grid-cols-5 gap-3 rounded-2xl border border-white/10 bg-white/10 p-4 font-semibold">
@@ -90,12 +90,12 @@ require __DIR__ . '/includes/header.php';
 
 <div id="preview-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 p-4">
   <div class="flex max-h-[95vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
-    <div class="flex items-center justify-between border-b bg-white px-6 py-4 text-black">
+        <div class="flex items-center justify-between border-b bg-white px-6 py-4 text-black print-hide">
       <h2 class="text-2xl font-bold text-blue-700">Invoice Preview</h2>
       <button type="button" id="btn-close-preview" class="rounded-lg bg-red-500 px-4 py-2 text-white">✕ Close</button>
     </div>
     <div class="flex-1 overflow-y-auto bg-gray-100 p-6" id="invoice-preview-body"></div>
-    <div class="sticky bottom-0 flex flex-wrap justify-center gap-4 border-t bg-white p-4">
+    <div class="sticky bottom-0 flex flex-wrap justify-center gap-4 border-t bg-white p-4 print-hide">
       <button type="button" id="btn-edit-sale" class="rounded-lg bg-gray-600 px-5 py-2 text-white">✏️ Edit</button>
       <button type="button" id="btn-print-invoice" class="rounded-lg bg-blue-600 px-5 py-2 text-white">🖨️ Print</button>
       <button type="button" id="btn-confirm-save" class="rounded-lg bg-purple-600 px-5 py-2 text-white">💾 Save Sale</button>
@@ -112,14 +112,14 @@ require __DIR__ . '/includes/header.php';
     wrap.innerHTML = saleRows.map((row, index) => `
       <div class="mb-3 grid grid-cols-5 gap-3">
         <div class="relative">
-          <input data-index="${index}" data-field="name" value="${row.name ?? ""}" placeholder="Search Product..." class="w-full rounded-lg border p-3">
-          <div class="suggest hidden absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto rounded-lg border bg-black shadow-xl" data-suggest="${index}"></div>
+          <input data-index="${index}" data-field="name" value="${row.name ?? ""}" placeholder="Search Product..." class="w-full rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
+          <div class="suggest hidden absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto rounded-lg border bg-white text-gray-900 shadow-xl" data-suggest="${index}"></div>
         </div>
         <div class="flex gap-2">
-          <input data-index="${index}" data-field="qty" type="number" value="${row.qty ?? ""}" placeholder="Qty" class="w-20 rounded-lg border p-3">
-          <select data-index="${index}" data-field="unit" class="rounded-lg border p-3">${unitOptions(row.unit || "Piece")}</select>
+          <input data-index="${index}" data-field="qty" type="number" value="${row.qty ?? ""}" placeholder="Qty" class="w-20 rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
+          <select data-index="${index}" data-field="unit" class="rounded-lg border border-gray-300 bg-white p-3 text-gray-900">${unitOptions(row.unit || "Piece")}</select>
         </div>
-        <input data-index="${index}" data-field="price" type="number" value="${row.price ?? ""}" placeholder="Price" class="rounded-lg border p-3">
+        <input data-index="${index}" data-field="price" type="number" value="${row.price ?? ""}" placeholder="Price" class="rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
         <div class="flex items-center font-semibold text-green-400">₹${formatMoney(rowTotal(row))}</div>
         <button type="button" data-delete="${index}" class="rounded-lg bg-red-500 px-3 py-2 text-white hover:bg-red-600">🗑️</button>
       </div>
@@ -148,24 +148,64 @@ require __DIR__ . '/includes/header.php';
   function showSuggestions(index, value) {
     const box = document.querySelector(`[data-suggest="${index}"]`);
     if (!box) return;
-    const search = (value || "").trim().toLowerCase();
+    const search = (value || "").trim();
     if (!search) {
       box.classList.add("hidden");
       box.innerHTML = "";
       return;
     }
-    const matches = catalog.filter((p) => (p.product_name || "").toLowerCase().includes(search)).slice(0, 8);
-    if (!matches.length || matches.some((p) => p.product_name === value)) {
+    const matches = catalog.filter((p) => (p.product_name || "").toLowerCase().includes(search.toLowerCase())).slice(0, 8);
+    const exact = catalog.some((p) => (p.product_name || "").toLowerCase() === search.toLowerCase());
+    let html = matches.map((p) => `
+      <div class="cursor-pointer border-b p-3 hover:bg-blue-100" data-pick="${p.id}" data-index="${index}">
+        <div class="font-medium">${p.product_name}</div>
+        <div class="text-sm text-gray-500">₹ ${formatMoney(p.selling_price)}</div>
+      </div>
+    `).join("");
+    if (!exact) {
+      html += `
+        <div class="cursor-pointer bg-green-50 p-3 font-semibold text-green-800 hover:bg-green-100" data-save-new="${index}">
+          ➕ Save "${search}" as new product
+        </div>`;
+    }
+    if (!html) {
       box.classList.add("hidden");
       return;
     }
     box.classList.remove("hidden");
-    box.innerHTML = matches.map((p) => `
-      <div class="cursor-pointer border-b p-3 hover:bg-blue-600" data-pick="${p.id}" data-index="${index}">
-        <div class="font-medium">${p.product_name}</div>
-        <div class="text-sm text-gray-400">₹ ${formatMoney(p.selling_price)}</div>
-      </div>
-    `).join("");
+    box.innerHTML = html;
+  }
+
+  async function saveRowAsProduct(index) {
+    const row = saleRows[index];
+    const name = (row.name || "").trim();
+    if (!name) {
+      alert("Pehle product name likho");
+      return;
+    }
+    const price = Number(row.price) || 0;
+    const data = await api("/api/product_save.php", {
+      method: "POST",
+      body: JSON.stringify({
+        product_name: name,
+        unit: row.unit || "Piece",
+        selling_price: price,
+        purchase_price: 0,
+        stock: 0,
+        gst_percent: 18,
+      }),
+    });
+    const product = {
+      id: data.id,
+      product_name: name,
+      unit: row.unit || "Piece",
+      selling_price: price,
+    };
+    catalog.push(product);
+    saleRows[index].product_id = data.id;
+    alert("✅ Product saved: " + name);
+    const box = document.querySelector(`[data-suggest="${index}"]`);
+    if (box) box.classList.add("hidden");
   }
 
   function invoiceHtml(customer, products, grandTotal) {
@@ -180,16 +220,15 @@ require __DIR__ . '/includes/header.php';
       </tr>
     `).join("");
     return `
-      <div class="print-area mx-auto max-w-4xl rounded-lg bg-white p-8 shadow-lg text-black">
-        <div class="border-b-2 border-green-700 pb-4 text-center">
-          <h1 class="text-3xl font-bold text-green-700">SATYANARAYAN HARDWARE STORES</h1>
+      <div class="print-area mx-auto max-w-4xl rounded-lg bg-white p-4 text-sm text-black shadow-lg">
+        <div class="border-b-2 border-green-700 pb-2 text-center">
+          <h1 class="text-xl font-bold text-green-700">SATYANARAYAN HARDWARE STORES</h1>
           <p class="text-gray-700">Main Road, Jayanagar, PIN - 847226</p>
           <p class="text-gray-700">Second Branch - Near Anumandal Hospital, Jayanagar</p>
           <p class="text-gray-700">📞 9431875263 | 9831046765</p>
-          <p class="text-gray-700">✉️ sunnynayak01@gmail.com</p>
           <p class="text-gray-700">GSTIN : 10ADTPN8807A1ZP</p>
         </div>
-        <div class="mt-6 flex justify-between">
+        <div class="mt-3 flex justify-between">
           <div>
             <p><strong>Date :</strong> ${new Date().toLocaleDateString("en-IN")}</p>
           </div>
@@ -198,7 +237,7 @@ require __DIR__ . '/includes/header.php';
             <p><strong>Mobile :</strong> ${customer.mobile}</p>
           </div>
         </div>
-        <table class="mt-8 w-full border-collapse border">
+        <table class="mt-3 w-full border-collapse border">
           <thead>
             <tr class="bg-gray-200">
               <th class="border p-2">#</th>
@@ -211,9 +250,9 @@ require __DIR__ . '/includes/header.php';
           </thead>
           <tbody>${rows}</tbody>
         </table>
-        <div class="mt-8 flex justify-end">
-          <div class="w-72 border p-4">
-            <div class="flex justify-between text-xl font-bold">
+        <div class="mt-3 flex justify-end">
+          <div class="w-64 border p-3">
+            <div class="flex justify-between text-lg font-bold">
               <span>Grand Total</span>
               <span>₹${formatMoney(grandTotal)}</span>
             </div>
@@ -250,11 +289,13 @@ require __DIR__ . '/includes/header.php';
     if (!field || Number.isNaN(index)) return;
     saleRows[index][field] = e.target.value;
     if (field === "name") {
-      const match = catalog.find((p) => p.product_name === e.target.value);
+      const match = catalog.find((p) => (p.product_name || "").toLowerCase() === e.target.value.trim().toLowerCase());
       if (match) {
         saleRows[index].price = String(match.selling_price);
         saleRows[index].unit = match.unit;
         saleRows[index].product_id = match.id;
+      } else {
+        saleRows[index].product_id = null;
       }
       showSuggestions(index, e.target.value);
     }
@@ -293,6 +334,11 @@ require __DIR__ . '/includes/header.php';
         saleRows[index].product_id = product.id;
         renderRows();
       }
+      return;
+    }
+    const saveNew = e.target.closest("[data-save-new]");
+    if (saveNew) {
+      saveRowAsProduct(Number(saveNew.dataset.saveNew)).catch((err) => alert(err.message));
     }
   });
 
@@ -321,7 +367,10 @@ require __DIR__ . '/includes/header.php';
     document.getElementById("preview-modal").classList.add("hidden");
     document.getElementById("preview-modal").classList.remove("flex");
   });
-  document.getElementById("btn-print-invoice").addEventListener("click", () => window.print());
+  document.getElementById("btn-print-invoice").addEventListener("click", () => {
+    document.getElementById("preview-modal").classList.add("print-invoice");
+    window.print();
+  });
 
   document.getElementById("btn-confirm-save").addEventListener("click", async () => {
     try {
@@ -342,6 +391,7 @@ require __DIR__ . '/includes/header.php';
       document.getElementById("preview-modal").classList.remove("flex");
       window.open(appUrl("invoice.php?id=" + result.id), "_blank");
       loadDashboard();
+      loadCatalog();
     } catch (err) {
       alert(err.message);
     }

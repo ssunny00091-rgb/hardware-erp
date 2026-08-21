@@ -64,3 +64,35 @@ function money(float|int|string $amount): string
 {
     return number_format((float) $amount, 2, '.', '');
 }
+
+function find_or_create_product(PDO $pdo, string $name, string $unit, float $sellingPrice, float $purchasePrice = 0.0): int
+{
+    $find = $pdo->prepare(
+        'SELECT id FROM products WHERE LOWER(product_name) = LOWER(:name) LIMIT 1'
+    );
+    $find->execute(['name' => $name]);
+    $found = $find->fetch();
+    if ($found) {
+        return (int) $found['id'];
+    }
+
+    $insert = $pdo->prepare(
+        'INSERT INTO products
+          (product_name, brand, category, unit, purchase_price, selling_price, stock, gst_percent, hsn_code)
+         VALUES
+          (:product_name, :brand, :category, :unit, :purchase_price, :selling_price, :stock, :gst_percent, :hsn_code)'
+    );
+    $insert->execute([
+        'product_name' => $name,
+        'brand' => '',
+        'category' => '',
+        'unit' => $unit !== '' ? $unit : 'Piece',
+        'purchase_price' => $purchasePrice,
+        'selling_price' => $sellingPrice,
+        'stock' => 0,
+        'gst_percent' => 18,
+        'hsn_code' => '',
+    ]);
+
+    return (int) $pdo->lastInsertId();
+}

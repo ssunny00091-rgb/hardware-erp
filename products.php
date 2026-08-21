@@ -37,15 +37,15 @@ require __DIR__ . '/includes/header.php';
     </div>
     <form id="product-form" class="grid grid-cols-2 gap-4">
       <input type="hidden" name="id" id="product-id">
-      <input name="product_name" id="product_name" placeholder="Product Name" class="rounded-lg border p-3" required>
-      <input name="brand" id="brand" placeholder="Brand" class="rounded-lg border p-3">
-      <input name="category" id="category" placeholder="Category" class="rounded-lg border p-3">
-      <select name="unit" id="unit" class="rounded-lg border p-3"></select>
-      <input type="number" step="0.01" name="purchase_price" id="purchase_price" placeholder="Purchase Price" class="rounded-lg border p-3">
-      <input type="number" step="0.01" name="selling_price" id="selling_price" placeholder="Selling Price" class="rounded-lg border p-3">
-      <input type="number" step="0.01" name="stock" id="stock" placeholder="Opening Stock" class="rounded-lg border p-3">
-      <input type="number" step="0.01" name="gst_percent" id="gst_percent" placeholder="GST %" value="18" class="rounded-lg border p-3">
-      <input name="hsn_code" id="hsn_code" placeholder="HSN Code" class="col-span-2 rounded-lg border p-3">
+      <input name="product_name" id="product_name" placeholder="Product Name" class="rounded-lg border border-gray-300 bg-white p-3 text-gray-900" required>
+      <input name="brand" id="brand" placeholder="Brand" class="rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
+      <input name="category" id="category" placeholder="Category" class="rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
+      <select name="unit" id="unit" class="rounded-lg border border-gray-300 bg-white p-3 text-gray-900"></select>
+      <input type="number" step="0.01" name="purchase_price" id="purchase_price" placeholder="Purchase Price" class="rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
+      <input type="number" step="0.01" name="selling_price" id="selling_price" placeholder="Selling Price" class="rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
+      <input type="number" step="0.01" name="stock" id="stock" placeholder="Opening Stock" class="rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
+      <input type="number" step="0.01" name="gst_percent" id="gst_percent" placeholder="GST %" value="18" class="rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
+      <input name="hsn_code" id="hsn_code" placeholder="HSN Code" class="col-span-2 rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
       <div class="col-span-2 mt-2 flex gap-3">
         <button type="button" class="close-modal flex-1 rounded-xl bg-gray-600 py-3 font-semibold">Cancel</button>
         <button type="submit" class="flex-1 rounded-xl bg-green-600 py-3 font-semibold">💾 Save Product</button>

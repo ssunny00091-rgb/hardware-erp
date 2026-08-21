@@ -17,6 +17,15 @@ $activeNav = $activeNav ?? 'home';
   <script>window.APP_BASE = <?= json_encode(BASE_URL, JSON_UNESCAPED_SLASHES) ?>;</script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="<?= htmlspecialchars(app_url('assets/css/style.css'), ENT_QUOTES, 'UTF-8') ?>">
+  <style>
+    input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]),
+    select, textarea {
+      color: #111827 !important;
+      background-color: #ffffff !important;
+      caret-color: #111827;
+    }
+    input::placeholder, textarea::placeholder { color: #6b7280 !important; opacity: 1 !important; }
+  </style>
   <script src="<?= htmlspecialchars(app_url('assets/js/app.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
 </head>
 <body class="min-h-screen bg-slate-950 text-white">

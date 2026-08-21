@@ -76,7 +76,6 @@ try {
         'INSERT INTO purchase_items (purchase_id, product_id, product_name, qty, unit, price, total)
          VALUES (:purchase_id, :product_id, :product_name, :qty, :unit, :price, :total)'
     );
-    $findProduct = $pdo->prepare('SELECT id FROM products WHERE product_name = :name LIMIT 1');
     $stockStmt = $pdo->prepare(
         'UPDATE products SET stock = stock + :qty, purchase_price = :price WHERE id = :id'
     );
@@ -84,9 +83,7 @@ try {
     foreach ($valid as $item) {
         $productId = $item['product_id'] ?: null;
         if (!$productId) {
-            $findProduct->execute(['name' => $item['name']]);
-            $found = $findProduct->fetch();
-            $productId = $found ? (int) $found['id'] : null;
+            $productId = find_or_create_product($pdo, $item['name'], $item['unit'], 0.0, $item['price']);
         }
 
         $itemStmt->execute([

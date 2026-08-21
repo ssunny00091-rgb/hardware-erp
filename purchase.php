@@ -12,9 +12,9 @@ require __DIR__ . '/includes/header.php';
 <div class="mb-8 rounded-2xl border border-white/20 bg-white/10 p-6 backdrop-blur-xl">
   <h2 class="mb-6 text-2xl font-bold">🛒 Purchase Details</h2>
   <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-    <input type="text" id="supplier-name" placeholder="Supplier Name" class="rounded-xl border border-white/20 bg-white/10 p-3 text-white placeholder-gray-300">
-    <input type="text" id="invoice-no" placeholder="Invoice Number" class="rounded-xl border border-white/20 bg-white/10 p-3 text-white placeholder-gray-300">
-    <input type="date" id="purchase-date" class="rounded-xl border border-white/20 bg-white/10 p-3 text-white" value="<?= htmlspecialchars(date('Y-m-d'), ENT_QUOTES, 'UTF-8') ?>">
+    <input type="text" id="supplier-name" placeholder="Supplier Name" class="rounded-xl border border-gray-300 bg-white p-3 text-gray-900">
+    <input type="text" id="invoice-no" placeholder="Invoice Number" class="rounded-xl border border-gray-300 bg-white p-3 text-gray-900">
+    <input type="date" id="purchase-date" class="rounded-xl border border-gray-300 bg-white p-3 text-gray-900" value="<?= htmlspecialchars(date('Y-m-d'), ENT_QUOTES, 'UTF-8') ?>">
   </div>
 </div>
 
@@ -48,11 +48,11 @@ require __DIR__ . '/includes/header.php';
     document.getElementById("purchase-rows").innerHTML = purchaseRows.map((row, index) => `
       <div class="mb-3 grid grid-cols-5 gap-3">
         <div class="relative">
-          <input data-index="${index}" data-field="name" value="${row.name ?? ""}" placeholder="Product Name" class="rounded-xl border border-white/20 bg-white/10 p-3 text-white placeholder-gray-300 w-full">
-          <div class="absolute left-0 right-0 z-50 mt-1 hidden max-h-60 overflow-y-auto rounded-lg border bg-black" data-suggest="${index}"></div>
+          <input data-index="${index}" data-field="name" value="${row.name ?? ""}" placeholder="Product Name" class="w-full rounded-xl border border-gray-300 bg-white p-3 text-gray-900">
+          <div class="absolute left-0 right-0 z-50 mt-1 hidden max-h-60 overflow-y-auto rounded-lg border bg-white text-gray-900" data-suggest="${index}"></div>
         </div>
-        <input data-index="${index}" data-field="qty" type="number" value="${row.qty ?? ""}" placeholder="Qty" class="rounded-xl border border-white/20 bg-white/10 p-3 text-white">
-        <input data-index="${index}" data-field="price" type="number" value="${row.price ?? ""}" placeholder="Purchase Price" class="rounded-xl border border-white/20 bg-white/10 p-3 text-white">
+        <input data-index="${index}" data-field="qty" type="number" value="${row.qty ?? ""}" placeholder="Qty" class="rounded-xl border border-gray-300 bg-white p-3 text-gray-900">
+        <input data-index="${index}" data-field="price" type="number" value="${row.price ?? ""}" placeholder="Purchase Price" class="rounded-xl border border-gray-300 bg-white p-3 text-gray-900">
         <div class="flex items-center justify-center rounded-xl border border-white/20 bg-white/10 font-bold text-green-400">₹${formatMoney(rowTotal(row))}</div>
         <button type="button" data-delete="${index}" class="rounded-xl bg-red-500 p-3 text-white hover:bg-red-600">🗑</button>
       </div>
