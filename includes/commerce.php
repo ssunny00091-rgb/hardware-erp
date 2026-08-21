@@ -442,6 +442,21 @@ function delete_purchase_ledgers(PDO $pdo, int $purchaseId): void
     $pdo->prepare('DELETE FROM ledger_entries WHERE purchase_id = :id')->execute(['id' => $purchaseId]);
 }
 
+function restore_purchase_stock(PDO $pdo, int $purchaseId): void
+{
+    $items = $pdo->prepare('SELECT product_id, qty FROM purchase_items WHERE purchase_id = :id');
+    $items->execute(['id' => $purchaseId]);
+    $restore = $pdo->prepare('UPDATE products SET stock = stock - :qty WHERE id = :id');
+    foreach ($items as $item) {
+        if (!empty($item['product_id'])) {
+            $restore->execute([
+                'qty' => $item['qty'],
+                'id' => $item['product_id'],
+            ]);
+        }
+    }
+}
+
 function restore_sale_stock(PDO $pdo, int $saleId): void
 {
     $items = $pdo->prepare('SELECT product_id, qty FROM sale_items WHERE sale_id = :id');
@@ -861,33 +876,80 @@ function persist_purchase(PDO $pdo, array $body): array
     $paid = $paidRaw === null || $paidRaw === '' ? 0.0 : (float) $paidRaw;
 
     $supplierPartyId = $supplier !== '' ? find_or_create_party($pdo, 'supplier', $supplier, $mobile, $address) : null;
+    $purchaseId = (int) ($body['id'] ?? 0);
 
-    try {
-        $purchaseStmt = $pdo->prepare(
-            'INSERT INTO purchases (supplier_name, invoice_no, purchase_date, total, paid, supplier_party_id)
-             VALUES (:supplier_name, :invoice_no, :purchase_date, :total, :paid, :supplier_party_id)'
-        );
-        $purchaseStmt->execute([
-            'supplier_name' => $supplier,
-            'invoice_no' => $invoiceNo,
-            'purchase_date' => $purchaseDate,
-            'total' => $grandTotal,
-            'paid' => $paid,
-            'supplier_party_id' => $supplierPartyId,
-        ]);
-    } catch (Throwable $e) {
-        $purchaseStmt = $pdo->prepare(
-            'INSERT INTO purchases (supplier_name, invoice_no, purchase_date, total)
-             VALUES (:supplier_name, :invoice_no, :purchase_date, :total)'
-        );
-        $purchaseStmt->execute([
-            'supplier_name' => $supplier,
-            'invoice_no' => $invoiceNo,
-            'purchase_date' => $purchaseDate,
-            'total' => $grandTotal,
-        ]);
+    if ($purchaseId > 0) {
+        $exists = $pdo->prepare('SELECT id FROM purchases WHERE id = :id');
+        $exists->execute(['id' => $purchaseId]);
+        if (!$exists->fetch()) {
+            throw new InvalidArgumentException('Purchase not found');
+        }
+        restore_purchase_stock($pdo, $purchaseId);
+        $pdo->prepare('DELETE FROM purchase_items WHERE purchase_id = :id')->execute(['id' => $purchaseId]);
+        delete_purchase_ledgers($pdo, $purchaseId);
+        try {
+            $paySum = $pdo->prepare('SELECT COALESCE(SUM(amount), 0) FROM purchase_payments WHERE purchase_id = :id');
+            $paySum->execute(['id' => $purchaseId]);
+            $fromPays = (float) $paySum->fetchColumn();
+            if ($fromPays > 0) {
+                $paid = $fromPays;
+            }
+        } catch (Throwable $e) {
+            // no payments table
+        }
+        try {
+            $pdo->prepare(
+                'UPDATE purchases SET supplier_name = :supplier_name, invoice_no = :invoice_no, purchase_date = :purchase_date,
+                 total = :total, paid = :paid, supplier_party_id = :supplier_party_id WHERE id = :id'
+            )->execute([
+                'supplier_name' => $supplier,
+                'invoice_no' => $invoiceNo,
+                'purchase_date' => $purchaseDate,
+                'total' => $grandTotal,
+                'paid' => $paid,
+                'supplier_party_id' => $supplierPartyId,
+                'id' => $purchaseId,
+            ]);
+        } catch (Throwable $e) {
+            $pdo->prepare(
+                'UPDATE purchases SET supplier_name = :supplier_name, invoice_no = :invoice_no, purchase_date = :purchase_date,
+                 total = :total WHERE id = :id'
+            )->execute([
+                'supplier_name' => $supplier,
+                'invoice_no' => $invoiceNo,
+                'purchase_date' => $purchaseDate,
+                'total' => $grandTotal,
+                'id' => $purchaseId,
+            ]);
+        }
+    } else {
+        try {
+            $purchaseStmt = $pdo->prepare(
+                'INSERT INTO purchases (supplier_name, invoice_no, purchase_date, total, paid, supplier_party_id)
+                 VALUES (:supplier_name, :invoice_no, :purchase_date, :total, :paid, :supplier_party_id)'
+            );
+            $purchaseStmt->execute([
+                'supplier_name' => $supplier,
+                'invoice_no' => $invoiceNo,
+                'purchase_date' => $purchaseDate,
+                'total' => $grandTotal,
+                'paid' => $paid,
+                'supplier_party_id' => $supplierPartyId,
+            ]);
+        } catch (Throwable $e) {
+            $purchaseStmt = $pdo->prepare(
+                'INSERT INTO purchases (supplier_name, invoice_no, purchase_date, total)
+                 VALUES (:supplier_name, :invoice_no, :purchase_date, :total)'
+            );
+            $purchaseStmt->execute([
+                'supplier_name' => $supplier,
+                'invoice_no' => $invoiceNo,
+                'purchase_date' => $purchaseDate,
+                'total' => $grandTotal,
+            ]);
+        }
+        $purchaseId = (int) $pdo->lastInsertId();
     }
-    $purchaseId = (int) $pdo->lastInsertId();
 
     $itemStmt = $pdo->prepare(
         'INSERT INTO purchase_items (purchase_id, product_id, product_name, qty, unit, price, total)

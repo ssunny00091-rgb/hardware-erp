@@ -60,6 +60,7 @@ $billDate = format_display_date($purchase['purchase_date']);
 
 <div class="no-print mb-4 flex flex-wrap gap-2">
   <a href="<?= $h(app_url('purchase.php')) ?>" class="rounded-lg bg-slate-600 px-4 py-2">← Purchase</a>
+  <a href="<?= $h(app_url('purchase.php?edit=' . $id)) ?>" class="rounded-lg bg-amber-500 px-4 py-2">✏️ Edit bill</a>
   <button type="button" onclick="window.print()" class="rounded-lg bg-blue-600 px-4 py-2">🖨️ Print bill</button>
 </div>
 

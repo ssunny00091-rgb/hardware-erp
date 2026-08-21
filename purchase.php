@@ -7,7 +7,8 @@ $activeNav = 'purchase';
 require __DIR__ . '/includes/header.php';
 ?>
 
-<h1 class="mb-8 text-4xl font-bold">🛒 Purchase Entry</h1>
+<h1 id="purchase-form-title" class="mb-8 text-4xl font-bold">🛒 Purchase Entry</h1>
+<input type="hidden" id="editing-purchase-id" value="">
 
 <div class="mb-8 rounded-2xl border border-white/20 bg-white/10 p-6 backdrop-blur-xl">
   <h2 class="mb-6 text-2xl font-bold">🛒 Purchase Details</h2>
@@ -40,6 +41,7 @@ require __DIR__ . '/includes/header.php';
   </div>
   <div class="flex flex-col gap-3 sm:flex-row sm:gap-4">
     <button type="button" id="btn-add-row" class="flex-1 rounded-xl bg-blue-600 py-3 text-lg font-semibold hover:bg-blue-500">➕ Add Product</button>
+    <button type="button" id="btn-cancel-edit" class="hidden flex-1 rounded-xl bg-slate-600 py-3 text-lg font-semibold">Cancel edit</button>
     <button type="button" id="btn-save-purchase" class="flex-1 rounded-xl bg-green-600 py-3 text-lg font-semibold hover:bg-green-500">💾 Save Purchase</button>
   </div>
 </div>
@@ -56,7 +58,7 @@ require __DIR__ . '/includes/header.php';
           <th class="p-3 text-right">Total</th>
           <th class="p-3 text-right">Paid</th>
           <th class="p-3 text-right">Due</th>
-          <th class="p-3">View</th>
+          <th class="p-3">Action</th>
         </tr>
       </thead>
       <tbody id="purchase-history"></tbody>
@@ -67,6 +69,53 @@ require __DIR__ . '/includes/header.php';
 <script>
   let purchaseRows = [emptyRow()];
   let catalog = [];
+  let editingPurchaseId = 0;
+
+  function setPurchaseEditMode(on) {
+    document.getElementById("purchase-form-title").textContent = on ? "✏️ Edit Supplier Bill" : "🛒 Purchase Entry";
+    document.getElementById("btn-save-purchase").textContent = on ? "💾 Update Bill" : "💾 Save Purchase";
+    document.getElementById("btn-cancel-edit").classList.toggle("hidden", !on);
+  }
+
+  function resetPurchaseForm() {
+    editingPurchaseId = 0;
+    document.getElementById("editing-purchase-id").value = "";
+    document.getElementById("supplier-name").value = "";
+    document.getElementById("invoice-no").value = "";
+    document.getElementById("purchase-paid").value = "";
+    setDateField("purchase-date", "purchase-date-picker", todayIsoDate());
+    purchaseRows = [emptyRow()];
+    setPurchaseEditMode(false);
+    renderPurchase();
+  }
+
+  async function loadPurchaseForEdit(id) {
+    const data = await api("/api/purchases.php?id=" + id);
+    const bill = data.purchase;
+    if (!bill) throw new Error("Bill not found");
+    editingPurchaseId = Number(bill.id);
+    document.getElementById("editing-purchase-id").value = String(bill.id);
+    document.getElementById("supplier-name").value = bill.supplier_name || "";
+    document.getElementById("invoice-no").value = bill.invoice_no || "";
+    setDateField("purchase-date", "purchase-date-picker", bill.purchase_date || todayIsoDate());
+    const paid = bill.paid == null || bill.paid === "" ? "" : String(bill.paid);
+    document.getElementById("purchase-paid").value = paid;
+    purchaseRows = (bill.products || []).length
+      ? bill.products.map((row) => ({
+          name: row.name || "",
+          qty: row.qty,
+          unit: row.unit || "Piece",
+          price: row.price,
+          product_id: row.product_id || null,
+          color: "",
+          color_hex: "#ffffff",
+          hsn: "",
+        }))
+      : [emptyRow()];
+    setPurchaseEditMode(true);
+    renderPurchase();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   function renderPurchase() {
     document.getElementById("purchase-rows").innerHTML = purchaseRows.map((row, index) => `
@@ -175,24 +224,29 @@ require __DIR__ . '/includes/header.php';
 
   document.getElementById("btn-save-purchase").addEventListener("click", async () => {
     try {
-      const result = await api("/api/purchases.php", {
-        method: "POST",
-        body: JSON.stringify({
-          supplier_name: document.getElementById("supplier-name").value,
-          invoice_no: document.getElementById("invoice-no").value,
-          purchase_date: parseToIsoDate(document.getElementById("purchase-date").value),
-          paid: document.getElementById("purchase-paid").value,
-          products: purchaseRows,
-        }),
+      const payload = {
+        supplier_name: document.getElementById("supplier-name").value,
+        invoice_no: document.getElementById("invoice-no").value,
+        purchase_date: parseToIsoDate(document.getElementById("purchase-date").value),
+        paid: document.getElementById("purchase-paid").value,
+        products: purchaseRows,
+      };
+      if (editingPurchaseId) payload.id = editingPurchaseId;
+      const result = await api("/api/purchases.php" + (editingPurchaseId ? "?id=" + editingPurchaseId : ""), {
+        method: editingPurchaseId ? "PUT" : "POST",
+        body: JSON.stringify(payload),
       });
-      alert("✅ Purchase Saved. Stock updated.");
-      purchaseRows = [emptyRow()];
-      renderPurchase();
+      alert(editingPurchaseId ? "✅ Bill update ho gaya. Stock adjust ho gaya." : "✅ Purchase Saved. Stock updated.");
+      resetPurchaseForm();
       loadPurchaseHistory();
       if (result.id) window.open(appUrl("purchase-bill.php?id=" + result.id), "_blank");
     } catch (err) {
       alert(err.message);
     }
+  });
+
+  document.getElementById("btn-cancel-edit").addEventListener("click", () => {
+    resetPurchaseForm();
   });
 
   api("/api/products.php").then((data) => { catalog = data.products || []; }).catch(() => {});
@@ -213,7 +267,10 @@ require __DIR__ . '/includes/header.php';
           <td class="p-3 text-right">₹${formatMoney(paid)}</td>
           <td class="p-3 text-right">₹${formatMoney(due)}</td>
           <td class="p-3">
-            <a class="rounded bg-blue-600 px-3 py-1 text-white" href="${appUrl("purchase-bill.php?id=" + row.id)}" target="_blank">👁 Bill</a>
+            <div class="flex flex-wrap gap-2">
+              <a class="rounded bg-blue-600 px-3 py-1 text-white" href="${appUrl("purchase-bill.php?id=" + row.id)}" target="_blank">👁 Bill</a>
+              <button type="button" data-edit-purchase="${row.id}" class="rounded bg-amber-500 px-3 py-1 text-white">✏️ Edit</button>
+            </div>
           </td>
         </tr>
       `;
@@ -222,6 +279,17 @@ require __DIR__ . '/includes/header.php';
   bindDateField("purchase-date", "purchase-date-picker");
   setDateField("purchase-date", "purchase-date-picker", todayIsoDate());
   loadPurchaseHistory().catch(() => {});
+
+  document.getElementById("purchase-history").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-edit-purchase]");
+    if (!btn) return;
+    loadPurchaseForEdit(btn.dataset.editPurchase).catch((err) => alert(err.message));
+  });
+
+  const editParam = new URLSearchParams(window.location.search).get("edit");
+  if (editParam) {
+    loadPurchaseForEdit(editParam).catch((err) => alert(err.message));
+  }
 </script>
 
 <?php require __DIR__ . '/includes/footer.php'; ?>

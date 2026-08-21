@@ -18,7 +18,7 @@ try {
                 json_response(['error' => 'Purchase not found'], 404);
             }
             $items = $pdo->prepare(
-                'SELECT product_name AS name, qty, unit, price, total
+                'SELECT product_id, product_name AS name, qty, unit, price, total
                  FROM purchase_items WHERE purchase_id = :id ORDER BY id ASC'
             );
             $items->execute(['id' => $id]);
@@ -77,6 +77,27 @@ try {
             json_response(['error' => 'Invalid products'], 422);
         }
 
+        $pdo->beginTransaction();
+        try {
+            $result = persist_purchase($pdo, $body);
+        } catch (InvalidArgumentException $e) {
+            $pdo->rollBack();
+            json_response(['error' => $e->getMessage()], 422);
+        }
+        $pdo->commit();
+        json_response($result);
+    }
+
+    if ($method === 'PUT') {
+        $body = read_json_body();
+        $editId = (int) ($body['id'] ?? $_GET['id'] ?? 0);
+        if ($editId <= 0) {
+            json_response(['error' => 'Invalid purchase id'], 422);
+        }
+        $body['id'] = $editId;
+        if (!isset($body['products']) || !is_array($body['products'])) {
+            json_response(['error' => 'Invalid products'], 422);
+        }
         $pdo->beginTransaction();
         try {
             $result = persist_purchase($pdo, $body);
