@@ -52,8 +52,11 @@ try {
             $name = trim((string) ($product['name'] ?? ''));
             $qty = (float) ($product['qty'] ?? 0);
             $price = (float) ($product['price'] ?? 0);
-            if ($name === '' || $qty <= 0 || $price <= 0) {
+            if ($name === '') {
                 continue;
+            }
+            if ($qty <= 0) {
+                $qty = 1;
             }
             $valid[] = [
                 'product_id' => isset($product['product_id']) ? (int) $product['product_id'] : null,
@@ -108,19 +111,37 @@ try {
             }
         }
 
-        $saleStmt = $pdo->prepare(
-            'INSERT INTO sales (invoice_no, customer_id, customer_name, mobile, address, gst, total)
-             VALUES (:invoice_no, :customer_id, :customer_name, :mobile, :address, :gst, :total)'
-        );
-        $saleStmt->execute([
-            'invoice_no' => $invoiceNo,
-            'customer_id' => $customerId,
-            'customer_name' => $customerName,
-            'mobile' => $mobile,
-            'address' => $address,
-            'gst' => $gst,
-            'total' => $grandTotal,
-        ]);
+        $lineItemsJson = json_encode($valid, JSON_UNESCAPED_UNICODE);
+        try {
+            $saleStmt = $pdo->prepare(
+                'INSERT INTO sales (invoice_no, customer_id, customer_name, mobile, address, gst, total, line_items)
+                 VALUES (:invoice_no, :customer_id, :customer_name, :mobile, :address, :gst, :total, :line_items)'
+            );
+            $saleStmt->execute([
+                'invoice_no' => $invoiceNo,
+                'customer_id' => $customerId,
+                'customer_name' => $customerName,
+                'mobile' => $mobile,
+                'address' => $address,
+                'gst' => $gst,
+                'total' => $grandTotal,
+                'line_items' => $lineItemsJson,
+            ]);
+        } catch (Throwable $e) {
+            $saleStmt = $pdo->prepare(
+                'INSERT INTO sales (invoice_no, customer_id, customer_name, mobile, address, gst, total)
+                 VALUES (:invoice_no, :customer_id, :customer_name, :mobile, :address, :gst, :total)'
+            );
+            $saleStmt->execute([
+                'invoice_no' => $invoiceNo,
+                'customer_id' => $customerId,
+                'customer_name' => $customerName,
+                'mobile' => $mobile,
+                'address' => $address,
+                'gst' => $gst,
+                'total' => $grandTotal,
+            ]);
+        }
         $saleId = (int) $pdo->lastInsertId();
 
         $itemStmt = $pdo->prepare(
@@ -130,20 +151,32 @@ try {
         $stockStmt = $pdo->prepare('UPDATE products SET stock = stock - :qty WHERE id = :id');
 
         foreach ($valid as $item) {
-            $productId = $item['product_id'] ?: null;
+            $productId = !empty($item['product_id']) ? (int) $item['product_id'] : null;
             if (!$productId) {
-                $productId = find_or_create_product($pdo, $item['name'], $item['unit'], $item['price']);
+                $productId = find_or_create_product($pdo, $item['name'], $item['unit'], (float) $item['price']);
             }
 
-            $itemStmt->execute([
-                'sale_id' => $saleId,
-                'product_id' => $productId,
-                'product_name' => $item['name'],
-                'qty' => $item['qty'],
-                'unit' => $item['unit'],
-                'price' => $item['price'],
-                'total' => $item['total'],
-            ]);
+            try {
+                $itemStmt->execute([
+                    'sale_id' => $saleId,
+                    'product_id' => $productId,
+                    'product_name' => $item['name'],
+                    'qty' => $item['qty'],
+                    'unit' => $item['unit'],
+                    'price' => $item['price'],
+                    'total' => $item['total'],
+                ]);
+            } catch (Throwable $e) {
+                $itemStmt->execute([
+                    'sale_id' => $saleId,
+                    'product_id' => null,
+                    'product_name' => $item['name'],
+                    'qty' => $item['qty'],
+                    'unit' => $item['unit'],
+                    'price' => $item['price'],
+                    'total' => $item['total'],
+                ]);
+            }
 
             if ($productId) {
                 $stockStmt->execute(['qty' => $item['qty'], 'id' => $productId]);

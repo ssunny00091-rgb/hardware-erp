@@ -29,6 +29,12 @@ function db(): PDO
         PDO::ATTR_EMULATE_PREPARES => false,
     ]);
 
+    try {
+        $pdo->exec('ALTER TABLE sales ADD COLUMN line_items TEXT NULL');
+    } catch (Throwable $e) {
+        // Column already exists.
+    }
+
     return $pdo;
 }
 

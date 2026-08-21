@@ -55,19 +55,8 @@ function printInvoiceSheet(html) {
   }
   win.document.open();
   win.document.write(
-    "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>Invoice</title>" +
-      "<style>" +
-      "@page{size:A4 portrait;margin:10mm;}" +
-      "html,body{margin:0;padding:0;background:#fff;color:#111;font-family:Arial,Helvetica,sans-serif;font-size:12px;}" +
-      "table{width:100%;border-collapse:collapse;margin-top:10px;}" +
-      "th,td{border:1px solid #111;padding:5px 6px;text-align:left;}" +
-      "th{background:#e5e7eb;}" +
-      "h1{margin:0 0 4px;font-size:18px;color:#15803d;}" +
-      ".center{text-align:center;border-bottom:2px solid #15803d;padding-bottom:8px;}" +
-      ".meta{display:flex;justify-content:space-between;margin-top:10px;}" +
-      ".total{margin:10px 0 0 auto;width:220px;border:1px solid #111;padding:8px;font-weight:bold;display:flex;justify-content:space-between;}" +
-      ".thanks{text-align:center;font-style:italic;margin-top:14px;}" +
-      "</style></head><body>" +
+    "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>Invoice</title></head>" +
+      "<body style=\"margin:12px;font-family:Arial,Helvetica,sans-serif;color:#000;background:#fff;\">" +
       html +
       "</body></html>"
   );

@@ -15,10 +15,7 @@ if ($id <= 0) {
 }
 
 $pdo = db();
-$saleStmt = $pdo->prepare(
-    'SELECT id, invoice_no, customer_name, mobile, address, gst, total, created_at
-     FROM sales WHERE id = :id'
-);
+$saleStmt = $pdo->prepare('SELECT * FROM sales WHERE id = :id');
 $saleStmt->execute(['id' => $id]);
 $sale = $saleStmt->fetch();
 
@@ -33,96 +30,79 @@ $itemStmt = $pdo->prepare(
 );
 $itemStmt->execute(['id' => $id]);
 $items = $itemStmt->fetchAll();
+
+if (!$items && !empty($sale['line_items'])) {
+    $decoded = json_decode((string) $sale['line_items'], true);
+    if (is_array($decoded)) {
+        foreach ($decoded as $row) {
+            $items[] = [
+                'product_name' => (string) ($row['name'] ?? $row['product_name'] ?? ''),
+                'qty' => $row['qty'] ?? '',
+                'unit' => $row['unit'] ?? 'Piece',
+                'price' => $row['price'] ?? 0,
+                'total' => $row['total'] ?? 0,
+            ];
+        }
+    }
+}
+
 $date = date('d/m/Y', strtotime((string) $sale['created_at']));
-$autoPrint = isset($_GET['print']);
+$h = static function ($value): string {
+    return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+};
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title><?= htmlspecialchars((string) $sale['invoice_no'], ENT_QUOTES, 'UTF-8') ?></title>
-  <link rel="stylesheet" href="<?= htmlspecialchars(app_url('assets/css/invoice-print.css'), ENT_QUOTES, 'UTF-8') ?>">
+  <title><?= $h($sale['invoice_no']) ?></title>
+</head>
+<body style="margin:0;padding:12px;font-family:Arial,Helvetica,sans-serif;color:#000;background:#fff;font-size:14px;">
+  <div style="margin-bottom:12px;">
+    <button type="button" onclick="window.print()">Print</button>
+    <a href="<?= $h(app_url('index.php')) ?>">Back</a>
+  </div>
+
+  <div style="text-align:center;border-bottom:2px solid #000;padding-bottom:8px;">
+    <div style="font-size:20px;font-weight:bold;"><?= $h($company['name']) ?></div>
+    <div><?= $h($company['address_line1']) ?></div>
+    <div><?= $h($company['address_line2']) ?></div>
+    <div>Phone: <?= $h($company['mobile']) ?></div>
+    <div>GSTIN: <?= $h($company['gst']) ?></div>
+  </div>
+
+  <p>
+    <strong>Invoice No:</strong> <?= $h($sale['invoice_no']) ?><br>
+    <strong>Date:</strong> <?= $h($date) ?><br>
+    <strong>Customer:</strong> <?= $h($sale['customer_name']) ?><br>
+    <strong>Mobile:</strong> <?= $h($sale['mobile']) ?>
+  </p>
+
+  <p style="font-weight:bold;margin-bottom:4px;">Products</p>
+  <?php if (!$items): ?>
+    <p>No products saved on this invoice.</p>
+  <?php else: ?>
+    <?php foreach ($items as $i => $item): ?>
+      <p style="margin:0;padding:6px 0;border-bottom:1px solid #000;">
+        <?= $i + 1 ?>)
+        <?= $h($item['product_name']) ?>
+        &nbsp;|&nbsp; Qty: <?= $h($item['qty']) ?> <?= $h($item['unit']) ?>
+        &nbsp;|&nbsp; Rate: Rs. <?= money($item['price']) ?>
+        &nbsp;|&nbsp; Amount: Rs. <?= money($item['total']) ?>
+      </p>
+    <?php endforeach; ?>
+  <?php endif; ?>
+
+  <p style="font-size:18px;font-weight:bold;margin-top:12px;">
+    Grand Total: Rs. <?= money($sale['total']) ?>
+  </p>
+  <p style="text-align:center;">Thank You! Visit Again.</p>
+
   <style>
     @media print {
-      table { display: table !important; width: 100% !important; }
-      thead { display: table-header-group !important; }
-      tbody { display: table-row-group !important; }
-      tr { display: table-row !important; }
-      th, td { display: table-cell !important; }
+      button, a { display: none !important; }
+      body { padding: 0 !important; }
     }
   </style>
-</head>
-<body>
-  <div class="no-print">
-    <button type="button" onclick="window.print()">🖨️ Print / Save PDF</button>
-    <a href="<?= htmlspecialchars(app_url('index.php'), ENT_QUOTES, 'UTF-8') ?>">Back</a>
-  </div>
-
-  <div class="sheet">
-    <div class="center">
-      <h1><?= htmlspecialchars($company['name'], ENT_QUOTES, 'UTF-8') ?></h1>
-      <div><?= htmlspecialchars($company['address_line1'], ENT_QUOTES, 'UTF-8') ?></div>
-      <div><?= htmlspecialchars($company['address_line2'], ENT_QUOTES, 'UTF-8') ?></div>
-      <div>Phone: <?= htmlspecialchars($company['mobile'], ENT_QUOTES, 'UTF-8') ?></div>
-      <div>GSTIN: <?= htmlspecialchars($company['gst'], ENT_QUOTES, 'UTF-8') ?></div>
-    </div>
-
-    <div class="meta">
-      <div>
-        <div><strong>Invoice No:</strong> <?= htmlspecialchars((string) $sale['invoice_no'], ENT_QUOTES, 'UTF-8') ?></div>
-        <div><strong>Date:</strong> <?= htmlspecialchars($date, ENT_QUOTES, 'UTF-8') ?></div>
-      </div>
-      <div style="text-align:right">
-        <div><strong>Customer:</strong> <?= htmlspecialchars((string) $sale['customer_name'], ENT_QUOTES, 'UTF-8') ?></div>
-        <div><strong>Mobile:</strong> <?= htmlspecialchars((string) $sale['mobile'], ENT_QUOTES, 'UTF-8') ?></div>
-        <?php if (!empty($sale['address'])): ?>
-          <div><strong>Address:</strong> <?= htmlspecialchars((string) $sale['address'], ENT_QUOTES, 'UTF-8') ?></div>
-        <?php endif; ?>
-        <?php if (!empty($sale['gst'])): ?>
-          <div><strong>GST:</strong> <?= htmlspecialchars((string) $sale['gst'], ENT_QUOTES, 'UTF-8') ?></div>
-        <?php endif; ?>
-      </div>
-    </div>
-
-    <table style="width:100%;border-collapse:collapse;margin-top:10px">
-      <thead>
-        <tr>
-          <th style="border:1px solid #111;padding:5px;background:#e5e7eb">#</th>
-          <th style="border:1px solid #111;padding:5px;background:#e5e7eb">Product</th>
-          <th style="border:1px solid #111;padding:5px;background:#e5e7eb">Qty</th>
-          <th style="border:1px solid #111;padding:5px;background:#e5e7eb">Unit</th>
-          <th style="border:1px solid #111;padding:5px;background:#e5e7eb">Rate</th>
-          <th style="border:1px solid #111;padding:5px;background:#e5e7eb">Amount</th>
-        </tr>
-      </thead>
-      <tbody>
-        <?php if (!$items): ?>
-          <tr>
-            <td colspan="6" style="border:1px solid #111;padding:5px">No products</td>
-          </tr>
-        <?php else: ?>
-          <?php foreach ($items as $i => $item): ?>
-            <tr>
-              <td style="border:1px solid #111;padding:5px"><?= $i + 1 ?></td>
-              <td style="border:1px solid #111;padding:5px"><?= htmlspecialchars((string) $item['product_name'], ENT_QUOTES, 'UTF-8') ?></td>
-              <td style="border:1px solid #111;padding:5px"><?= htmlspecialchars((string) $item['qty'], ENT_QUOTES, 'UTF-8') ?></td>
-              <td style="border:1px solid #111;padding:5px;text-align:center"><?= htmlspecialchars((string) $item['unit'], ENT_QUOTES, 'UTF-8') ?></td>
-              <td style="border:1px solid #111;padding:5px;text-align:right">Rs. <?= money($item['price']) ?></td>
-              <td style="border:1px solid #111;padding:5px;text-align:right">Rs. <?= money($item['total']) ?></td>
-            </tr>
-          <?php endforeach; ?>
-        <?php endif; ?>
-      </tbody>
-    </table>
-
-    <div class="total">
-      <span>Grand Total</span>
-      <span>Rs. <?= money($sale['total']) ?></span>
-    </div>
-    <p class="thanks">Thank You! Visit Again.</p>
-  </div>
-  <?php if ($autoPrint): ?>
-    <script>window.addEventListener("load", function () { window.print(); });</script>
-  <?php endif; ?>
 </body>
 </html>

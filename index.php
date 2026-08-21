@@ -145,19 +145,27 @@ require __DIR__ . '/includes/header.php';
   }
 
   function validProducts() {
-    syncSaleRowsFromDom();
-    return saleRows.filter((row) => {
-      const name = String(row.name || "").trim();
-      return name !== "" && Number(row.qty) > 0 && Number(row.price) > 0;
-    });
-  }
-
-  function syncSaleRowsFromDom() {
-    document.querySelectorAll("#product-rows [data-field]").forEach((el) => {
+    const byIndex = {};
+    document.querySelectorAll("#product-rows [data-index][data-field]").forEach((el) => {
       const index = Number(el.dataset.index);
-      const field = el.dataset.field;
-      if (Number.isNaN(index) || !saleRows[index] || !field) return;
-      saleRows[index][field] = el.value;
+      if (Number.isNaN(index)) return;
+      if (!byIndex[index]) {
+        byIndex[index] = { name: "", qty: "", unit: "Piece", price: "", product_id: null };
+      }
+      byIndex[index][el.dataset.field] = el.value;
+      if (saleRows[index] && saleRows[index].product_id) {
+        byIndex[index].product_id = saleRows[index].product_id;
+      }
+    });
+    return Object.values(byIndex).filter((row) => String(row.name || "").trim() !== "").map((row) => {
+      const qty = Number(row.qty) > 0 ? Number(row.qty) : 1;
+      const price = Number(row.price) || 0;
+      return {
+        ...row,
+        name: String(row.name).trim(),
+        qty,
+        price,
+      };
     });
   }
 
@@ -238,44 +246,34 @@ require __DIR__ . '/includes/header.php';
 
   function invoiceSheetHtml(customer, products, grandTotal) {
     const lines = products.length
-      ? products.map((p, i) => `
-      <tr>
-        <td>${i + 1}</td>
-        <td>${String(p.name || "").replace(/</g, "&lt;")}</td>
-        <td>${p.qty}</td>
-        <td style="text-align:center">${p.unit || "Piece"}</td>
-        <td style="text-align:right">Rs. ${formatMoney(p.price)}</td>
-        <td style="text-align:right">Rs. ${formatMoney(rowTotal(p))}</td>
-      </tr>`).join("")
-      : `<tr><td colspan="6">No products</td></tr>`;
+      ? products.map((p, i) => (
+          "<p style=\"margin:0;padding:6px 0;border-bottom:1px solid #000;\">" +
+          (i + 1) + ") " +
+          String(p.name || "").replace(/</g, "&lt;") +
+          " | Qty: " + p.qty + " " + (p.unit || "Piece") +
+          " | Rate: Rs. " + formatMoney(p.price) +
+          " | Amount: Rs. " + formatMoney(rowTotal(p)) +
+          "</p>"
+        )).join("")
+      : "<p>No products</p>";
     return `
-      <div class="sheet">
-        <div class="center">
-          <h1>SATYANARAYAN HARDWARE STORES</h1>
+      <div style="font-family:Arial,Helvetica,sans-serif;color:#000;">
+        <div style="text-align:center;border-bottom:2px solid #000;padding-bottom:8px;">
+          <div style="font-size:20px;font-weight:bold;">SATYANARAYAN HARDWARE STORES</div>
           <div>Main Road, Jayanagar, PIN - 847226</div>
           <div>Second Branch - Near Anumandal Hospital, Jayanagar</div>
           <div>Phone: 9431875263, 9831046765</div>
           <div>GSTIN: 10ADTPN8807A1ZP</div>
         </div>
-        <div class="meta">
-          <div>
-            <div><strong>Date:</strong> ${new Date().toLocaleDateString("en-IN")}</div>
-          </div>
-          <div style="text-align:right">
-            <div><strong>Customer:</strong> ${customer.name || ""}</div>
-            <div><strong>Mobile:</strong> ${customer.mobile || ""}</div>
-          </div>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th>#</th><th>Product</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Amount</th>
-            </tr>
-          </thead>
-          <tbody>${lines}</tbody>
-        </table>
-        <div class="total"><span>Grand Total</span><span>Rs. ${formatMoney(grandTotal)}</span></div>
-        <p class="thanks">Thank You! Visit Again.</p>
+        <p>
+          <strong>Date:</strong> ${new Date().toLocaleDateString("en-IN")}<br>
+          <strong>Customer:</strong> ${customer.name || ""}<br>
+          <strong>Mobile:</strong> ${customer.mobile || ""}
+        </p>
+        <p style="font-weight:bold;">Products</p>
+        ${lines}
+        <p style="font-size:18px;font-weight:bold;">Grand Total: Rs. ${formatMoney(grandTotal)}</p>
+        <p style="text-align:center;">Thank You! Visit Again.</p>
       </div>
     `;
   }
