@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Hardware ERP (PHP + MySQL)
 
-## Getting Started
+SATYANARAYAN HARDWARE STORES billing app — Next.js/Supabase se PHP + MySQL pe convert.
 
-First, run the development server:
+## Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- Dashboard with live sales/purchase totals from MySQL
+- New sale, invoice preview, print/PDF (browser print)
+- Sales history (view/delete; delete restores stock)
+- Product master CRUD
+- Purchase entry (increases stock)
+- Customer lookup by mobile number
+
+## Setup
+
+1. PHP 8.1+ with `pdo_mysql`
+2. MySQL 5.7+ / 8 / MariaDB
+3. Copy `.env.example` to `.env` and set credentials:
+
+```
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_NAME=hardware_erp
+DB_USER=root
+DB_PASS=your_password
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+4. Import schema (or open `install.php` in the browser):
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+mysql -u root -p < sql/schema.sql
+mysql -u root -p < sql/seed.sql
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+5. Serve the project root:
 
-## Learn More
+```bash
+php -S localhost:8000
+```
 
-To learn more about Next.js, take a look at the following resources:
+Open http://localhost:8000 then http://localhost:8000/install.php if tables are not created yet.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Apache/XAMPP: copy this folder into `htdocs` and visit `/hardware-erp/`. If the app is not at the web root, keep using the `.php` URLs (`index.php`, `products.php`, `purchase.php`).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Data tables
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Table | Purpose |
+| --- | --- |
+| `customers` | Customer master |
+| `products` | Product master + stock |
+| `sales` / `sale_items` | Invoices |
+| `purchases` / `purchase_items` | Purchase bills |
