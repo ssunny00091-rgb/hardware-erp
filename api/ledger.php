@@ -86,6 +86,32 @@ try {
         json_response(['ok' => true]);
     }
 
+    if ($method === 'DELETE') {
+        $entryId = (int) ($_GET['id'] ?? 0);
+        $partyId = (int) ($_GET['party_id'] ?? 0);
+
+        if ($entryId > 0) {
+            $row = $pdo->prepare('SELECT * FROM ledger_entries WHERE id = :id');
+            $row->execute(['id' => $entryId]);
+            $entry = $row->fetch();
+            if (!$entry) {
+                json_response(['error' => 'Entry not found'], 404);
+            }
+            $pdo->prepare('DELETE FROM ledger_entries WHERE id = :id')->execute(['id' => $entryId]);
+            json_response(['ok' => true]);
+        }
+
+        if ($partyId > 0) {
+            $pdo->beginTransaction();
+            $pdo->prepare('DELETE FROM ledger_entries WHERE party_id = :id')->execute(['id' => $partyId]);
+            $pdo->prepare('DELETE FROM parties WHERE id = :id')->execute(['id' => $partyId]);
+            $pdo->commit();
+            json_response(['ok' => true]);
+        }
+
+        json_response(['error' => 'Specify entry id or party_id'], 422);
+    }
+
     json_response(['error' => 'Method not allowed'], 405);
 } catch (Throwable $e) {
     json_response(['error' => $e->getMessage()], 500);

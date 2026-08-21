@@ -58,8 +58,6 @@ require __DIR__ . '/includes/header.php';
     </div>
     <input type="text" id="ref-mobile" placeholder="Their mobile (optional)" class="rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none">
   </div>
-  <input type="number" id="sale-received" placeholder="Received amount (blank = full payment)" class="mb-4 w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none">
-
   <div class="mt-8">
     <div class="mb-4 grid grid-cols-6 gap-3 rounded-2xl border border-white/10 bg-white/10 p-4 font-semibold">
       <div>📦 Product</div>
@@ -96,8 +94,18 @@ require __DIR__ . '/includes/header.php';
   <div class="mt-6 text-right text-2xl font-bold text-green-400">
     Grand Total: ₹<span id="grand-total">0.00</span>
   </div>
+  <p class="mt-1 text-right text-lg text-amber-300">Due: ₹<span id="sale-due">0.00</span></p>
 
-  <div class="mt-8 flex justify-end gap-4">
+  <div class="mt-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div class="rounded-2xl border border-white/20 bg-white/10 p-4">
+      <div class="mb-2 font-semibold">Payment</div>
+      <div class="flex flex-wrap items-center gap-3 text-sm">
+        <label class="flex items-center gap-2"><input type="radio" name="pay-mode" value="full" checked> Full paid</label>
+        <label class="flex items-center gap-2"><input type="radio" name="pay-mode" value="partial"> Partial</label>
+        <label class="flex items-center gap-2"><input type="radio" name="pay-mode" value="due"> Credit / Due</label>
+      </div>
+      <input type="number" id="sale-received" placeholder="Partial amount received" class="mt-3 hidden w-full max-w-xs rounded-xl border border-gray-300 bg-white px-4 py-2 text-gray-900">
+    </div>
     <button type="button" id="btn-preview" class="rounded-xl bg-green-600 px-6 py-3 font-semibold text-white hover:bg-green-500">💾 Save Sale</button>
   </div>
 </section>
@@ -169,6 +177,7 @@ require __DIR__ . '/includes/header.php';
     document.getElementById("grand-total").textContent = formatMoney(
       saleRows.reduce((sum, row) => sum + rowTotal(row), 0)
     );
+    syncPaymentUi();
   }
 
   function updateSaleTotals() {
@@ -179,6 +188,40 @@ require __DIR__ . '/includes/header.php';
     document.getElementById("grand-total").textContent = formatMoney(
       saleRows.reduce((sum, row) => sum + rowTotal(row), 0)
     );
+    syncPaymentUi();
+  }
+
+  function saleGrandTotal() {
+    return validProducts().reduce((sum, row) => sum + rowTotal(row), 0)
+      || saleRows.reduce((sum, row) => sum + rowTotal(row), 0);
+  }
+
+  function payMode() {
+    return document.querySelector("input[name=\"pay-mode\"]:checked")?.value || "full";
+  }
+
+  function saleReceivedAmount(total) {
+    const grand = total == null ? saleGrandTotal() : Number(total);
+    const mode = payMode();
+    if (mode === "due") return 0;
+    if (mode === "partial") return Number(document.getElementById("sale-received").value) || 0;
+    return grand;
+  }
+
+  function syncPaymentUi() {
+    const mode = payMode();
+    const receivedBox = document.getElementById("sale-received");
+    receivedBox.classList.toggle("hidden", mode !== "partial");
+    const total = saleGrandTotal();
+    const received = saleReceivedAmount(total);
+    const dueEl = document.getElementById("sale-due");
+    if (dueEl) dueEl.textContent = formatMoney(Math.max(0, total - received));
+  }
+
+  function setPayMode(mode) {
+    const radio = document.querySelector("input[name=\"pay-mode\"][value=\"" + mode + "\"]");
+    if (radio) radio.checked = true;
+    syncPaymentUi();
   }
 
   function setSaleRowField(index, field, value) {
@@ -309,8 +352,7 @@ require __DIR__ . '/includes/header.php';
     const email = company.email || "";
     const state = gstStateLabel(company.gst || "10");
     const no = invoiceNo || nextInvoiceNo || "—";
-    const receivedRaw = document.getElementById("sale-received")?.value;
-    const received = receivedRaw === "" || receivedRaw == null ? grandTotal : Number(receivedRaw) || 0;
+    const received = saleReceivedAmount(grandTotal);
     const balance = grandTotal - received;
     const totalQty = products.reduce((sum, p) => sum + (Number(p.qty) || 0), 0);
     const rows = products.length
@@ -429,6 +471,7 @@ require __DIR__ . '/includes/header.php';
     document.getElementById("customer-address").value = "";
     document.getElementById("customer-gst").value = "";
     document.getElementById("sale-received").value = "";
+    setPayMode("full");
     document.getElementById("ref-type").value = "";
     document.getElementById("ref-name").value = "";
     document.getElementById("ref-mobile").value = "";
@@ -568,6 +611,11 @@ require __DIR__ . '/includes/header.php';
     document.getElementById("ref-suggest").classList.add("hidden");
   });
 
+  document.querySelectorAll("input[name=\"pay-mode\"]").forEach((el) => {
+    el.addEventListener("change", syncPaymentUi);
+  });
+  document.getElementById("sale-received").addEventListener("input", syncPaymentUi);
+
   document.getElementById("btn-preview").addEventListener("click", () => {
     const products = validProducts();
     const total = products.reduce((sum, row) => sum + rowTotal(row), 0);
@@ -594,7 +642,6 @@ require __DIR__ . '/includes/header.php';
     try {
       const customer = currentCustomer();
       const products = validProducts();
-      const receivedRaw = document.getElementById("sale-received").value;
       const editId = document.getElementById("editing-sale-id").value;
       const payload = {
         customer_name: customer.name,
@@ -605,7 +652,7 @@ require __DIR__ . '/includes/header.php';
         ref_name: customer.ref_name,
         ref_mobile: customer.ref_mobile,
         products,
-        received: receivedRaw === "" ? null : Number(receivedRaw),
+        received: saleReceivedAmount(),
       };
       if (editId) payload.id = Number(editId);
       const result = await api("/api/sales.php" + (editId ? "?id=" + editId : ""), {
@@ -670,7 +717,18 @@ require __DIR__ . '/includes/header.php';
       document.getElementById("ref-type").value = sale.ref_type || "";
       document.getElementById("ref-name").value = sale.ref_name || "";
       document.getElementById("ref-mobile").value = "";
-      document.getElementById("sale-received").value = sale.received ?? "";
+      const rec = sale.received == null || sale.received === "" ? Number(sale.total) : Number(sale.received);
+      const tot = Number(sale.total) || 0;
+      if (rec <= 0) {
+        setPayMode("due");
+        document.getElementById("sale-received").value = "";
+      } else if (Math.abs(rec - tot) < 0.009) {
+        setPayMode("full");
+        document.getElementById("sale-received").value = "";
+      } else {
+        setPayMode("partial");
+        document.getElementById("sale-received").value = String(rec);
+      }
       saleRows = (sale.products || []).length
         ? sale.products.map((row) => ({
             name: row.name || "",

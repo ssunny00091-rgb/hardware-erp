@@ -33,6 +33,7 @@ $types = [
         <th class="p-3 text-right">Debit</th>
         <th class="p-3 text-right">Credit</th>
         <th class="p-3 text-right">Balance</th>
+        <th class="p-3">Action</th>
       </tr>
     </thead>
     <tbody id="ledger-list"></tbody>
@@ -43,7 +44,10 @@ $types = [
   <div class="max-h-[90vh] w-full max-w-5xl overflow-auto rounded-xl bg-white p-6 text-black">
     <div class="mb-4 flex items-center justify-between">
       <h2 id="ledger-party-name" class="text-2xl font-bold">Ledger</h2>
-      <button type="button" id="btn-close-ledger" class="rounded-lg bg-red-600 px-4 py-2 text-white">Close</button>
+      <div class="flex gap-2">
+        <button type="button" id="btn-delete-party" class="rounded-lg bg-red-700 px-4 py-2 text-white">Delete ledger</button>
+        <button type="button" id="btn-close-ledger" class="rounded-lg bg-slate-600 px-4 py-2 text-white">Close</button>
+      </div>
     </div>
     <p id="ledger-party-meta" class="mb-4 text-gray-600"></p>
     <div class="mb-4 flex flex-wrap gap-2">
@@ -61,6 +65,7 @@ $types = [
           <th class="border p-2 text-right">Debit</th>
           <th class="border p-2 text-right">Credit</th>
           <th class="border p-2 text-right">Balance</th>
+          <th class="border p-2">Action</th>
         </tr>
       </thead>
       <tbody id="ledger-entries"></tbody>
@@ -83,14 +88,17 @@ $types = [
     tabButtons();
     const data = await api("/api/ledger.php?type=" + encodeURIComponent(currentType));
     document.getElementById("ledger-list").innerHTML = (data.parties || []).map((row) => `
-      <tr class="cursor-pointer border-t border-white/10 hover:bg-white/10" data-party="${row.id}">
-        <td class="p-3 font-semibold">${escapeHtml(row.name)}</td>
-        <td class="p-3">${escapeHtml(row.mobile || "")}</td>
-        <td class="p-3 text-right">₹${formatMoney(row.debit)}</td>
-        <td class="p-3 text-right">₹${formatMoney(row.credit)}</td>
-        <td class="p-3 text-right font-bold">₹${formatMoney(row.balance)}</td>
+      <tr class="border-t border-white/10 hover:bg-white/10" data-party="${row.id}">
+        <td class="cursor-pointer p-3 font-semibold">${escapeHtml(row.name)}</td>
+        <td class="cursor-pointer p-3">${escapeHtml(row.mobile || "")}</td>
+        <td class="cursor-pointer p-3 text-right">₹${formatMoney(row.debit)}</td>
+        <td class="cursor-pointer p-3 text-right">₹${formatMoney(row.credit)}</td>
+        <td class="cursor-pointer p-3 text-right font-bold">₹${formatMoney(row.balance)}</td>
+        <td class="p-3">
+          <button type="button" data-del-party="${row.id}" class="rounded bg-red-600 px-3 py-1 text-white">🗑</button>
+        </td>
       </tr>
-    `).join("") || `<tr><td class="p-4" colspan="5">Is type ka koi ledger nahi mila.</td></tr>`;
+    `).join("") || `<tr><td class="p-4" colspan="6">Is type ka koi ledger nahi mila.</td></tr>`;
   }
 
   async function openParty(id) {
@@ -109,6 +117,7 @@ $types = [
         <td class="border p-2 text-right">${Number(row.debit) ? formatMoney(row.debit) : ""}</td>
         <td class="border p-2 text-right">${Number(row.credit) ? formatMoney(row.credit) : ""}</td>
         <td class="border p-2 text-right">${formatMoney(row.balance)}</td>
+        <td class="border p-2"><button type="button" data-del-entry="${row.id}" class="rounded bg-red-600 px-2 py-1 text-white">🗑</button></td>
       </tr>
     `).join("");
     document.getElementById("ledger-detail").classList.remove("hidden");
@@ -123,8 +132,43 @@ $types = [
   });
 
   document.getElementById("ledger-list").addEventListener("click", (e) => {
+    const del = e.target.closest("[data-del-party]");
+    if (del) {
+      e.stopPropagation();
+      if (!confirm("Is person ka poora ledger delete ho jayega. Bills delete nahi honge. Continue?")) return;
+      api("/api/ledger.php?party_id=" + del.dataset.delParty, { method: "DELETE" })
+        .then(() => loadList())
+        .catch((err) => alert(err.message));
+      return;
+    }
     const row = e.target.closest("[data-party]");
     if (row) openParty(Number(row.dataset.party)).catch((err) => alert(err.message));
+  });
+
+  document.getElementById("ledger-entries").addEventListener("click", async (e) => {
+    const btn = e.target.closest("[data-del-entry]");
+    if (!btn) return;
+    if (!confirm("Is ledger entry ko delete karein?")) return;
+    try {
+      await api("/api/ledger.php?id=" + btn.dataset.delEntry, { method: "DELETE" });
+      await openParty(currentPartyId);
+      await loadList();
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+
+  document.getElementById("btn-delete-party").addEventListener("click", async () => {
+    if (!currentPartyId) return;
+    if (!confirm("Is person ka poora ledger delete ho jayega. Continue?")) return;
+    try {
+      await api("/api/ledger.php?party_id=" + currentPartyId, { method: "DELETE" });
+      document.getElementById("ledger-detail").classList.add("hidden");
+      document.getElementById("ledger-detail").classList.remove("flex");
+      await loadList();
+    } catch (err) {
+      alert(err.message);
+    }
   });
 
   document.getElementById("btn-close-ledger").addEventListener("click", () => {
