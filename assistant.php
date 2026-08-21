@@ -30,6 +30,15 @@ require __DIR__ . '/includes/header.php';
 <div id="chat-log" class="chat-log mb-4 flex flex-col gap-3 overflow-y-auto rounded-2xl border border-white/20 bg-black/30 p-3 sm:p-4"></div>
 
 <div class="rounded-2xl border border-white/20 bg-white/10 p-3">
+  <div class="mb-3 flex flex-wrap items-center gap-3 text-sm">
+    <span class="text-gray-300">Bolne ki bhasha:</span>
+    <label class="flex items-center gap-2 rounded-lg bg-white/10 px-3 py-2">
+      <input type="radio" name="voice-lang" value="hi-IN"> हिंदी
+    </label>
+    <label class="flex items-center gap-2 rounded-lg bg-white/10 px-3 py-2">
+      <input type="radio" name="voice-lang" value="en-IN"> Hinglish
+    </label>
+  </div>
   <div id="chat-files" class="mb-2 hidden text-sm text-emerald-200"></div>
   <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
     <textarea id="chat-input" rows="2" placeholder="Bolo ya likho: 'Ram ko 2 Asian paint 10 litre @ 450, 2000 due'  ·  ya bill photo attach karo" class="min-h-[52px] flex-1 rounded-xl border border-gray-300 bg-white p-3 text-gray-900"></textarea>
@@ -42,7 +51,7 @@ require __DIR__ . '/includes/header.php';
       <button type="button" id="btn-send" class="rounded-xl bg-green-600 px-5 py-3 font-semibold">Send</button>
     </div>
   </div>
-  <p class="mt-2 text-xs text-gray-400">Mic Hindi+English sunta hai. Photo JPEG/PNG/WebP/GIF ya PDF — screenshot, scan, WhatsApp image sab chalega.</p>
+  <p class="mt-2 text-xs text-gray-400">Mic rukne ke baad ~3 second wait karta hai, phir message bhejta hai. Photo JPEG/PNG/WebP/GIF ya PDF chalega. Jawab bina awaaz ke text mein aata hai.</p>
 </div>
 
 <script src="<?= htmlspecialchars(app_url('assets/js/assistant.js'), ENT_QUOTES, 'UTF-8') ?>"></script>

@@ -12,6 +12,21 @@ let pendingFiles = [];
 let listening = false;
 let recognition = null;
 let busy = false;
+let voiceSendTimer = null;
+const VOICE_SILENCE_MS = 3200;
+
+function currentVoiceLang() {
+  const picked = document.querySelector('input[name="voice-lang"]:checked');
+  return (picked && picked.value) || localStorage.getItem("assistantVoiceLang") || "hi-IN";
+}
+
+function applyVoiceLang(lang) {
+  const value = lang === "en-IN" ? "en-IN" : "hi-IN";
+  localStorage.setItem("assistantVoiceLang", value);
+  document.querySelectorAll('input[name="voice-lang"]').forEach((el) => {
+    el.checked = el.value === value;
+  });
+}
 
 function addBubble(role, text, extra, tables) {
   const wrap = document.createElement("div");
@@ -121,15 +136,6 @@ function renderRichReply(el, text, tables) {
   });
 }
 
-function speak(text) {
-  if (!window.speechSynthesis || !text) return;
-  window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text.slice(0, 400));
-  u.lang = "hi-IN";
-  u.rate = 1;
-  window.speechSynthesis.speak(u);
-}
-
 function actionSummary(actions) {
   if (!actions || !actions.length) return "";
   return actions.map((a) => {
@@ -223,7 +229,6 @@ async function sendChat(text) {
     addBubble("assistant", reply, extra, data.tables || []);
     history.push({ role: "user", content: message || "Photo/PDF bheji hai" });
     history.push({ role: "assistant", content: reply });
-    speak(reply);
   } catch (err) {
     addBubble("assistant", "Error: " + err.message);
   } finally {
@@ -244,20 +249,52 @@ function micSupported() {
   return window.SpeechRecognition || window.webkitSpeechRecognition;
 }
 
+function stopMic() {
+  if (voiceSendTimer) {
+    clearTimeout(voiceSendTimer);
+    voiceSendTimer = null;
+  }
+  listening = false;
+  if (recognition) {
+    try {
+      recognition.onend = null;
+      recognition.onresult = null;
+      recognition.onerror = null;
+      recognition.stop();
+    } catch (e) {
+      // already stopped
+    }
+    recognition = null;
+  }
+  btnMic.textContent = "🎤 Bolke";
+  btnMic.classList.remove("ring-2", "ring-white");
+}
+
+function queueVoiceSend() {
+  if (voiceSendTimer) clearTimeout(voiceSendTimer);
+  voiceSendTimer = setTimeout(() => {
+    voiceSendTimer = null;
+    const text = (chatInput.value || "").trim();
+    if (!text || !listening) return;
+    stopMic();
+    sendChat(text);
+  }, VOICE_SILENCE_MS);
+}
+
 btnMic.addEventListener("click", () => {
   const Ctor = micSupported();
   if (!Ctor) {
     alert("Yeh browser voice nahi sunta. Chrome use karo, ya type karo.");
     return;
   }
-  if (listening && recognition) {
-    recognition.stop();
+  if (listening) {
+    stopMic();
     return;
   }
   recognition = new Ctor();
-  recognition.lang = "hi-IN";
+  recognition.lang = currentVoiceLang();
   recognition.interimResults = true;
-  recognition.continuous = false;
+  recognition.continuous = true;
   listening = true;
   btnMic.textContent = "⏹ Stop";
   btnMic.classList.add("ring-2", "ring-white");
@@ -268,21 +305,27 @@ btnMic.addEventListener("click", () => {
     }
     chatInput.value = said.trim();
     if (ev.results[ev.results.length - 1].isFinal) {
-      sendChat(said.trim());
+      queueVoiceSend();
     }
   };
   recognition.onerror = () => {
-    listening = false;
-    btnMic.textContent = "🎤 Bolke";
-    btnMic.classList.remove("ring-2", "ring-white");
+    stopMic();
   };
   recognition.onend = () => {
-    listening = false;
-    btnMic.textContent = "🎤 Bolke";
-    btnMic.classList.remove("ring-2", "ring-white");
+    if (!listening) return;
+    try {
+      recognition.start();
+    } catch (e) {
+      queueVoiceSend();
+    }
   };
   recognition.start();
 });
+
+document.querySelectorAll('input[name="voice-lang"]').forEach((el) => {
+  el.addEventListener("change", () => applyVoiceLang(el.value));
+});
+applyVoiceLang(localStorage.getItem("assistantVoiceLang") || "hi-IN");
 
 btnSaveKey.addEventListener("click", async () => {
   try {
