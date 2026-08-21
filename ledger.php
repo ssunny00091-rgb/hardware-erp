@@ -165,7 +165,10 @@ $types = [
     if (del) {
       e.stopPropagation();
       if (!confirm("Is person ka poora ledger delete ho jayega. Bills delete nahi honge. Continue?")) return;
-      api("/api/ledger.php?party_id=" + del.dataset.delParty, { method: "DELETE" })
+      api("/api/ledger.php?party_id=" + del.dataset.delParty, {
+        method: "DELETE",
+        body: JSON.stringify({ party_id: Number(del.dataset.delParty) }),
+      })
         .then(() => loadList())
         .catch((err) => alert(err.message));
       return;
@@ -240,7 +243,10 @@ $types = [
     if (!currentPartyId) return;
     if (!confirm("Is person ka poora ledger delete ho jayega. Continue?")) return;
     try {
-      await api("/api/ledger.php?party_id=" + currentPartyId, { method: "DELETE" });
+      await api("/api/ledger.php?party_id=" + currentPartyId, {
+        method: "DELETE",
+        body: JSON.stringify({ party_id: currentPartyId }),
+      });
       document.getElementById("ledger-detail").classList.add("hidden");
       document.getElementById("ledger-detail").classList.remove("flex");
       await loadList();

@@ -12,48 +12,40 @@ try {
     if ($method === 'GET') {
         $partyId = (int) ($_GET['party_id'] ?? 0);
         if ($partyId > 0) {
-            $party = $pdo->prepare('SELECT * FROM parties WHERE id = :id');
-            $party->execute(['id' => $partyId]);
-            $row = $party->fetch();
+            $row = load_party_ledger($pdo, $partyId);
             if (!$row) {
                 json_response(['error' => 'Party not found'], 404);
             }
-            $entries = $pdo->prepare(
-                'SELECT id, entry_date, particulars, ref_no, debit, credit, sale_id, purchase_id
-                 FROM ledger_entries
-                 WHERE party_id = :id
-                 ORDER BY entry_date ASC, id ASC'
-            );
-            $entries->execute(['id' => $partyId]);
-            $list = $entries->fetchAll();
-            $balance = 0.0;
-            foreach ($list as &$entry) {
-                $balance += (float) $entry['debit'] - (float) $entry['credit'];
-                $entry['balance'] = $balance;
-            }
-            unset($entry);
-            json_response([
-                'party' => $row,
-                'entries' => $list,
-                'debit' => array_sum(array_map(static fn ($e) => (float) $e['debit'], $list)),
-                'credit' => array_sum(array_map(static fn ($e) => (float) $e['credit'], $list)),
-                'balance' => $balance,
-            ]);
+            json_response($row);
         }
 
         $type = normalize_party_type((string) ($_GET['type'] ?? 'customer'));
-        $stmt = $pdo->prepare(
-            'SELECT p.id, p.name, p.mobile, p.address, p.type,
+        $sql = 'SELECT p.id, p.name, p.mobile, p.address, p.type,
                     COALESCE(SUM(l.debit), 0) AS debit,
                     COALESCE(SUM(l.credit), 0) AS credit,
                     COALESCE(SUM(l.debit), 0) - COALESCE(SUM(l.credit), 0) AS balance
              FROM parties p
              LEFT JOIN ledger_entries l ON l.party_id = p.id
-             WHERE p.type = :type
+             WHERE p.type = :type AND p.deleted_at IS NULL
              GROUP BY p.id, p.name, p.mobile, p.address, p.type
-             ORDER BY p.name ASC'
-        );
-        $stmt->execute(['type' => $type]);
+             ORDER BY p.name ASC';
+        try {
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute(['type' => $type]);
+        } catch (Throwable $e) {
+            $stmt = $pdo->prepare(
+                'SELECT p.id, p.name, p.mobile, p.address, p.type,
+                        COALESCE(SUM(l.debit), 0) AS debit,
+                        COALESCE(SUM(l.credit), 0) AS credit,
+                        COALESCE(SUM(l.debit), 0) - COALESCE(SUM(l.credit), 0) AS balance
+                 FROM parties p
+                 LEFT JOIN ledger_entries l ON l.party_id = p.id
+                 WHERE p.type = :type
+                 GROUP BY p.id, p.name, p.mobile, p.address, p.type
+                 ORDER BY p.name ASC'
+            );
+            $stmt->execute(['type' => $type]);
+        }
         json_response(['type' => $type, 'parties' => $stmt->fetchAll()]);
     }
 
@@ -65,6 +57,9 @@ try {
         $date = parse_sale_date($body['entry_date'] ?? '');
         if ($partyId <= 0 || $amount <= 0) {
             json_response(['error' => 'Party and amount required'], 422);
+        }
+        if (!party_is_live($pdo, $partyId)) {
+            json_response(['error' => 'Party not found'], 404);
         }
         $party = $pdo->prepare('SELECT * FROM parties WHERE id = :id');
         $party->execute(['id' => $partyId]);
@@ -108,8 +103,9 @@ try {
     }
 
     if ($method === 'DELETE') {
-        $entryId = (int) ($_GET['id'] ?? 0);
-        $partyId = (int) ($_GET['party_id'] ?? 0);
+        $body = read_json_body();
+        $entryId = (int) ($_GET['id'] ?? $body['id'] ?? $body['entry_id'] ?? 0);
+        $partyId = (int) ($_GET['party_id'] ?? $body['party_id'] ?? 0);
 
         if ($entryId > 0) {
             $row = $pdo->prepare('SELECT * FROM ledger_entries WHERE id = :id');
@@ -123,10 +119,7 @@ try {
         }
 
         if ($partyId > 0) {
-            $pdo->beginTransaction();
-            $pdo->prepare('DELETE FROM ledger_entries WHERE party_id = :id')->execute(['id' => $partyId]);
-            $pdo->prepare('DELETE FROM parties WHERE id = :id')->execute(['id' => $partyId]);
-            $pdo->commit();
+            delete_party_record($pdo, $partyId);
             json_response(['ok' => true]);
         }
 

@@ -88,6 +88,11 @@ function ensure_commerce_schema(PDO $pdo): void
     } catch (Throwable $e) {
         // ignore
     }
+    try {
+        $pdo->exec('ALTER TABLE parties ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL');
+    } catch (Throwable $e) {
+        // Already exists.
+    }
 }
 
 function parse_sale_date(mixed $raw): string
@@ -131,9 +136,16 @@ function find_or_create_party(PDO $pdo, string $type, string $name, string $mobi
 
     if ($mobile !== '') {
         $stmt = $pdo->prepare(
-            'SELECT id FROM parties WHERE type = :type AND mobile = :mobile LIMIT 1'
+            'SELECT id FROM parties WHERE type = :type AND mobile = :mobile AND deleted_at IS NULL LIMIT 1'
         );
-        $stmt->execute(['type' => $type, 'mobile' => $mobile]);
+        try {
+            $stmt->execute(['type' => $type, 'mobile' => $mobile]);
+        } catch (Throwable $e) {
+            $stmt = $pdo->prepare(
+                'SELECT id FROM parties WHERE type = :type AND mobile = :mobile LIMIT 1'
+            );
+            $stmt->execute(['type' => $type, 'mobile' => $mobile]);
+        }
         $row = $stmt->fetch();
         if ($row) {
             $id = (int) $row['id'];
@@ -147,9 +159,16 @@ function find_or_create_party(PDO $pdo, string $type, string $name, string $mobi
     }
 
     $stmt = $pdo->prepare(
-        'SELECT id FROM parties WHERE type = :type AND LOWER(name) = LOWER(:name) LIMIT 1'
+        'SELECT id FROM parties WHERE type = :type AND LOWER(name) = LOWER(:name) AND deleted_at IS NULL LIMIT 1'
     );
-    $stmt->execute(['type' => $type, 'name' => $name]);
+    try {
+        $stmt->execute(['type' => $type, 'name' => $name]);
+    } catch (Throwable $e) {
+        $stmt = $pdo->prepare(
+            'SELECT id FROM parties WHERE type = :type AND LOWER(name) = LOWER(:name) LIMIT 1'
+        );
+        $stmt->execute(['type' => $type, 'name' => $name]);
+    }
     $row = $stmt->fetch();
     if ($row) {
         $id = (int) $row['id'];
@@ -182,15 +201,128 @@ function find_or_create_party(PDO $pdo, string $type, string $name, string $mobi
     return (int) $pdo->lastInsertId();
 }
 
+function party_is_deleted(PDO $pdo, int $id): bool
+{
+    if ($id <= 0) {
+        return true;
+    }
+    try {
+        $stmt = $pdo->prepare('SELECT deleted_at FROM parties WHERE id = :id');
+        $stmt->execute(['id' => $id]);
+        $row = $stmt->fetch();
+        if (!$row) {
+            return true;
+        }
+        $deleted = $row['deleted_at'] ?? null;
+        return $deleted !== null && $deleted !== '' && $deleted !== '0000-00-00 00:00:00';
+    } catch (Throwable $e) {
+        $stmt = $pdo->prepare('SELECT id FROM parties WHERE id = :id');
+        $stmt->execute(['id' => $id]);
+        return !$stmt->fetch();
+    }
+}
+
+function party_is_live(PDO $pdo, int $id): bool
+{
+    return $id > 0 && !party_is_deleted($pdo, $id);
+}
+
+function delete_party_record(PDO $pdo, int $partyId): void
+{
+    if ($partyId <= 0) {
+        throw new InvalidArgumentException('party_id required');
+    }
+    $typeStmt = $pdo->prepare('SELECT type FROM parties WHERE id = :id');
+    $typeStmt->execute(['id' => $partyId]);
+    $typeRow = $typeStmt->fetch();
+    if (!$typeRow) {
+        throw new InvalidArgumentException('Party not found');
+    }
+    $type = normalize_party_type((string) $typeRow['type']);
+
+    $saleIds = $pdo->prepare(
+        'SELECT DISTINCT sale_id FROM ledger_entries WHERE party_id = :id AND sale_id IS NOT NULL'
+    );
+    $saleIds->execute(['id' => $partyId]);
+    $purchaseIds = $pdo->prepare(
+        'SELECT DISTINCT purchase_id FROM ledger_entries WHERE party_id = :id AND purchase_id IS NOT NULL'
+    );
+    $purchaseIds->execute(['id' => $partyId]);
+
+    if ($type === 'customer') {
+        $upd = $pdo->prepare(
+            'UPDATE sales SET customer_party_id = :pid WHERE id = :sid AND (customer_party_id IS NULL OR customer_party_id = :pid2)'
+        );
+        foreach ($saleIds as $row) {
+            $sid = (int) ($row['sale_id'] ?? 0);
+            if ($sid > 0) {
+                try {
+                    $upd->execute(['pid' => $partyId, 'sid' => $sid, 'pid2' => $partyId]);
+                } catch (Throwable $e) {
+                    break;
+                }
+            }
+        }
+    } elseif (in_array($type, ref_types(), true)) {
+        $upd = $pdo->prepare(
+            'UPDATE sales SET ref_party_id = :pid WHERE id = :sid AND (ref_party_id IS NULL OR ref_party_id = :pid2)'
+        );
+        foreach ($saleIds as $row) {
+            $sid = (int) ($row['sale_id'] ?? 0);
+            if ($sid > 0) {
+                try {
+                    $upd->execute(['pid' => $partyId, 'sid' => $sid, 'pid2' => $partyId]);
+                } catch (Throwable $e) {
+                    break;
+                }
+            }
+        }
+    } elseif ($type === 'supplier') {
+        $upd = $pdo->prepare(
+            'UPDATE purchases SET supplier_party_id = :pid WHERE id = :sid AND (supplier_party_id IS NULL OR supplier_party_id = :pid2)'
+        );
+        foreach ($purchaseIds as $row) {
+            $sid = (int) ($row['purchase_id'] ?? 0);
+            if ($sid > 0) {
+                try {
+                    $upd->execute(['pid' => $partyId, 'sid' => $sid, 'pid2' => $partyId]);
+                } catch (Throwable $e) {
+                    break;
+                }
+            }
+        }
+    }
+
+    $pdo->prepare('DELETE FROM ledger_entries WHERE party_id = :id')->execute(['id' => $partyId]);
+
+    try {
+        $pdo->prepare('UPDATE parties SET deleted_at = NOW() WHERE id = :id')->execute(['id' => $partyId]);
+        return;
+    } catch (Throwable $e) {
+        // Column missing — unlink bills then hard-delete.
+    }
+
+    foreach ([
+        'UPDATE sales SET customer_party_id = NULL WHERE customer_party_id = :id',
+        'UPDATE sales SET ref_party_id = NULL WHERE ref_party_id = :id',
+        'UPDATE purchases SET supplier_party_id = NULL WHERE supplier_party_id = :id',
+    ] as $sql) {
+        try {
+            $pdo->prepare($sql)->execute(['id' => $partyId]);
+        } catch (Throwable $e) {
+            // Column may not exist yet.
+        }
+    }
+    $pdo->prepare('DELETE FROM parties WHERE id = :id')->execute(['id' => $partyId]);
+}
+
 function update_party_details(PDO $pdo, int $id, string $name, string $mobile = '', string $address = ''): void
 {
     $name = trim($name);
     if ($id <= 0 || $name === '') {
         throw new InvalidArgumentException('Name required');
     }
-    $exists = $pdo->prepare('SELECT id FROM parties WHERE id = :id');
-    $exists->execute(['id' => $id]);
-    if (!$exists->fetch()) {
+    if (!party_is_live($pdo, $id)) {
         throw new InvalidArgumentException('Party not found');
     }
     $pdo->prepare('UPDATE parties SET name = :name, mobile = :mobile, address = :address WHERE id = :id')->execute([
@@ -328,16 +460,29 @@ function search_parties_fuzzy(PDO $pdo, string $query, string $type = '', int $l
 {
     $query = trim($query);
     $type = strtolower(trim($type));
-    $sql = 'SELECT id, name, mobile, address, type FROM parties';
+    $sql = 'SELECT id, name, mobile, address, type FROM parties WHERE deleted_at IS NULL';
     $params = [];
     if ($type !== '' && in_array($type, party_types(), true)) {
-        $sql .= ' WHERE type = :type';
+        $sql .= ' AND type = :type';
         $params['type'] = $type;
     }
     $sql .= ' ORDER BY name ASC LIMIT 800';
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
-    $rows = $stmt->fetchAll() ?: [];
+    try {
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $rows = $stmt->fetchAll() ?: [];
+    } catch (Throwable $e) {
+        $sql = 'SELECT id, name, mobile, address, type FROM parties';
+        $params = [];
+        if ($type !== '' && in_array($type, party_types(), true)) {
+            $sql .= ' WHERE type = :type';
+            $params['type'] = $type;
+        }
+        $sql .= ' ORDER BY name ASC LIMIT 800';
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $rows = $stmt->fetchAll() ?: [];
+    }
     if ($query === '') {
         return array_slice($rows, 0, $limit);
     }
@@ -370,9 +515,15 @@ function search_parties_fuzzy(PDO $pdo, string $query, string $type = '', int $l
 
 function load_party_ledger(PDO $pdo, int $partyId): ?array
 {
-    $party = $pdo->prepare('SELECT id, name, mobile, address, type FROM parties WHERE id = :id');
-    $party->execute(['id' => $partyId]);
-    $row = $party->fetch();
+    $party = $pdo->prepare('SELECT id, name, mobile, address, type FROM parties WHERE id = :id AND deleted_at IS NULL');
+    try {
+        $party->execute(['id' => $partyId]);
+        $row = $party->fetch();
+    } catch (Throwable $e) {
+        $party = $pdo->prepare('SELECT id, name, mobile, address, type FROM parties WHERE id = :id');
+        $party->execute(['id' => $partyId]);
+        $row = $party->fetch();
+    }
     if (!$row) {
         return null;
     }
@@ -412,6 +563,9 @@ function add_ledger_entry(
     ?int $purchaseId = null
 ): void {
     if ($partyId <= 0 || ($debit <= 0 && $credit <= 0)) {
+        return;
+    }
+    if (party_is_deleted($pdo, $partyId)) {
         return;
     }
     $stmt = $pdo->prepare(
@@ -624,6 +778,25 @@ function post_sale_ledgers(
             add_ledger_entry($pdo, $refPartyId, $entryDate, 'Receipt against ' . $invoiceNo, $invoiceNo, 0, $received, $saleId, null);
         }
     }
+
+    try {
+        $pdo->prepare(
+            'UPDATE sales SET customer_party_id = :cid, ref_party_id = :rid WHERE id = :id'
+        )->execute([
+            'cid' => $customerPartyId ?: null,
+            'rid' => $refPartyId ?: null,
+            'id' => $saleId,
+        ]);
+    } catch (Throwable $e) {
+        try {
+            $pdo->prepare('UPDATE sales SET customer_party_id = :cid WHERE id = :id')->execute([
+                'cid' => $customerPartyId ?: null,
+                'id' => $saleId,
+            ]);
+        } catch (Throwable $e2) {
+            // Columns may be missing.
+        }
+    }
 }
 
 function post_purchase_ledgers(
@@ -672,6 +845,15 @@ function post_purchase_ledgers(
             insert_purchase_payment_row($pdo, $purchaseId, $paid, $entryDate, 'Paid with bill');
         }
     }
+
+    try {
+        $pdo->prepare('UPDATE purchases SET supplier_party_id = :pid WHERE id = :id')->execute([
+            'pid' => $supplierPartyId,
+            'id' => $purchaseId,
+        ]);
+    } catch (Throwable $e) {
+        // Column may be missing.
+    }
 }
 
 function insert_purchase_payment_row(PDO $pdo, int $purchaseId, float $amount, string $date, string $notes): void
@@ -707,6 +889,9 @@ function record_purchase_payment(PDO $pdo, int $purchaseId, float $amount, strin
     }
 
     $partyId = isset($purchase['supplier_party_id']) ? (int) $purchase['supplier_party_id'] : 0;
+    if ($partyId > 0 && party_is_deleted($pdo, $partyId)) {
+        $partyId = 0;
+    }
     if ($partyId <= 0) {
         $name = trim((string) ($purchase['supplier_name'] ?? ''));
         $partyId = $name !== '' ? (int) find_or_create_party($pdo, 'supplier', $name) : 0;
@@ -765,18 +950,29 @@ function backfill_ledgers(PDO $pdo): void
          WHERE NOT EXISTS (SELECT 1 FROM ledger_entries e WHERE e.sale_id = s.id)'
     )->fetchAll();
     foreach ($sales as $sale) {
+        $linkedCustomer = (int) ($sale['customer_party_id'] ?? 0);
+        if ($linkedCustomer > 0 && party_is_deleted($pdo, $linkedCustomer)) {
+            continue;
+        }
         $customerName = trim((string) ($sale['customer_name'] ?? ''));
-        $customerPartyId = find_or_create_party(
-            $pdo,
-            'customer',
-            $customerName !== '' ? $customerName : 'Walk-in',
-            (string) ($sale['mobile'] ?? ''),
-            (string) ($sale['address'] ?? '')
-        );
+        $customerPartyId = $linkedCustomer > 0 && party_is_live($pdo, $linkedCustomer)
+            ? $linkedCustomer
+            : find_or_create_party(
+                $pdo,
+                'customer',
+                $customerName !== '' ? $customerName : 'Walk-in',
+                (string) ($sale['mobile'] ?? ''),
+                (string) ($sale['address'] ?? '')
+            );
         $refType = normalize_ref_type((string) ($sale['ref_type'] ?? ''));
         $refName = trim((string) ($sale['ref_name'] ?? ''));
+        $linkedRef = (int) ($sale['ref_party_id'] ?? 0);
         $refPartyId = null;
-        if ($refType !== '' && $refName !== '') {
+        if ($linkedRef > 0 && party_is_deleted($pdo, $linkedRef)) {
+            $refPartyId = null;
+        } elseif ($linkedRef > 0 && party_is_live($pdo, $linkedRef)) {
+            $refPartyId = $linkedRef;
+        } elseif ($refType !== '' && $refName !== '') {
             $refPartyId = find_or_create_party($pdo, $refType, $refName);
         }
         $total = (float) $sale['total'];
@@ -807,7 +1003,13 @@ function backfill_ledgers(PDO $pdo): void
         if ($name === '') {
             continue;
         }
-        $partyId = find_or_create_party($pdo, 'supplier', $name);
+        $linkedSupplier = (int) ($row['supplier_party_id'] ?? 0);
+        if ($linkedSupplier > 0 && party_is_deleted($pdo, $linkedSupplier)) {
+            continue;
+        }
+        $partyId = $linkedSupplier > 0 && party_is_live($pdo, $linkedSupplier)
+            ? $linkedSupplier
+            : find_or_create_party($pdo, 'supplier', $name);
         $paid = isset($row['paid']) && $row['paid'] !== null && $row['paid'] !== ''
             ? (float) $row['paid']
             : 0.0;
