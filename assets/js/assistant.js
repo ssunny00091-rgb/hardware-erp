@@ -2,6 +2,7 @@ const chatLog = document.getElementById("chat-log");
 const chatInput = document.getElementById("chat-input");
 const chatFile = document.getElementById("chat-file");
 const chatFiles = document.getElementById("chat-files");
+const btnAddMore = document.getElementById("btn-add-more");
 const btnSend = document.getElementById("btn-send");
 const btnMic = document.getElementById("btn-mic");
 const btnSaveKey = document.getElementById("btn-save-key");
@@ -184,22 +185,46 @@ async function compressImage(file) {
   }
 }
 
+const MAX_BILL_PAGES = 12;
+
 function showFiles() {
   if (!pendingFiles.length) {
     chatFiles.classList.add("hidden");
-    chatFiles.textContent = "";
+    chatFiles.innerHTML = "";
+    if (btnAddMore) btnAddMore.classList.add("hidden");
     return;
   }
   chatFiles.classList.remove("hidden");
-  chatFiles.textContent = pendingFiles.map((f) => f.name).join(", ");
+  chatFiles.innerHTML =
+    '<div class="mb-1 text-sm text-emerald-200">' + pendingFiles.length + ' page' + (pendingFiles.length > 1 ? "s" : "") + ' attach — ek hi bill</div>' +
+    pendingFiles.map((f, i) =>
+      '<span class="photo-chip">Page ' + (i + 1) + ': ' + escapeHtml(f.name) +
+      ' <button type="button" data-remove-photo="' + i + '" title="Remove">✕</button></span>'
+    ).join("");
+  if (btnAddMore) btnAddMore.classList.remove("hidden");
+}
+
+chatFiles.addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-remove-photo]");
+  if (!btn) return;
+  pendingFiles.splice(Number(btn.dataset.removePhoto), 1);
+  showFiles();
+});
+
+if (btnAddMore) {
+  btnAddMore.addEventListener("click", () => chatFile.click());
 }
 
 chatFile.addEventListener("change", async () => {
   const list = Array.from(chatFile.files || []);
-  pendingFiles = [];
-  for (const file of list.slice(0, 6)) {
+  for (const file of list) {
+    if (pendingFiles.length >= MAX_BILL_PAGES) {
+      alert("Ek bill mein maximum " + MAX_BILL_PAGES + " pages.");
+      break;
+    }
     pendingFiles.push(await compressImage(file));
   }
+  chatFile.value = "";
   showFiles();
 });
 
@@ -210,15 +235,23 @@ async function sendChat(text) {
   busy = true;
   btnSend.disabled = true;
   const filesNow = pendingFiles.slice();
-  addBubble("user", message || ("📎 " + filesNow.map((f) => f.name).join(", ")));
+  let outgoing = message;
+  if (!outgoing && filesNow.length) {
+    outgoing = filesNow.length > 1
+      ? ("Yeh ek hi bill ki " + filesNow.length + " pages hain. Saari pages mila ke ek bill save karo.")
+      : "Is photo se supplier bill save karo.";
+  } else if (outgoing && filesNow.length > 1) {
+    outgoing += " (Iske saath " + filesNow.length + " pages/photos hain — ek hi bill.)";
+  }
+  addBubble("user", outgoing || ("📎 " + filesNow.map((f) => f.name).join(", ")));
   chatInput.value = "";
   pendingFiles = [];
   showFiles();
   chatFile.value = "";
 
   const form = new FormData();
-  form.append("payload", JSON.stringify({ message, history }));
-  filesNow.forEach((file) => form.append("files[]", file, file.name));
+  form.append("payload", JSON.stringify({ message: outgoing || message, history }));
+  filesNow.forEach((file, i) => form.append("files[]", file, "page-" + (i + 1) + "-" + file.name));
 
   try {
     const response = await fetch(appUrl("/api/assistant.php"), { method: "POST", body: form });
@@ -227,7 +260,7 @@ async function sendChat(text) {
     const reply = data.reply || "Ho gaya.";
     const extra = actionSummary(data.actions || []);
     addBubble("assistant", reply, extra, data.tables || []);
-    history.push({ role: "user", content: message || "Photo/PDF bheji hai" });
+    history.push({ role: "user", content: outgoing || "Photo/PDF bheji hai" });
     history.push({ role: "assistant", content: reply });
   } catch (err) {
     addBubble("assistant", "Error: " + err.message);

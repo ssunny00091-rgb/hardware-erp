@@ -39,7 +39,7 @@ require __DIR__ . '/includes/header.php';
       <input type="radio" name="voice-lang" value="en-IN"> Hinglish
     </label>
   </div>
-  <div id="chat-files" class="mb-2 hidden text-sm text-emerald-200"></div>
+  <div id="chat-files" class="mb-2 hidden"></div>
   <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
     <textarea id="chat-input" rows="2" placeholder="Bolo ya likho: 'Ram ko 2 Asian paint 10 litre @ 450, 2000 due'  ·  ya bill photo attach karo" class="min-h-[52px] flex-1 rounded-xl border border-gray-300 bg-white p-3 text-gray-900"></textarea>
     <div class="flex flex-wrap gap-2">
@@ -47,11 +47,12 @@ require __DIR__ . '/includes/header.php';
         📷 Photo
         <input type="file" id="chat-file" class="hidden" accept="image/*,.pdf,application/pdf" multiple>
       </label>
+      <button type="button" id="btn-add-more" class="hidden rounded-xl bg-sky-600 px-4 py-3 font-semibold">➕ Add more photo</button>
       <button type="button" id="btn-mic" class="rounded-xl bg-rose-600 px-4 py-3 font-semibold">🎤 Bolke</button>
       <button type="button" id="btn-send" class="rounded-xl bg-green-600 px-5 py-3 font-semibold">Send</button>
     </div>
   </div>
-  <p class="mt-2 text-xs text-gray-400">Mic rukne ke baad ~3 second wait karta hai, phir message bhejta hai. Photo JPEG/PNG/WebP/GIF ya PDF chalega. Jawab bina awaaz ke text mein aata hai.</p>
+  <p class="mt-2 text-xs text-gray-400">2+ page ka bill ho to pehli photo ke baad <strong>Add more photo</strong> dabao — saari pages ek hi bill mein save hongi. Mic ~3 second wait. Jawab bina awaaz ke text mein aata hai.</p>
 </div>
 
 <script src="<?= htmlspecialchars(app_url('assets/js/assistant.js'), ENT_QUOTES, 'UTF-8') ?>"></script>

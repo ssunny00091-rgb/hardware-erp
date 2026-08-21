@@ -269,6 +269,27 @@ textarea::placeholder {
   text-align: right;
 }
 
+.photo-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.2rem 0.35rem 0.2rem 0;
+  padding: 0.3rem 0.5rem;
+  border-radius: 0.6rem;
+  background: rgba(16, 185, 129, 0.2);
+  color: #d1fae5;
+  font-size: 0.8rem;
+}
+
+.photo-chip button {
+  border: 0;
+  background: transparent;
+  color: #fecaca;
+  cursor: pointer;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
 .chat-user {
   align-self: flex-end;
   background: #16a34a;

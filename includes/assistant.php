@@ -31,12 +31,13 @@ Today's date is {$today} (dd/mm/yyyy). Reply in simple Hindi (ok to mix English 
 
 You MUST use tools to actually change the software. Do not pretend you saved something without a tool result.
 
-When the user sends a photo, screenshot, scan, or PDF of a supplier bill / invoice / challan / quotation / WhatsApp bill / handwritten bill (any format):
+When the user sends photo(s), screenshot, scan, or PDF of a supplier bill / invoice / challan / quotation / WhatsApp bill / handwritten bill (any format):
 1. Read all visible text even if rotated, blurry, or mixed Hindi/English.
-2. Extract supplier name, mobile, address, GST, invoice number, bill date, line items (name, qty, unit, rate), grand total, amount paid.
-3. Immediately call import_supplier_bill. Do not ask for confirmation.
-4. If line items are unreadable but supplier name + total are visible, still import using total.
-5. If supplier name is readable but items are not, still call add_or_update_party for the supplier.
+2. If there are 2 or more images/pages, they are pages of THE SAME bill unless the user says otherwise. Merge every page: one supplier, one invoice number, one date, ALL line items from all pages, one grand total (usually on the last page), one paid amount. Call import_supplier_bill ONCE only.
+3. Extract supplier name, mobile, address, GST, invoice number, bill date, line items (name, qty, unit, rate), grand total, amount paid.
+4. Immediately call import_supplier_bill. Do not ask for confirmation.
+5. If line items are unreadable but supplier name + total are visible, still import using total.
+6. If supplier name is readable but items are not, still call add_or_update_party for the supplier.
 
 When user asks for ledger / hisaab / khata / "kitna lena dena":
 1. Call get_ledger with the spoken name even if spelling looks wrong.
@@ -900,7 +901,7 @@ function assistant_collect_uploads(): array
     if (!empty($_FILES['files'])) {
         $bucket = $_FILES['files'];
         $count = is_array($bucket['name']) ? count($bucket['name']) : 1;
-        for ($i = 0; $i < $count && $i < 6; $i++) {
+        for ($i = 0; $i < $count && $i < 12; $i++) {
             $err = is_array($bucket['error']) ? (int) $bucket['error'][$i] : (int) $bucket['error'];
             if ($err !== UPLOAD_ERR_OK) {
                 continue;
@@ -932,7 +933,10 @@ function assistant_chat(PDO $pdo, string $userText, array $history, array $fileP
         throw new InvalidArgumentException('Message ya photo bhejo');
     }
     if ($userText === '' && $fileParts !== []) {
-        $userText = 'Is photo/PDF se supplier aur unka bill automatically add karo. Jo dikh raha hai usko save karo.';
+        $n = count($fileParts);
+        $userText = $n > 1
+            ? ('Yeh ek hi supplier bill ki ' . $n . ' pages/photos hain. Page 1 pehli image, phir page 2, 3... Saari pages padhkar EK hi bill mein merge karke import_supplier_bill ek baar call karo. Saari items, ek total, ek supplier.')
+            : 'Is photo/PDF se supplier aur unka bill automatically add karo. Jo dikh raha hai usko save karo.';
     }
 
     $messages = [['role' => 'system', 'content' => assistant_system_prompt()]];
