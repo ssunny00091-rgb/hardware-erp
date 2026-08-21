@@ -70,6 +70,14 @@
   50% { transform: translate(-70px, -90px) rotate(15deg); }
 }
 
+.suggest-active {
+  background: #bfdbfe !important;
+}
+
+[data-suggest] {
+  max-height: 18rem;
+}
+
 input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]),
 select,
 textarea {

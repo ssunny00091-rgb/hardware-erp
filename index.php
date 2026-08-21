@@ -136,8 +136,8 @@ require __DIR__ . '/includes/header.php';
     wrap.innerHTML = saleRows.map((row, index) => `
       <div class="mb-3 grid grid-cols-6 gap-3">
         <div class="relative">
-          <input data-index="${index}" data-field="name" value="${row.name ?? ""}" placeholder="Search Product..." class="w-full rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
-          <div class="suggest hidden absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto rounded-lg border bg-white text-gray-900 shadow-xl" data-suggest="${index}"></div>
+          <input data-index="${index}" data-field="name" value="${row.name ?? ""}" placeholder="Search Product..." autocomplete="off" class="w-full rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
+          <div class="suggest hidden absolute left-0 z-50 mt-1 max-h-72 min-w-full overflow-y-auto rounded-lg border bg-white text-gray-900 shadow-xl" data-suggest="${index}" style="min-width:320px"></div>
         </div>
         <div class="flex items-center gap-2">
           <input data-index="${index}" data-field="color_hex" type="color" value="${row.color_hex || "#ffffff"}" title="Colour" class="h-11 w-11 cursor-pointer rounded border border-gray-300 bg-white p-0">
@@ -221,18 +221,18 @@ require __DIR__ . '/includes/header.php';
       box.innerHTML = "";
       return;
     }
-    const matches = catalog.filter((p) => (p.product_name || "").toLowerCase().includes(search.toLowerCase())).slice(0, 8);
+    const matches = catalog.filter((p) => (p.product_name || "").toLowerCase().includes(search.toLowerCase())).slice(0, 80);
     const exact = catalog.some((p) => (p.product_name || "").toLowerCase() === search.toLowerCase());
     let html = matches.map((p) => `
       <div class="cursor-pointer border-b p-3 hover:bg-blue-100" data-pick="${p.id}" data-index="${index}">
-        <div class="font-medium">${p.product_name}</div>
+        <div class="font-medium">${escapeHtml(p.product_name)}</div>
         <div class="text-sm text-gray-500">₹ ${formatMoney(p.selling_price)}</div>
       </div>
     `).join("");
     if (!exact) {
       html += `
         <div class="cursor-pointer bg-green-50 p-3 font-semibold text-green-800 hover:bg-green-100" data-save-new="${index}">
-          ➕ Save "${search}" as new product
+          ➕ Save "${escapeHtml(search)}" as new product
         </div>`;
     }
     if (!html) {
@@ -241,6 +241,7 @@ require __DIR__ . '/includes/header.php';
     }
     box.classList.remove("hidden");
     box.innerHTML = html;
+    setSuggestActive(box, 0);
   }
 
   async function saveRowAsProduct(index) {
@@ -310,7 +311,7 @@ require __DIR__ . '/includes/header.php';
           return (
             "<tr>" +
             "<td class=\"center\">" + (i + 1) + "</td>" +
-            "<td>" + escapeHtml(p.name) + "</td>" +
+            "<td class=\"item-name\">" + escapeHtml(p.name) + "</td>" +
             "<td>" + colorCell + "</td>" +
             "<td class=\"center\">" + escapeHtml(p.hsn || "—") + "</td>" +
             "<td class=\"center\">" + formatQty(p.qty) + "</td>" +
@@ -324,32 +325,36 @@ require __DIR__ . '/includes/header.php';
 
     return `
       <article class="invoice">
-        <div class="inv-title">Tax Invoice</div>
-        <div class="inv-company">
-          <div class="inv-name">${escapeHtml(name)}</div>
-          <p>${escapeHtml(company.address_line1 || "")}</p>
-          <p>${escapeHtml(company.address_line2 || "")}</p>
-          <p>Phone: ${escapeHtml(company.mobile || "")}${email ? " &nbsp;|&nbsp; Email: " + escapeHtml(email) : ""}</p>
-          <p>GSTIN: ${escapeHtml(company.gst || "")}${state ? " &nbsp;|&nbsp; State: " + escapeHtml(state) : ""}</p>
-        </div>
-        <table class="inv-split">
-          <tr>
-            <td>
-              <div class="lbl">Bill To</div>
-              <p class="party">${escapeHtml(customer.name || "Walk-in Customer")}</p>
-              <p>Phone: ${escapeHtml(customer.mobile || "")}</p>
-              ${customer.address ? "<p>" + escapeHtml(customer.address) + "</p>" : ""}
-              ${customer.gst ? "<p>GSTIN: " + escapeHtml(customer.gst) + "</p>" : ""}
-            </td>
-            <td class="right-col">
-              <div class="lbl">Invoice Details</div>
-              <div class="kv"><span>Invoice No.</span><strong>${escapeHtml(no)}</strong></div>
-              <div class="kv"><span>Date</span><strong>${invoiceDateLabel()}</strong></div>
-            </td>
-          </tr>
-        </table>
-        <table class="items">
+        <table class="tax-sheet">
+          <colgroup>
+            <col class="c-no"><col class="c-item"><col class="c-color"><col class="c-hsn">
+            <col class="c-qty"><col class="c-unit"><col class="c-rate"><col class="c-amt">
+          </colgroup>
           <thead>
+            <tr><th colspan="8" class="title-cell">Tax Invoice</th></tr>
+            <tr>
+              <td colspan="8" class="company-cell">
+                <div class="inv-name">${escapeHtml(name)}</div>
+                <p>${escapeHtml(company.address_line1 || "")}</p>
+                <p>${escapeHtml(company.address_line2 || "")}</p>
+                <p>Phone: ${escapeHtml(company.mobile || "")}${email ? " &nbsp;|&nbsp; Email: " + escapeHtml(email) : ""}</p>
+                <p>GSTIN: ${escapeHtml(company.gst || "")}${state ? " &nbsp;|&nbsp; State: " + escapeHtml(state) : ""}</p>
+              </td>
+            </tr>
+            <tr>
+              <td colspan="4" class="party-cell">
+                <div class="section-lbl">Bill To</div>
+                <p class="party">${escapeHtml(customer.name || "Walk-in Customer")}</p>
+                <p>Phone: ${escapeHtml(customer.mobile || "")}</p>
+                ${customer.address ? "<p>" + escapeHtml(customer.address) + "</p>" : ""}
+                ${customer.gst ? "<p>GSTIN: " + escapeHtml(customer.gst) + "</p>" : ""}
+              </td>
+              <td colspan="4" class="meta-cell">
+                <div class="section-lbl">Invoice Details</div>
+                <div class="meta-line"><span>Invoice No.</span><span>${escapeHtml(no)}</span></div>
+                <div class="meta-line"><span>Date</span><span>${invoiceDateLabel()}</span></div>
+              </td>
+            </tr>
             <tr>
               <th class="center">#</th>
               <th>Item Name</th>
@@ -361,41 +366,41 @@ require __DIR__ . '/includes/header.php';
               <th class="num">Amount (₹)</th>
             </tr>
           </thead>
-          <tbody>${rows}</tbody>
-          <tfoot>
-            <tr>
+          <tbody>
+            ${rows}
+            <tr class="total-row">
               <td colspan="4">Total</td>
               <td class="center">${formatQty(totalQty)}</td>
               <td></td>
               <td></td>
               <td class="num">${formatMoney(grandTotal)}</td>
             </tr>
-          </tfoot>
-        </table>
-        <table class="inv-bottom">
-          <tr>
-            <td class="words-box">
-              <div class="words-label">Invoice Amount In Words</div>
-              <div>${escapeHtml(amountInWords(grandTotal))}</div>
-              <div class="terms">
-                <strong>Terms and Conditions</strong>
+            <tr>
+              <td colspan="5" class="words-cell">
+                <div class="words-label">Invoice Amount In Words</div>
+                <div>${escapeHtml(amountInWords(grandTotal))}</div>
+              </td>
+              <td colspan="3" style="padding:0">
+                <table class="inner-tot">
+                  <tr><td>Sub Total</td><td class="num">₹ ${formatMoney(grandTotal)}</td></tr>
+                  <tr class="grand"><td>Total</td><td class="num">₹ ${formatMoney(grandTotal)}</td></tr>
+                  <tr><td>Received</td><td class="num">₹ ${formatMoney(received)}</td></tr>
+                  <tr><td>Balance</td><td class="num">₹ ${formatMoney(balance)}</td></tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td colspan="5" class="terms-cell">
+                <div class="terms-label">Terms and Conditions</div>
                 Thank you for doing business with us.
-              </div>
-            </td>
-            <td class="totals-box">
-              <div class="tot-row"><span>Sub Total</span><span>₹ ${formatMoney(grandTotal)}</span></div>
-              <div class="tot-row grand"><span>Total</span><span>₹ ${formatMoney(grandTotal)}</span></div>
-              <div class="tot-row"><span>Received</span><span>₹ ${formatMoney(received)}</span></div>
-              <div class="tot-row"><span>Balance</span><span>₹ ${formatMoney(balance)}</span></div>
-            </td>
-          </tr>
+              </td>
+              <td colspan="3" class="sign-cell">
+                <div class="sign-who">For ${escapeHtml(name)}</div>
+                <div>Authorized Signatory</div>
+              </td>
+            </tr>
+          </tbody>
         </table>
-        <div class="inv-sign">
-          <div>
-            <div class="who">For ${escapeHtml(name)}</div>
-            <div class="role">Authorized Signatory</div>
-          </div>
-        </div>
       </article>
     `;
   }
@@ -453,13 +458,17 @@ require __DIR__ . '/includes/header.php';
   });
 
   document.getElementById("product-rows").addEventListener("keydown", (e) => {
-    if (e.key !== "Enter") return;
     const field = e.target.dataset.field;
     const index = Number(e.target.dataset.index);
-    if (field === "price") {
+    if (!field || Number.isNaN(index)) return;
+
+    if ((e.key === "Enter" || (e.key === "Tab" && !e.shiftKey)) && field === "price") {
       e.preventDefault();
-      saleRows.push(emptyRow());
-      renderRows();
+      if (index >= saleRows.length - 1) {
+        saleRows.push(emptyRow());
+        renderRows();
+      }
+      focusRowField("product-rows", index + 1, "name");
     }
   });
 
@@ -482,6 +491,7 @@ require __DIR__ . '/includes/header.php';
         saleRows[index].product_id = product.id;
         saleRows[index].hsn = product.hsn_code || "";
         renderRows();
+        focusRowField("product-rows", index, "qty");
       }
       return;
     }

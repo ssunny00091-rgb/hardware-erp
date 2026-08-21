@@ -137,6 +137,93 @@ function unitOptions(selected) {
   )).join("");
 }
 
+function suggestOptions(box) {
+  return box ? [...box.querySelectorAll("[data-pick], [data-save-new]")] : [];
+}
+
+function setSuggestActive(box, pos) {
+  const items = suggestOptions(box);
+  if (!box || !items.length) return 0;
+  pos = Math.max(0, Math.min(pos, items.length - 1));
+  items.forEach((el, i) => el.classList.toggle("suggest-active", i === pos));
+  items[pos].scrollIntoView({ block: "nearest" });
+  box.dataset.activeIndex = String(pos);
+  return pos;
+}
+
+function suggestPageSize(box) {
+  const items = suggestOptions(box);
+  if (!items.length) return 5;
+  const h = items[0].offsetHeight || 44;
+  return Math.max(3, Math.floor((box.clientHeight || 180) / h));
+}
+
+function handleSuggestKey(event, box) {
+  if (!box || box.classList.contains("hidden") || !suggestOptions(box).length) {
+    return false;
+  }
+  const key = event.key;
+  if (key === "ArrowDown") {
+    event.preventDefault();
+    setSuggestActive(box, Number(box.dataset.activeIndex || 0) + 1);
+    return true;
+  }
+  if (key === "ArrowUp") {
+    event.preventDefault();
+    setSuggestActive(box, Number(box.dataset.activeIndex || 0) - 1);
+    return true;
+  }
+  if (key === "PageDown") {
+    event.preventDefault();
+    setSuggestActive(box, Number(box.dataset.activeIndex || 0) + suggestPageSize(box));
+    return true;
+  }
+  if (key === "PageUp") {
+    event.preventDefault();
+    setSuggestActive(box, Number(box.dataset.activeIndex || 0) - suggestPageSize(box));
+    return true;
+  }
+  if (key === "Home") {
+    event.preventDefault();
+    setSuggestActive(box, 0);
+    return true;
+  }
+  if (key === "End") {
+    event.preventDefault();
+    setSuggestActive(box, suggestOptions(box).length - 1);
+    return true;
+  }
+  if (key === "Enter") {
+    event.preventDefault();
+    const items = suggestOptions(box);
+    const el = items[Number(box.dataset.activeIndex || 0)] || items[0];
+    if (el) el.click();
+    return true;
+  }
+  if (key === "Escape") {
+    event.preventDefault();
+    box.classList.add("hidden");
+    return true;
+  }
+  return false;
+}
+
+function focusRowField(rootId, index, field) {
+  const el = document.querySelector("#" + rootId + " [data-index=\"" + index + "\"][data-field=\"" + field + "\"]");
+  if (!el) return;
+  el.focus();
+  if (typeof el.select === "function" && el.type !== "color") {
+    el.select();
+  }
+}
+
+document.addEventListener("keydown", (event) => {
+  const el = event.target;
+  if (!(el instanceof HTMLElement) || el.dataset.field !== "name") return;
+  const box = document.querySelector("[data-suggest=\"" + el.dataset.index + "\"]");
+  handleSuggestKey(event, box);
+}, true);
+
 function printInvoiceSheet(html) {
   const win = window.open("", "invoicePrint", "width=920,height=740");
   if (!win) {

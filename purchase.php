@@ -48,8 +48,8 @@ require __DIR__ . '/includes/header.php';
     document.getElementById("purchase-rows").innerHTML = purchaseRows.map((row, index) => `
       <div class="mb-3 grid grid-cols-5 gap-3">
         <div class="relative">
-          <input data-index="${index}" data-field="name" value="${row.name ?? ""}" placeholder="Product Name" class="w-full rounded-xl border border-gray-300 bg-white p-3 text-gray-900">
-          <div class="absolute left-0 right-0 z-50 mt-1 hidden max-h-60 overflow-y-auto rounded-lg border bg-white text-gray-900" data-suggest="${index}"></div>
+          <input data-index="${index}" data-field="name" value="${row.name ?? ""}" placeholder="Product Name" autocomplete="off" class="w-full rounded-xl border border-gray-300 bg-white p-3 text-gray-900">
+          <div class="absolute left-0 right-0 z-50 mt-1 hidden max-h-72 overflow-y-auto rounded-lg border bg-white text-gray-900" data-suggest="${index}"></div>
         </div>
         <input data-index="${index}" data-field="qty" type="number" value="${row.qty ?? ""}" placeholder="Qty" class="rounded-xl border border-gray-300 bg-white p-3 text-gray-900">
         <input data-index="${index}" data-field="price" type="number" value="${row.price ?? ""}" placeholder="Purchase Price" class="rounded-xl border border-gray-300 bg-white p-3 text-gray-900">
@@ -85,26 +85,34 @@ require __DIR__ . '/includes/header.php';
     if (field === "name") {
       const box = document.querySelector(`[data-suggest="${index}"]`);
       const search = e.target.value.trim().toLowerCase();
-      const matches = catalog.filter((p) => (p.product_name || "").toLowerCase().includes(search)).slice(0, 8);
+      const matches = catalog.filter((p) => (p.product_name || "").toLowerCase().includes(search)).slice(0, 80);
       if (!search || !matches.length) {
         box.classList.add("hidden");
       } else {
         box.classList.remove("hidden");
         box.innerHTML = matches.map((p) => `
-          <div class="cursor-pointer border-b p-3 hover:bg-blue-600" data-pick="${p.id}" data-index="${index}">
-            ${p.product_name} — ₹${formatMoney(p.purchase_price)}
+          <div class="cursor-pointer border-b p-3 hover:bg-blue-100" data-pick="${p.id}" data-index="${index}">
+            ${escapeHtml(p.product_name)} — ₹${formatMoney(p.purchase_price)}
           </div>
         `).join("");
+        setSuggestActive(box, 0);
       }
     }
     updatePurchaseTotals();
   });
 
   document.getElementById("purchase-rows").addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && e.target.dataset.field === "price") {
+    const field = e.target.dataset.field;
+    const index = Number(e.target.dataset.index);
+    if (!field || Number.isNaN(index)) return;
+
+    if ((e.key === "Enter" || (e.key === "Tab" && !e.shiftKey)) && field === "price") {
       e.preventDefault();
-      purchaseRows.push(emptyRow());
-      renderPurchase();
+      if (index >= purchaseRows.length - 1) {
+        purchaseRows.push(emptyRow());
+        renderPurchase();
+      }
+      focusRowField("purchase-rows", index + 1, "name");
     }
   });
 
@@ -126,6 +134,7 @@ require __DIR__ . '/includes/header.php';
         purchaseRows[index].unit = product.unit;
         purchaseRows[index].product_id = product.id;
         renderPurchase();
+        focusRowField("purchase-rows", index, "qty");
       }
     }
   });

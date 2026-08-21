@@ -86,46 +86,56 @@ $email = (string) ($company['email'] ?? '');
   </div>
 
   <article class="invoice">
-    <div class="inv-title">Tax Invoice</div>
-    <div class="inv-company">
-      <div class="inv-name"><?= $h($company['name']) ?></div>
-      <p><?= $h($company['address_line1']) ?></p>
-      <p><?= $h($company['address_line2']) ?></p>
-      <p>
-        Phone: <?= $h($company['mobile']) ?>
-        <?php if ($email !== ''): ?>
-          &nbsp;|&nbsp; Email: <?= $h($email) ?>
-        <?php endif; ?>
-      </p>
-      <p>
-        GSTIN: <?= $h($company['gst']) ?>
-        <?php if ($state !== ''): ?>
-          &nbsp;|&nbsp; State: <?= $h($state) ?>
-        <?php endif; ?>
-      </p>
-    </div>
-
-    <table class="inv-split">
-      <tr>
-        <td>
-          <div class="lbl">Bill To</div>
-          <p class="party"><?= $h($party) ?></p>
-          <?php if (!empty($sale['mobile'])): ?><p>Phone: <?= $h($sale['mobile']) ?></p><?php endif; ?>
-          <?php if (!empty($sale['address'])): ?><p><?= $h($sale['address']) ?></p><?php endif; ?>
-          <?php if (!empty($sale['gst'])): ?><p>GSTIN: <?= $h($sale['gst']) ?></p><?php endif; ?>
-        </td>
-        <td class="right-col">
-          <div class="lbl">Invoice Details</div>
-          <div class="kv"><span>Invoice No.</span><strong><?= $h($sale['invoice_no']) ?></strong></div>
-          <div class="kv"><span>Date</span><strong><?= $h($date) ?></strong></div>
-        </td>
-      </tr>
-    </table>
-
-    <table class="items">
+    <table class="tax-sheet">
+      <colgroup>
+        <col class="c-no">
+        <col class="c-item">
+        <col class="c-color">
+        <col class="c-hsn">
+        <col class="c-qty">
+        <col class="c-unit">
+        <col class="c-rate">
+        <col class="c-amt">
+      </colgroup>
       <thead>
         <tr>
-          <th class="center" style="width:32px">#</th>
+          <th colspan="8" class="title-cell">Tax Invoice</th>
+        </tr>
+        <tr>
+          <td colspan="8" class="company-cell">
+            <div class="inv-name"><?= $h($company['name']) ?></div>
+            <p><?= $h($company['address_line1']) ?></p>
+            <p><?= $h($company['address_line2']) ?></p>
+            <p>
+              Phone: <?= $h($company['mobile']) ?>
+              <?php if ($email !== ''): ?>
+                &nbsp;|&nbsp; Email: <?= $h($email) ?>
+              <?php endif; ?>
+            </p>
+            <p>
+              GSTIN: <?= $h($company['gst']) ?>
+              <?php if ($state !== ''): ?>
+                &nbsp;|&nbsp; State: <?= $h($state) ?>
+              <?php endif; ?>
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="4" class="party-cell">
+            <div class="section-lbl">Bill To</div>
+            <p class="party"><?= $h($party) ?></p>
+            <?php if (!empty($sale['mobile'])): ?><p>Phone: <?= $h($sale['mobile']) ?></p><?php endif; ?>
+            <?php if (!empty($sale['address'])): ?><p><?= $h($sale['address']) ?></p><?php endif; ?>
+            <?php if (!empty($sale['gst'])): ?><p>GSTIN: <?= $h($sale['gst']) ?></p><?php endif; ?>
+          </td>
+          <td colspan="4" class="meta-cell">
+            <div class="section-lbl">Invoice Details</div>
+            <div class="meta-line"><span>Invoice No.</span><span><?= $h($sale['invoice_no']) ?></span></div>
+            <div class="meta-line"><span>Date</span><span><?= $h($date) ?></span></div>
+          </td>
+        </tr>
+        <tr>
+          <th class="center">#</th>
           <th>Item Name</th>
           <th>Colour / Shade</th>
           <th class="center">HSN/SAC</th>
@@ -153,7 +163,7 @@ $email = (string) ($company['email'] ?? '');
             ?>
             <tr>
               <td class="center"><?= $i + 1 ?></td>
-              <td><?= $h($item['product_name']) ?></td>
+              <td class="item-name"><?= $h($item['product_name']) ?></td>
               <td>
                 <?php if ($showColor): ?>
                   <?php if ($colorHex !== ''): ?>
@@ -172,43 +182,39 @@ $email = (string) ($company['email'] ?? '');
             </tr>
           <?php endforeach; ?>
         <?php endif; ?>
-      </tbody>
-      <tfoot>
-        <tr>
+        <tr class="total-row">
           <td colspan="4">Total</td>
           <td class="center"><?= $h(rtrim(rtrim(money($totalQty), '0'), '.')) ?></td>
           <td></td>
           <td></td>
           <td class="num"><?= money($grand) ?></td>
         </tr>
-      </tfoot>
-    </table>
-
-    <table class="inv-bottom">
-      <tr>
-        <td class="words-box">
-          <div class="words-label">Invoice Amount In Words</div>
-          <div><?= $h(amount_in_words($grand)) ?></div>
-          <div class="terms">
-            <strong>Terms and Conditions</strong>
+        <tr>
+          <td colspan="5" class="words-cell">
+            <div class="words-label">Invoice Amount In Words</div>
+            <div><?= $h(amount_in_words($grand)) ?></div>
+          </td>
+          <td colspan="3" style="padding:0">
+            <table class="inner-tot">
+              <tr><td>Sub Total</td><td class="num">₹ <?= money($grand) ?></td></tr>
+              <tr class="grand"><td>Total</td><td class="num">₹ <?= money($grand) ?></td></tr>
+              <tr><td>Received</td><td class="num">₹ <?= money($received) ?></td></tr>
+              <tr><td>Balance</td><td class="num">₹ <?= money($balance) ?></td></tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="5" class="terms-cell">
+            <div class="terms-label">Terms and Conditions</div>
             Thank you for doing business with us.
-          </div>
-        </td>
-        <td class="totals-box">
-          <div class="tot-row"><span>Sub Total</span><span>₹ <?= money($grand) ?></span></div>
-          <div class="tot-row grand"><span>Total</span><span>₹ <?= money($grand) ?></span></div>
-          <div class="tot-row"><span>Received</span><span>₹ <?= money($received) ?></span></div>
-          <div class="tot-row"><span>Balance</span><span>₹ <?= money($balance) ?></span></div>
-        </td>
-      </tr>
+          </td>
+          <td colspan="3" class="sign-cell">
+            <div class="sign-who">For <?= $h($company['name']) ?></div>
+            <div>Authorized Signatory</div>
+          </td>
+        </tr>
+      </tbody>
     </table>
-
-    <div class="inv-sign">
-      <div>
-        <div class="who">For <?= $h($company['name']) ?></div>
-        <div class="role">Authorized Signatory</div>
-      </div>
-    </div>
   </article>
 </body>
 </html>
