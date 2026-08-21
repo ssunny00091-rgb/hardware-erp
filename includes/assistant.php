@@ -6,9 +6,17 @@ function openrouter_config(): array
 {
     $key = trim((string) (getenv('OPENROUTER_API_KEY') ?: ($_ENV['OPENROUTER_API_KEY'] ?? '')));
     $model = trim((string) (getenv('OPENROUTER_MODEL') ?: ($_ENV['OPENROUTER_MODEL'] ?? 'google/gemini-2.5-flash')));
+    $maxTokens = (int) (getenv('OPENROUTER_MAX_TOKENS') ?: ($_ENV['OPENROUTER_MAX_TOKENS'] ?? 4000));
+    if ($maxTokens < 256) {
+        $maxTokens = 256;
+    }
+    if ($maxTokens > 8000) {
+        $maxTokens = 8000;
+    }
     return [
         'api_key' => $key,
         'model' => $model !== '' ? $model : 'google/gemini-2.5-flash',
+        'max_tokens' => $maxTokens,
     ];
 }
 
@@ -676,6 +684,7 @@ function openrouter_complete(array $messages, bool $withTools = true): array
         'model' => $cfg['model'],
         'messages' => $messages,
         'temperature' => 0.2,
+        'max_tokens' => $cfg['max_tokens'],
     ];
     if ($withTools) {
         $payload['tools'] = assistant_tool_schemas();
