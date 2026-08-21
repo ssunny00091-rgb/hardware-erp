@@ -41,6 +41,26 @@ require __DIR__ . '/includes/header.php';
   </div>
 </div>
 
+<div class="mt-10">
+  <h2 class="mb-4 text-2xl font-bold">📄 Supplier Bills</h2>
+  <div class="table-scroll overflow-auto rounded-2xl border border-white/20 bg-white/10">
+    <table class="w-full border-collapse">
+      <thead>
+        <tr class="bg-white/10">
+          <th class="p-3 text-left">Date</th>
+          <th class="p-3 text-left">Supplier</th>
+          <th class="p-3 text-left">Bill No</th>
+          <th class="p-3 text-right">Total</th>
+          <th class="p-3 text-right">Paid</th>
+          <th class="p-3 text-right">Due</th>
+          <th class="p-3">View</th>
+        </tr>
+      </thead>
+      <tbody id="purchase-history"></tbody>
+    </table>
+  </div>
+</div>
+
 <script>
   let purchaseRows = [emptyRow()];
   let catalog = [];
@@ -152,7 +172,7 @@ require __DIR__ . '/includes/header.php';
 
   document.getElementById("btn-save-purchase").addEventListener("click", async () => {
     try {
-      await api("/api/purchases.php", {
+      const result = await api("/api/purchases.php", {
         method: "POST",
         body: JSON.stringify({
           supplier_name: document.getElementById("supplier-name").value,
@@ -165,6 +185,8 @@ require __DIR__ . '/includes/header.php';
       alert("✅ Purchase Saved. Stock updated.");
       purchaseRows = [emptyRow()];
       renderPurchase();
+      loadPurchaseHistory();
+      if (result.id) window.open(appUrl("purchase-bill.php?id=" + result.id), "_blank");
     } catch (err) {
       alert(err.message);
     }
@@ -172,6 +194,29 @@ require __DIR__ . '/includes/header.php';
 
   api("/api/products.php").then((data) => { catalog = data.products || []; }).catch(() => {});
   renderPurchase();
+
+  async function loadPurchaseHistory() {
+    const data = await api("/api/purchases.php");
+    document.getElementById("purchase-history").innerHTML = (data.purchases || []).map((row) => {
+      const paid = Number(row.paid || 0);
+      const total = Number(row.total || 0);
+      const due = Math.max(0, total - paid);
+      return `
+        <tr class="border-t border-white/10">
+          <td class="p-3">${row.purchase_date || ""}</td>
+          <td class="p-3">${escapeHtml(row.supplier_name || "")}</td>
+          <td class="p-3">${escapeHtml(row.invoice_no || ("#" + row.id))}</td>
+          <td class="p-3 text-right">₹${formatMoney(total)}</td>
+          <td class="p-3 text-right">₹${formatMoney(paid)}</td>
+          <td class="p-3 text-right">₹${formatMoney(due)}</td>
+          <td class="p-3">
+            <a class="rounded bg-blue-600 px-3 py-1 text-white" href="${appUrl("purchase-bill.php?id=" + row.id)}" target="_blank">👁 Bill</a>
+          </td>
+        </tr>
+      `;
+    }).join("") || `<tr><td class="p-4" colspan="7">Abhi koi supplier bill nahi.</td></tr>`;
+  }
+  loadPurchaseHistory().catch(() => {});
 </script>
 
 <?php require __DIR__ . '/includes/footer.php'; ?>

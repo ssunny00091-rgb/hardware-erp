@@ -55,6 +55,17 @@ function ensure_commerce_schema(PDO $pdo): void
             KEY idx_ledger_purchase (purchase_id)
         ) ENGINE=InnoDB'
     );
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS purchase_payments (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            purchase_id INT UNSIGNED NOT NULL,
+            amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+            paid_on DATE NOT NULL,
+            notes VARCHAR(255) DEFAULT "",
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            KEY idx_pp_purchase (purchase_id)
+        ) ENGINE=InnoDB'
+    );
 
     $alters = [
         "ALTER TABLE sales ADD COLUMN ref_type VARCHAR(30) NULL",
@@ -383,7 +394,100 @@ function post_purchase_ledgers(
             null,
             $purchaseId
         );
+        $exists = $pdo->prepare('SELECT COUNT(*) FROM purchase_payments WHERE purchase_id = :id');
+        try {
+            $exists->execute(['id' => $purchaseId]);
+            if ((int) $exists->fetchColumn() === 0) {
+                insert_purchase_payment_row($pdo, $purchaseId, $paid, $entryDate, 'Paid with bill');
+            }
+        } catch (Throwable $e) {
+            insert_purchase_payment_row($pdo, $purchaseId, $paid, $entryDate, 'Paid with bill');
+        }
     }
+}
+
+function insert_purchase_payment_row(PDO $pdo, int $purchaseId, float $amount, string $date, string $notes): void
+{
+    if ($amount <= 0) {
+        return;
+    }
+    try {
+        $pdo->prepare(
+            'INSERT INTO purchase_payments (purchase_id, amount, paid_on, notes)
+             VALUES (:purchase_id, :amount, :paid_on, :notes)'
+        )->execute([
+            'purchase_id' => $purchaseId,
+            'amount' => $amount,
+            'paid_on' => $date,
+            'notes' => $notes,
+        ]);
+    } catch (Throwable $e) {
+        // Table may not exist on very old DB; schema helper creates it.
+    }
+}
+
+function record_purchase_payment(PDO $pdo, int $purchaseId, float $amount, string $date, string $notes): array
+{
+    if ($amount <= 0) {
+        throw new InvalidArgumentException('Payment amount galat hai.');
+    }
+    $stmt = $pdo->prepare('SELECT * FROM purchases WHERE id = :id');
+    $stmt->execute(['id' => $purchaseId]);
+    $purchase = $stmt->fetch();
+    if (!$purchase) {
+        throw new RuntimeException('Purchase bill nahi mili.');
+    }
+
+    $partyId = isset($purchase['supplier_party_id']) ? (int) $purchase['supplier_party_id'] : 0;
+    if ($partyId <= 0) {
+        $name = trim((string) ($purchase['supplier_name'] ?? ''));
+        $partyId = $name !== '' ? (int) find_or_create_party($pdo, 'supplier', $name) : 0;
+        if ($partyId) {
+            try {
+                $pdo->prepare('UPDATE purchases SET supplier_party_id = :pid WHERE id = :id')->execute([
+                    'pid' => $partyId,
+                    'id' => $purchaseId,
+                ]);
+            } catch (Throwable $e) {
+                // Column may be missing.
+            }
+        }
+    }
+
+    $already = (float) ($purchase['paid'] ?? 0);
+    $total = (float) $purchase['total'];
+    $newPaid = $already + $amount;
+
+    insert_purchase_payment_row($pdo, $purchaseId, $amount, $date, $notes !== '' ? $notes : 'Payment');
+    try {
+        $pdo->prepare('UPDATE purchases SET paid = :paid WHERE id = :id')->execute([
+            'paid' => $newPaid,
+            'id' => $purchaseId,
+        ]);
+    } catch (Throwable $e) {
+        // paid column missing
+    }
+
+    $invoiceNo = (string) ($purchase['invoice_no'] ?? '');
+    if ($partyId > 0) {
+        add_ledger_entry(
+            $pdo,
+            $partyId,
+            $date,
+            $notes !== '' ? $notes : ('Payment against purchase ' . ($invoiceNo !== '' ? $invoiceNo : '#' . $purchaseId)),
+            $invoiceNo,
+            $amount,
+            0,
+            null,
+            $purchaseId
+        );
+    }
+
+    return [
+        'paid' => $newPaid,
+        'due' => max(0, $total - $newPaid),
+        'total' => $total,
+    ];
 }
 
 function backfill_ledgers(PDO $pdo): void

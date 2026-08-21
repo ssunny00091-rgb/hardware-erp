@@ -113,7 +113,7 @@ $types = [
       <tr>
         <td class="border p-2">${row.entry_date}</td>
         <td class="border p-2">${escapeHtml(row.particulars)}</td>
-        <td class="border p-2">${escapeHtml(row.ref_no || "")}${row.sale_id ? ' <a class="text-blue-600" href="' + appUrl("invoice.php?id=" + row.sale_id) + '" target="_blank">view</a>' : ""}</td>
+        <td class="border p-2">${escapeHtml(row.ref_no || "")}${row.sale_id ? ' <a class="text-blue-600" href="' + appUrl("invoice.php?id=" + row.sale_id) + '" target="_blank">sale</a>' : ""}${row.purchase_id ? ' <a class="text-blue-600" href="' + appUrl("purchase-bill.php?id=" + row.purchase_id) + '" target="_blank">bill</a>' : ""}</td>
         <td class="border p-2 text-right">${Number(row.debit) ? formatMoney(row.debit) : ""}</td>
         <td class="border p-2 text-right">${Number(row.credit) ? formatMoney(row.credit) : ""}</td>
         <td class="border p-2 text-right">${formatMoney(row.balance)}</td>
