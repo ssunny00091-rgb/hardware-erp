@@ -430,6 +430,7 @@ async function postKeyForm(extra) {
   }
   const response = await fetch(appUrl("/api/assistant.php"), {
     method: "POST",
+    headers: { "X-Requested-With": "fetch", Accept: "application/json" },
     body: fd,
   });
   const text = await response.text();
@@ -465,10 +466,10 @@ async function saveOrTestKey(mode) {
   applyKeyStatus(data);
   if (mode === "save") {
     if (data.saved || data.configured) {
-      alert("Key save ho gayi." + (data.saved_to && data.saved_to.length ? "\n" + data.saved_to.join(", ") : ""));
-    } else {
-      alert(data.error || "Key save nahi hui");
+      window.location.href = appUrl("assistant.php?key=saved");
+      return;
     }
+    alert(data.error || "Key save nahi hui");
   } else if (data.test && data.test.ok) {
     alert("Key test OK");
   } else {

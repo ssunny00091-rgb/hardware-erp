@@ -49,6 +49,27 @@ function openrouter_config(): array
     ];
 }
 
+function assistant_wants_json(): bool
+{
+    $dest = strtolower((string) ($_SERVER['HTTP_SEC_FETCH_DEST'] ?? ''));
+    if ($dest === 'document') {
+        return false;
+    }
+    $mode = strtolower((string) ($_SERVER['HTTP_SEC_FETCH_MODE'] ?? ''));
+    if ($mode === 'cors' || $mode === 'same-origin') {
+        return true;
+    }
+    $xhr = strtolower((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? ''));
+    if ($xhr === 'xmlhttprequest' || $xhr === 'fetch') {
+        return true;
+    }
+    $accept = strtolower((string) ($_SERVER['HTTP_ACCEPT'] ?? ''));
+    if (str_contains($accept, 'application/json') && !str_contains($accept, 'text/html')) {
+        return true;
+    }
+    return $dest === 'empty';
+}
+
 function persist_openrouter_key(string $key, string $model = ''): array
 {
     $key = normalize_openrouter_key($key);

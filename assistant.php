@@ -2,9 +2,36 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/includes/assistant.php';
+
+$keySaveError = '';
+$keySavedFlash = isset($_GET['key']) && $_GET['key'] === 'saved';
+$keySaveFailFlash = isset($_GET['key']) && $_GET['key'] === 'fail';
+
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['openrouter_api_key'])) {
+    $provided = trim((string) $_POST['openrouter_api_key']);
+    $model = trim((string) ($_POST['openrouter_model'] ?? ''));
+    if ($provided === '') {
+        $keySaveError = 'Pehle OpenRouter key paste karo (sk-or-v1-...).';
+    } else {
+        try {
+            persist_openrouter_key($provided, $model);
+            header('Location: ' . app_url('assistant.php?key=saved'));
+            exit;
+        } catch (Throwable $e) {
+            $keySaveError = $e->getMessage();
+        }
+    }
+}
+
+$orCfg = openrouter_config();
 $pageTitle = 'Assistant';
 $activeNav = 'assistant';
 require __DIR__ . '/includes/header.php';
+$h = static function ($value): string {
+    return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+};
 ?>
 
 <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -12,8 +39,21 @@ require __DIR__ . '/includes/header.php';
     <h1 class="text-2xl font-bold sm:text-4xl">🤖 Shop Assistant</h1>
     <p class="mt-2 text-sm text-gray-300">Bolo ya type karo — sale, purchase, product, ledger. Supplier bill ki photo/PDF daalo (kisi bhi format), supplier + bill automatic save.</p>
   </div>
-  <p id="assistant-key-status" class="text-sm text-amber-300">OpenRouter key check ho rahi hai…</p>
+  <p id="assistant-key-status" class="text-sm <?= $orCfg['api_key'] !== '' ? 'text-emerald-300' : 'text-amber-300' ?>">
+    <?= $orCfg['api_key'] !== '' ? $h('OpenRouter key save hai · ' . ($orCfg['model'] ?? '')) : 'Pehle OpenRouter API key save karo' ?>
+  </p>
 </div>
+
+<?php if ($keySavedFlash): ?>
+  <div class="mb-4 rounded-xl bg-emerald-600 px-4 py-3 font-semibold text-white">
+    OpenRouter key save ho gayi. Ab neeche se sale / bill / ledger pooch sakte ho.
+  </div>
+<?php endif; ?>
+<?php if ($keySaveFailFlash && $keySaveError === ''): ?>
+  <div class="mb-4 rounded-xl bg-rose-600 px-4 py-3 font-semibold text-white">
+    Key save nahi hui. Phir se paste karke try karo.
+  </div>
+<?php endif; ?>
 
 <section class="mb-4 rounded-2xl border border-white/20 bg-white/10 p-4">
   <h2 class="font-semibold">OpenRouter API key</h2>
@@ -22,7 +62,7 @@ require __DIR__ . '/includes/header.php';
     (<strong>sk-or-v1-</strong>). ChatGPT key nahi chalegi.
     Pehle <strong>Key save karo</strong> — internet test baad mein.
   </p>
-  <form id="or-key-form" class="mt-3" action="<?= htmlspecialchars(app_url('api/assistant.php'), ENT_QUOTES, 'UTF-8') ?>" method="post">
+  <form id="or-key-form" class="mt-3" action="<?= $h(app_url('assistant.php')) ?>" method="post">
     <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
       <input type="password" id="or-key" name="openrouter_api_key" placeholder="sk-or-v1-..." class="rounded-xl border border-gray-300 bg-white p-3 text-gray-900 md:col-span-2" autocomplete="off">
       <input type="text" id="or-model" name="openrouter_model" placeholder="google/gemini-2.5-flash" class="rounded-xl border border-gray-300 bg-white p-3 text-gray-900">

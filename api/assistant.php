@@ -50,7 +50,7 @@ try {
             $test = openrouter_test_key($key);
         }
         $fresh = openrouter_config();
-        json_response([
+        $result = [
             'ok' => true,
             'saved' => !empty($saved['ok']),
             'saved_to' => $saved['saved_to'] ?? [],
@@ -59,7 +59,13 @@ try {
             'model' => $fresh['model'],
             'settings_path' => $fresh['settings_path'] ?? '',
             'test' => $test,
-        ]);
+        ];
+        if (!assistant_wants_json()) {
+            $q = !empty($result['saved']) || !empty($result['configured']) ? 'saved' : 'fail';
+            header('Location: ' . app_url('assistant.php?key=' . $q));
+            exit;
+        }
+        json_response($result);
     }
 
     $pdo = db();
