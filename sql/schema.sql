@@ -135,3 +135,19 @@ CREATE TABLE IF NOT EXISTS app_settings (
   setting_value TEXT,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS due_reminders (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  party_id INT UNSIGNED NULL,
+  party_name VARCHAR(255) NOT NULL,
+  party_type VARCHAR(30) NOT NULL DEFAULT 'customer',
+  mobile VARCHAR(20) DEFAULT '',
+  remind_on DATE NOT NULL,
+  amount DECIMAL(12,2) NULL,
+  note VARCHAR(255) DEFAULT '',
+  status VARCHAR(20) NOT NULL DEFAULT 'pending',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  sent_at DATETIME NULL,
+  KEY idx_remind_on (remind_on, status),
+  KEY idx_remind_party (party_id)
+) ENGINE=InnoDB;

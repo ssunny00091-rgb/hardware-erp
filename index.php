@@ -2,12 +2,17 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/config/database.php';
+
 $pageTitle = 'SATYANARAYAN HARDWARE STORES';
 $activeNav = 'home';
 require __DIR__ . '/includes/header.php';
+
+$reminderBannerRows = reminder_banner_rows(db());
 ?>
 
 <h1 class="mb-4 text-2xl font-bold motion-in sm:mb-6 sm:text-4xl">🏪 SATYANARAYAN HARDWARE STORES</h1>
+<?php require __DIR__ . '/includes/reminder-banner.php'; ?>
 
 <div class="mb-6 flex flex-col gap-3 no-print sm:flex-row sm:flex-wrap">
   <button type="button" id="btn-new-sale" class="w-full rounded-lg bg-green-600 px-5 py-3 text-white hover:bg-green-700 motion-in motion-d1 sm:w-auto">➕ New Sale</button>

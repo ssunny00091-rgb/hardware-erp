@@ -170,6 +170,12 @@ function actionSummary(actions) {
     if (a.tool === "get_invoice_detail") {
       return (r.kind === "purchase" ? "Purchase " : "Invoice ") + (r.invoice_no || r.id || "") + " · ₹" + formatMoney(r.total || 0);
     }
+    if (a.tool === "set_due_reminder") {
+      if (r.need_pick) return "Reminder: naam confirm karo";
+      return "Reminder · " + (r.name || "") + " · " + (r.date || "");
+    }
+    if (a.tool === "list_reminders") return "Reminders: " + (r.count || 0);
+    if (a.tool === "cancel_reminder") return "Reminder cancel #" + (r.id || "");
     if (a.tool === "add_or_update_party") return (r.type || "party") + " · " + (r.name || "");
     return a.tool + (a.ok ? " ✓" : "");
   }).join(" · ");

@@ -259,6 +259,13 @@ function whatsapp_due_report_text(PDO $pdo, array $company): string
         // ignore
     }
 
+    if (function_exists('reminder_whatsapp_block')) {
+        $extra = reminder_whatsapp_block($pdo);
+        if ($extra !== '') {
+            $lines[] = $extra;
+        }
+    }
+
     $lines[] = '';
     $lines[] = 'Yeh auto reminder aapke WhatsApp par hai.';
     return implode("\n", $lines);

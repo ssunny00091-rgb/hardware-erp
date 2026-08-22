@@ -32,12 +32,14 @@ require __DIR__ . '/includes/header.php';
 $h = static function ($value): string {
     return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 };
+$reminderBannerRows = reminder_banner_rows(db());
+require __DIR__ . '/includes/reminder-banner.php';
 ?>
 
 <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
   <div>
     <h1 class="text-2xl font-bold sm:text-4xl">🤖 Shop Assistant</h1>
-    <p class="mt-2 text-sm text-gray-300">Bolo ya type karo — sale, purchase, product, ledger. Supplier bill ki photo/PDF daalo (kisi bhi format), supplier + bill automatic save.</p>
+    <p class="mt-2 text-sm text-gray-300">Bolo ya type karo — sale, purchase, product, ledger, due reminder. Supplier bill ki photo/PDF daalo (kisi bhi format), supplier + bill automatic save.</p>
   </div>
   <p id="assistant-key-status" class="text-sm <?= $orCfg['api_key'] !== '' ? 'text-emerald-300' : 'text-amber-300' ?>">
     <?= $orCfg['api_key'] !== '' ? $h('OpenRouter key save hai · ' . ($orCfg['model'] ?? '')) : 'Pehle OpenRouter API key save karo' ?>

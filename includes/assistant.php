@@ -170,6 +170,13 @@ Voice/text commands you should automate:
 - Dashboard totals, recent sales/purchases
 - Profit, sabse zyada / kam sale products — din, mahina, saal (get_profit_report)
 - Kisi invoice / bill ka POORA detail (invoice number 11, bill no, sale id). get_invoice_detail call karo. Sirf total mat bolo. Customer, date, har item (qty, rate, amount), received, due, aur tool ke links (view / print-download / edit) mention karo.
+- Due reminder lagana: customer YA supplier ke liye kisi date par yaad. set_due_reminder call karo. Example: "Ram ko 25/08/2026 due reminder", "supplier Sharma 5 tarikh ko yaad dila", "kal Raju ko 5000 ka reminder".
+- Pending reminders dekhna: list_reminders. Cancel: cancel_reminder.
+
+When the user asks to remind / yaad dila / reminder / due date par notify:
+1. Call set_due_reminder with name, type (customer/supplier), remind_on (dd/mm/yyyy), amount if spoken, note if any.
+2. Confirm the saved date in Hindi. Tell them: us din software kholte hi banner dikhega, aur raat 9 baje owner WhatsApp due-report mein bhi aayega.
+3. If tool returns need_pick, ask which nearby name.
 
 When the user asks for an invoice or bill by number (e.g. "invoice 11", "invoice number 11 ka detail", "11 ka bill"):
 1. Call get_invoice_detail with that number. Kind sale unless they said purchase/supplier.
@@ -427,6 +434,54 @@ function assistant_tool_schemas(): array
                 ],
             ],
         ],
+        [
+            'type' => 'function',
+            'function' => [
+                'name' => 'set_due_reminder',
+                'description' => 'Set a due reminder for a customer or supplier on a date. On that date it shows in the software and in the 9pm owner WhatsApp due report.',
+                'parameters' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'name' => ['type' => 'string', 'description' => 'Customer or supplier name as spoken'],
+                        'type' => ['type' => 'string', 'enum' => ['customer', 'supplier', 'painter', 'plumber', 'electrician']],
+                        'party_id' => ['type' => 'integer'],
+                        'remind_on' => ['type' => 'string', 'description' => 'Date dd/mm/yyyy or yyyy-mm-dd'],
+                        'amount' => ['type' => 'number'],
+                        'note' => ['type' => 'string'],
+                        'mobile' => ['type' => 'string'],
+                    ],
+                    'required' => ['name', 'remind_on'],
+                ],
+            ],
+        ],
+        [
+            'type' => 'function',
+            'function' => [
+                'name' => 'list_reminders',
+                'description' => 'List due reminders set from chat (pending today/overdue, upcoming, or all)',
+                'parameters' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'scope' => ['type' => 'string', 'enum' => ['open', 'today', 'upcoming', 'all']],
+                    ],
+                ],
+            ],
+        ],
+        [
+            'type' => 'function',
+            'function' => [
+                'name' => 'cancel_reminder',
+                'description' => 'Cancel a pending due reminder by id or party name',
+                'parameters' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'id' => ['type' => 'integer'],
+                        'reminder_id' => ['type' => 'integer'],
+                        'name' => ['type' => 'string'],
+                    ],
+                ],
+            ],
+        ],
     ];
 }
 
@@ -461,6 +516,9 @@ function assistant_run_tool(PDO $pdo, string $name, array $args): array
             'list_recent_sales' => assistant_tool_sales($pdo),
             'list_recent_purchases' => assistant_tool_purchases($pdo),
             'get_invoice_detail' => assistant_tool_get_invoice($pdo, $args),
+            'set_due_reminder' => assistant_tool_set_reminder($pdo, $args),
+            'list_reminders' => assistant_tool_list_reminders($pdo, $args),
+            'cancel_reminder' => assistant_tool_cancel_reminder($pdo, $args),
             default => ['error' => 'Unknown tool: ' . $name],
         };
     } catch (Throwable $e) {
@@ -492,11 +550,18 @@ function assistant_tool_dashboard(PDO $pdo): array
     } catch (Throwable $e) {
         $purchaseDue = (float) $pdo->query('SELECT COALESCE(SUM(total), 0) FROM purchases')->fetchColumn();
     }
+    $remindersToday = 0;
+    try {
+        $remindersToday = count(reminder_list($pdo, 'today'));
+    } catch (Throwable $e) {
+        $remindersToday = 0;
+    }
     return [
         'today_sales' => (float) $salesToday->fetchColumn(),
         'today_purchase' => (float) $purchaseToday->fetchColumn(),
         'cash_in_hand' => $cash,
         'pending_payment' => $saleDue + $purchaseDue,
+        'reminders_today' => $remindersToday,
         'date' => date('d/m/Y'),
     ];
 }
@@ -1858,6 +1923,60 @@ function assistant_tables_from_actions(array $actions): array
                 }
                 $push(assistant_table_pack('Items', ['#', 'Product', 'Colour', 'Qty', 'Unit', 'Rate', 'Amount'], $itemRows));
             }
+        }
+
+        if ($tool === 'set_due_reminder') {
+            if (!empty($r['need_pick']) && !empty($r['nearby']) && is_array($r['nearby'])) {
+                $rows = [];
+                foreach ($r['nearby'] as $p) {
+                    if (!is_array($p)) {
+                        continue;
+                    }
+                    $rows[] = [
+                        (string) ($p['name'] ?? ''),
+                        (string) ($p['type'] ?? ''),
+                        (string) ($p['mobile'] ?? ''),
+                    ];
+                }
+                $push(assistant_table_pack('Kaun sa naam?', ['Name', 'Type', 'Mobile'], $rows));
+            } elseif (!empty($r['ok'])) {
+                $push(assistant_table_pack('Reminder lag gaya', ['Field', 'Value'], [
+                    ['Naam', (string) ($r['name'] ?? '')],
+                    ['Type', (string) ($r['type'] ?? '')],
+                    ['Date', (string) ($r['date'] ?? '')],
+                    ['Amount', isset($r['amount']) && $r['amount'] !== null ? assistant_inr($r['amount']) : '—'],
+                    ['Note', (string) ($r['note'] ?? '')],
+                ]));
+            }
+        }
+
+        if ($tool === 'list_reminders' && !empty($r['reminders']) && is_array($r['reminders'])) {
+            $rows = [];
+            foreach ($r['reminders'] as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                $amt = isset($row['amount']) && $row['amount'] !== null && $row['amount'] !== ''
+                    ? assistant_inr($row['amount'])
+                    : '—';
+                $rows[] = [
+                    (string) ($row['id'] ?? ''),
+                    (string) ($row['party_name'] ?? ''),
+                    (string) ($row['party_type'] ?? ''),
+                    (string) ($row['date'] ?? ''),
+                    $amt,
+                    (string) ($row['when'] ?? $row['status'] ?? ''),
+                    (string) ($row['note'] ?? ''),
+                ];
+            }
+            $push(assistant_table_pack('Reminders', ['ID', 'Name', 'Type', 'Date', 'Amount', 'When', 'Note'], $rows));
+        }
+
+        if ($tool === 'cancel_reminder' && !empty($r['ok'])) {
+            $push(assistant_table_pack('Reminder cancel', ['Field', 'Value'], [
+                ['ID', (string) ($r['id'] ?? '')],
+                ['Status', (string) ($r['status'] ?? 'cancelled')],
+            ]));
         }
     }
 

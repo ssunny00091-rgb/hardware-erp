@@ -101,6 +101,9 @@ function ensure_commerce_schema(PDO $pdo): void
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             ) ENGINE=InnoDB'
         );
+    if (function_exists('ensure_reminders_schema')) {
+        ensure_reminders_schema($pdo);
+    }
 }
 
 function parse_sale_date(mixed $raw): string
