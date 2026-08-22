@@ -175,3 +175,106 @@ function persist_sale_header(PDO $pdo, array $data, ?int $saleId, ?string $invoi
 
     return ['id' => $id, 'invoice_no' => $no, 'total' => $data['grandTotal']];
 }
+
+function load_sale_full(PDO $pdo, int $id): ?array
+{
+    if ($id <= 0) {
+        return null;
+    }
+    $saleStmt = $pdo->prepare('SELECT * FROM sales WHERE id = :id');
+    $saleStmt->execute(['id' => $id]);
+    $sale = $saleStmt->fetch();
+    if (!$sale) {
+        return null;
+    }
+    try {
+        $itemStmt = $pdo->prepare(
+            'SELECT product_id, product_name AS name, color_code AS color, color_hex, hsn_code AS hsn, qty, unit, price, total
+             FROM sale_items WHERE sale_id = :id ORDER BY id ASC'
+        );
+        $itemStmt->execute(['id' => $id]);
+        $products = $itemStmt->fetchAll() ?: [];
+    } catch (Throwable $e) {
+        $legacy = $pdo->prepare(
+            'SELECT product_id, product_name AS name, qty, unit, price, total
+             FROM sale_items WHERE sale_id = :id ORDER BY id ASC'
+        );
+        $legacy->execute(['id' => $id]);
+        $products = $legacy->fetchAll() ?: [];
+    }
+    if ($products === [] && !empty($sale['line_items'])) {
+        $decoded = json_decode((string) $sale['line_items'], true);
+        if (is_array($decoded)) {
+            $products = $decoded;
+        }
+    }
+    $sale['products'] = $products;
+    $total = (float) ($sale['total'] ?? 0);
+    $received = isset($sale['received']) && $sale['received'] !== null && $sale['received'] !== ''
+        ? (float) $sale['received']
+        : $total;
+    $sale['received'] = $received;
+    $sale['due'] = max(0, $total - $received);
+    $sale['date'] = format_display_date($sale['sale_date'] ?? $sale['created_at'] ?? '');
+    return $sale;
+}
+
+function find_sales_by_invoice_query(PDO $pdo, string $query): array
+{
+    $query = trim($query);
+    $query = preg_replace('/^(invoice|inv|bill|no|#)\s*/i', '', $query) ?? $query;
+    $query = trim($query, " \t#");
+    if ($query === '') {
+        return [];
+    }
+    $found = [];
+    $add = static function (array $row) use (&$found): void {
+        $id = (int) ($row['id'] ?? 0);
+        if ($id > 0) {
+            $found[$id] = $row;
+        }
+    };
+
+    $exact = $pdo->prepare('SELECT id, invoice_no, customer_name FROM sales WHERE invoice_no = :q LIMIT 10');
+    $exact->execute(['q' => $query]);
+    foreach ($exact as $row) {
+        $add($row);
+    }
+
+    if (preg_match('/^[0-9]+$/', $query)) {
+        $num = (int) $query;
+        $byId = $pdo->prepare('SELECT id, invoice_no, customer_name FROM sales WHERE id = :id LIMIT 1');
+        $byId->execute(['id' => $num]);
+        $row = $byId->fetch();
+        if ($row) {
+            $add($row);
+        }
+        try {
+            $cast = $pdo->prepare(
+                "SELECT id, invoice_no, customer_name FROM sales
+                 WHERE invoice_no REGEXP '^[0-9]+$' AND CAST(invoice_no AS UNSIGNED) = :n
+                 LIMIT 10"
+            );
+            $cast->execute(['n' => $num]);
+            foreach ($cast as $row) {
+                $add($row);
+            }
+        } catch (Throwable $e) {
+            // ignore
+        }
+    }
+
+    if ($found === []) {
+        $like = $pdo->prepare(
+            'SELECT id, invoice_no, customer_name FROM sales
+             WHERE invoice_no LIKE :q OR customer_name LIKE :q2
+             ORDER BY id DESC LIMIT 8'
+        );
+        $like->execute(['q' => '%' . $query . '%', 'q2' => '%' . $query . '%']);
+        foreach ($like as $row) {
+            $add($row);
+        }
+    }
+
+    return array_values($found);
+}

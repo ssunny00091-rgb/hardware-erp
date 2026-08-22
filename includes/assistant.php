@@ -52,6 +52,12 @@ Voice/text commands you should automate:
 - Ledger dikhana (spelling galat ho to bhi paas ke naam)
 - Ledger receipt/payment
 - Dashboard totals, recent sales/purchases
+- Kisi invoice / bill ka POORA detail (invoice number 11, bill no, sale id). get_invoice_detail call karo. Sirf total mat bolo. Customer, date, har item (qty, rate, amount), received, due, aur tool ke links (view / print-download / edit) mention karo.
+
+When the user asks for an invoice or bill by number (e.g. "invoice 11", "invoice number 11 ka detail", "11 ka bill"):
+1. Call get_invoice_detail with that number. Kind sale unless they said purchase/supplier.
+2. Show full line items in a markdown table.
+3. Tell them they can open, download/print, or edit using the links from the tool.
 
 Dates from users may be dd/mm/yyyy. Pass them as-is to tools.
 Amounts are Indian rupees.
@@ -270,6 +276,22 @@ function assistant_tool_schemas(): array
                 'parameters' => ['type' => 'object', 'properties' => new stdClass()],
             ],
         ],
+        [
+            'type' => 'function',
+            'function' => [
+                'name' => 'get_invoice_detail',
+                'description' => 'Full sale or purchase bill: customer/supplier, date, every line item, totals, due, and page links to view, print/download, and edit. Use when user gives an invoice number like 11.',
+                'parameters' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'invoice_no' => ['type' => 'string', 'description' => 'Invoice/bill number as spoken, e.g. 11'],
+                        'sale_id' => ['type' => 'integer'],
+                        'purchase_id' => ['type' => 'integer'],
+                        'kind' => ['type' => 'string', 'enum' => ['sale', 'purchase', 'any']],
+                    ],
+                ],
+            ],
+        ],
     ];
 }
 
@@ -302,6 +324,7 @@ function assistant_run_tool(PDO $pdo, string $name, array $args): array
             'record_ledger_payment' => assistant_tool_ledger_pay($pdo, $args),
             'list_recent_sales' => assistant_tool_sales($pdo),
             'list_recent_purchases' => assistant_tool_purchases($pdo),
+            'get_invoice_detail' => assistant_tool_get_invoice($pdo, $args),
             default => ['error' => 'Unknown tool: ' . $name],
         };
     } catch (Throwable $e) {
@@ -701,6 +724,196 @@ function assistant_tool_ledger_pay(PDO $pdo, array $args): array
     return ['ok' => true, 'party_id' => $partyId, 'name' => $row['name'], 'type' => $type, 'amount' => $amount];
 }
 
+function assistant_bill_actions_sale(int $id): array
+{
+    return [
+        ['label' => 'Bill kholo', 'href' => app_url('invoice.php?id=' . $id), 'target' => '_blank', 'kind' => 'view'],
+        ['label' => 'Download / Print', 'href' => app_url('invoice.php?id=' . $id . '&print=1'), 'target' => '_blank', 'kind' => 'download'],
+        ['label' => 'Edit bill', 'href' => app_url('index.php?edit=' . $id), 'kind' => 'edit'],
+    ];
+}
+
+function assistant_bill_actions_purchase(int $id): array
+{
+    return [
+        ['label' => 'Bill kholo', 'href' => app_url('purchase-bill.php?id=' . $id), 'target' => '_blank', 'kind' => 'view'],
+        ['label' => 'Download / Print', 'href' => app_url('purchase-bill.php?id=' . $id . '&print=1'), 'target' => '_blank', 'kind' => 'download'],
+        ['label' => 'Edit bill', 'href' => app_url('purchase.php?edit=' . $id), 'kind' => 'edit'],
+    ];
+}
+
+function assistant_format_sale_detail(array $sale): array
+{
+    $id = (int) ($sale['id'] ?? 0);
+    $products = is_array($sale['products'] ?? null) ? $sale['products'] : [];
+    $items = [];
+    foreach ($products as $p) {
+        if (!is_array($p)) {
+            continue;
+        }
+        $items[] = [
+            'name' => (string) ($p['name'] ?? $p['product_name'] ?? ''),
+            'color' => (string) ($p['color'] ?? $p['color_code'] ?? ''),
+            'qty' => $p['qty'] ?? '',
+            'unit' => (string) ($p['unit'] ?? 'Piece'),
+            'price' => (float) ($p['price'] ?? 0),
+            'total' => (float) ($p['total'] ?? ((float) ($p['qty'] ?? 0) * (float) ($p['price'] ?? 0))),
+        ];
+    }
+    return [
+        'ok' => true,
+        'kind' => 'sale',
+        'id' => $id,
+        'invoice_no' => (string) ($sale['invoice_no'] ?? ''),
+        'customer_name' => (string) ($sale['customer_name'] ?? ''),
+        'mobile' => (string) ($sale['mobile'] ?? ''),
+        'address' => (string) ($sale['address'] ?? ''),
+        'gst' => (string) ($sale['gst'] ?? ''),
+        'ref_type' => (string) ($sale['ref_type'] ?? ''),
+        'ref_name' => (string) ($sale['ref_name'] ?? ''),
+        'date' => (string) ($sale['date'] ?? format_display_date($sale['sale_date'] ?? $sale['created_at'] ?? '')),
+        'total' => (float) ($sale['total'] ?? 0),
+        'received' => (float) ($sale['received'] ?? 0),
+        'due' => (float) ($sale['due'] ?? 0),
+        'products' => $items,
+        'actions' => assistant_bill_actions_sale($id),
+    ];
+}
+
+function assistant_load_purchase_full(PDO $pdo, int $id): ?array
+{
+    if ($id <= 0) {
+        return null;
+    }
+    $stmt = $pdo->prepare('SELECT * FROM purchases WHERE id = :id');
+    $stmt->execute(['id' => $id]);
+    $row = $stmt->fetch();
+    if (!$row) {
+        return null;
+    }
+    $items = $pdo->prepare(
+        'SELECT product_id, product_name AS name, qty, unit, price, total
+         FROM purchase_items WHERE purchase_id = :id ORDER BY id ASC'
+    );
+    $items->execute(['id' => $id]);
+    $row['products'] = $items->fetchAll() ?: [];
+    $paid = (float) ($row['paid'] ?? 0);
+    $row['due'] = max(0, (float) $row['total'] - $paid);
+    $row['date'] = format_display_date($row['purchase_date'] ?? '');
+    $row['actions'] = assistant_bill_actions_purchase($id);
+    return $row;
+}
+
+function assistant_tool_get_invoice(PDO $pdo, array $args): array
+{
+    $kind = strtolower(trim((string) ($args['kind'] ?? 'any')));
+    if (!in_array($kind, ['sale', 'purchase', 'any'], true)) {
+        $kind = 'any';
+    }
+    $saleId = (int) ($args['sale_id'] ?? 0);
+    $purchaseId = (int) ($args['purchase_id'] ?? 0);
+    $invoice = trim((string) ($args['invoice_no'] ?? $args['number'] ?? $args['q'] ?? ''));
+
+    if ($saleId > 0 && $kind !== 'purchase') {
+        $sale = load_sale_full($pdo, $saleId);
+        return $sale ? assistant_format_sale_detail($sale) : ['error' => 'Sale bill nahi mili'];
+    }
+    if ($purchaseId > 0 && $kind !== 'sale') {
+        $purchase = assistant_load_purchase_full($pdo, $purchaseId);
+        return $purchase
+            ? (['ok' => true, 'kind' => 'purchase'] + $purchase)
+            : ['error' => 'Purchase bill nahi mili'];
+    }
+
+    if ($invoice === '') {
+        return ['error' => 'Invoice number batao'];
+    }
+
+    if ($kind !== 'purchase') {
+        $matches = find_sales_by_invoice_query($pdo, $invoice);
+        if (count($matches) === 1) {
+            $sale = load_sale_full($pdo, (int) $matches[0]['id']);
+            return $sale ? assistant_format_sale_detail($sale) : ['error' => 'Sale bill nahi mili'];
+        }
+        if (count($matches) > 1) {
+            return [
+                'found' => false,
+                'need_pick' => true,
+                'query' => $invoice,
+                'matches' => $matches,
+                'note' => 'Ek se zyada sale mili. Invoice number confirm karo.',
+            ];
+        }
+        if ($kind === 'sale') {
+            return ['error' => 'Sale invoice nahi mili: ' . $invoice];
+        }
+    }
+
+    $q = preg_replace('/^(invoice|inv|bill|no|#)\s*/i', '', $invoice) ?? $invoice;
+    $q = trim((string) $q, " \t#");
+    $purchaseMatches = [];
+    $addP = static function (array $row) use (&$purchaseMatches): void {
+        $id = (int) ($row['id'] ?? 0);
+        if ($id > 0) {
+            $purchaseMatches[$id] = $row;
+        }
+    };
+    $st = $pdo->prepare('SELECT id, invoice_no, supplier_name FROM purchases WHERE invoice_no = :q LIMIT 10');
+    $st->execute(['q' => $q]);
+    foreach ($st as $row) {
+        $addP($row);
+    }
+    if (preg_match('/^[0-9]+$/', $q)) {
+        $byId = $pdo->prepare('SELECT id, invoice_no, supplier_name FROM purchases WHERE id = :id LIMIT 1');
+        $byId->execute(['id' => (int) $q]);
+        $row = $byId->fetch();
+        if ($row) {
+            $addP($row);
+        }
+    }
+    $plist = array_values($purchaseMatches);
+    if (count($plist) === 1) {
+        $purchase = assistant_load_purchase_full($pdo, (int) $plist[0]['id']);
+        return $purchase
+            ? (['ok' => true, 'kind' => 'purchase'] + $purchase)
+            : ['error' => 'Purchase bill nahi mili'];
+    }
+    if (count($plist) > 1) {
+        return [
+            'found' => false,
+            'need_pick' => true,
+            'query' => $invoice,
+            'matches' => $plist,
+            'note' => 'Ek se zyada supplier bill mili.',
+        ];
+    }
+
+    return ['error' => 'Is number ki koi bill nahi mili: ' . $invoice];
+}
+
+function assistant_invoice_query_from_text(string $text): ?array
+{
+    $text = trim($text);
+    if ($text === '') {
+        return null;
+    }
+    $kind = 'any';
+    if (preg_match('/purchase|supplier|kharid/i', $text)) {
+        $kind = 'purchase';
+    } elseif (preg_match('/sale|customer|invoice|inv\b/i', $text)) {
+        $kind = 'sale';
+    }
+    if (preg_match('/\b(?:invoice|inv|bill)\s*(?:number|no\.?|#)?\s*([A-Za-z0-9\/-]{1,20})\b/i', $text, $m)) {
+        if (preg_match('/[0-9]/', $m[1])) {
+            return ['invoice_no' => $m[1], 'kind' => $kind];
+        }
+    }
+    if (preg_match('/\b([0-9]{1,8})\s*(?:ka|ki|ke)\s*(?:bill|invoice|inv)/i', $text, $m)) {
+        return ['invoice_no' => $m[1], 'kind' => $kind];
+    }
+    return null;
+}
+
 function assistant_tool_sales(PDO $pdo): array
 {
     try {
@@ -980,8 +1193,35 @@ function assistant_chat(PDO $pdo, string $userText, array $history, array $fileP
             ];
         }
     }
+    $asked = assistant_invoice_query_from_text($userText);
+    if ($asked) {
+        $already = false;
+        foreach ($actions as $a) {
+            if (($a['tool'] ?? '') === 'get_invoice_detail' && empty($a['result']['error'])) {
+                $already = true;
+                break;
+            }
+        }
+        if (!$already) {
+            $result = assistant_tool_get_invoice($pdo, $asked);
+            $actions[] = [
+                'tool' => 'get_invoice_detail',
+                'ok' => empty($result['error']),
+                'result' => $result,
+            ];
+        }
+    }
     if ($reply === '' && $actions) {
         $reply = 'Kaam ho gaya.';
+    }
+    foreach ($actions as $a) {
+        if (($a['tool'] ?? '') === 'get_invoice_detail' && empty($a['result']['error']) && empty($a['result']['need_pick'])) {
+            if ($reply === '' || $reply === 'Kaam ho gaya.') {
+                $no = (string) ($a['result']['invoice_no'] ?? '');
+                $reply = 'Invoice ' . ($no !== '' ? $no . ' ' : '') . 'ka poora detail neeche hai. Bill kholo, download/print, ya edit kar sakte ho.';
+            }
+            break;
+        }
     }
     return [
         'reply' => $reply,
@@ -990,16 +1230,16 @@ function assistant_chat(PDO $pdo, string $userText, array $history, array $fileP
     ];
 }
 
-function assistant_table_pack(string $title, array $headers, array $rows): ?array
+function assistant_table_pack(string $title, array $headers, array $rows, array $extra = []): ?array
 {
     if ($rows === []) {
         return null;
     }
-    return [
+    return array_merge([
         'title' => $title,
         'headers' => $headers,
         'rows' => $rows,
-    ];
+    ], $extra);
 }
 
 function assistant_inr(mixed $value): string
@@ -1157,11 +1397,98 @@ function assistant_tables_from_actions(array $actions): array
         }
 
         if ($tool === 'create_sale' && !empty($r['invoice_no'])) {
+            $saleId = (int) ($r['id'] ?? 0);
+            $extra = $saleId > 0 ? ['actions' => assistant_bill_actions_sale($saleId)] : [];
             $push(assistant_table_pack('Sale saved', ['Field', 'Value'], [
                 ['Invoice', (string) ($r['invoice_no'] ?? '')],
                 ['Total', assistant_inr($r['total'] ?? 0)],
                 ['Date', format_display_date($r['sale_date'] ?? '')],
-            ]));
+            ], $extra));
+        }
+
+        if ($tool === 'get_invoice_detail') {
+            if (!empty($r['need_pick']) && !empty($r['matches']) && is_array($r['matches'])) {
+                $rows = [];
+                foreach ($r['matches'] as $m) {
+                    if (!is_array($m)) {
+                        continue;
+                    }
+                    $rows[] = [
+                        (string) ($m['invoice_no'] ?? $m['id'] ?? ''),
+                        (string) ($m['customer_name'] ?? $m['supplier_name'] ?? ''),
+                        (string) ($m['id'] ?? ''),
+                    ];
+                }
+                $push(assistant_table_pack('Kaun si bill?', ['Invoice', 'Name', 'ID'], $rows));
+            } elseif (($r['kind'] ?? '') === 'purchase' && !empty($r['id'])) {
+                $header = [
+                    ['Bill no', (string) ($r['invoice_no'] ?? '')],
+                    ['Supplier', (string) ($r['supplier_name'] ?? '')],
+                    ['Date', (string) ($r['date'] ?? format_display_date($r['purchase_date'] ?? ''))],
+                    ['Total', assistant_inr($r['total'] ?? 0)],
+                    ['Paid', assistant_inr($r['paid'] ?? 0)],
+                    ['Due', assistant_inr($r['due'] ?? 0)],
+                ];
+                $push(assistant_table_pack(
+                    'Purchase bill ' . (string) ($r['invoice_no'] ?? ''),
+                    ['Field', 'Value'],
+                    $header,
+                    ['actions' => $r['actions'] ?? assistant_bill_actions_purchase((int) $r['id'])]
+                ));
+                $itemRows = [];
+                foreach (($r['products'] ?? []) as $i => $p) {
+                    if (!is_array($p)) {
+                        continue;
+                    }
+                    $itemRows[] = [
+                        (string) ($i + 1),
+                        (string) ($p['name'] ?? $p['product_name'] ?? ''),
+                        (string) ($p['qty'] ?? ''),
+                        (string) ($p['unit'] ?? ''),
+                        assistant_inr($p['price'] ?? 0),
+                        assistant_inr($p['total'] ?? 0),
+                    ];
+                }
+                $push(assistant_table_pack('Items', ['#', 'Product', 'Qty', 'Unit', 'Rate', 'Amount'], $itemRows));
+            } elseif (!empty($r['id']) || !empty($r['invoice_no'])) {
+                $header = [
+                    ['Invoice', (string) ($r['invoice_no'] ?? '')],
+                    ['Customer', (string) ($r['customer_name'] ?? '')],
+                    ['Mobile', (string) ($r['mobile'] ?? '')],
+                    ['Address', (string) ($r['address'] ?? '')],
+                    ['GST', (string) ($r['gst'] ?? '')],
+                    ['Date', (string) ($r['date'] ?? '')],
+                ];
+                if (!empty($r['ref_name'])) {
+                    $header[] = ['Reference', trim((string) ($r['ref_type'] ?? '') . ' ' . (string) $r['ref_name'])];
+                }
+                $header[] = ['Total', assistant_inr($r['total'] ?? 0)];
+                $header[] = ['Received', assistant_inr($r['received'] ?? 0)];
+                $header[] = ['Due', assistant_inr($r['due'] ?? 0)];
+                $saleId = (int) ($r['id'] ?? 0);
+                $push(assistant_table_pack(
+                    'Invoice ' . (string) ($r['invoice_no'] ?? ''),
+                    ['Field', 'Value'],
+                    $header,
+                    ['actions' => $r['actions'] ?? ($saleId > 0 ? assistant_bill_actions_sale($saleId) : [])]
+                ));
+                $itemRows = [];
+                foreach (($r['products'] ?? []) as $i => $p) {
+                    if (!is_array($p)) {
+                        continue;
+                    }
+                    $itemRows[] = [
+                        (string) ($i + 1),
+                        (string) ($p['name'] ?? ''),
+                        (string) ($p['color'] ?? ''),
+                        (string) ($p['qty'] ?? ''),
+                        (string) ($p['unit'] ?? ''),
+                        assistant_inr($p['price'] ?? 0),
+                        assistant_inr($p['total'] ?? 0),
+                    ];
+                }
+                $push(assistant_table_pack('Items', ['#', 'Product', 'Colour', 'Qty', 'Unit', 'Rate', 'Amount'], $itemRows));
+            }
         }
     }
 

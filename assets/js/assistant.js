@@ -101,6 +101,22 @@ function appendHtmlTable(parent, title, headers, rows) {
   parent.appendChild(box);
 }
 
+function appendActionBar(parent, actions) {
+  if (!actions || !actions.length) return;
+  const bar = document.createElement("div");
+  bar.className = "chat-actions";
+  actions.forEach((a) => {
+    if (!a || !a.href) return;
+    const link = document.createElement("a");
+    link.className = "chat-action-btn chat-action-" + (a.kind || "view");
+    link.href = a.href;
+    link.textContent = a.label || "Open";
+    if (a.target) link.target = a.target;
+    bar.appendChild(link);
+  });
+  parent.appendChild(bar);
+}
+
 function renderRichReply(el, text, tables) {
   el.innerHTML = "";
   const apiTables = tables || [];
@@ -134,6 +150,7 @@ function renderRichReply(el, text, tables) {
   flushPara();
   apiTables.forEach((t) => {
     appendHtmlTable(el, t.title || "", t.headers || [], t.rows || []);
+    appendActionBar(el, t.actions || []);
   });
 }
 
@@ -146,6 +163,9 @@ function actionSummary(actions) {
       return "Supplier/bill save · #" + (r.id || r.party_id || "") + " · ₹" + formatMoney(r.total || 0);
     }
     if (a.tool === "create_sale") return "Sale " + (r.invoice_no || "") + " · ₹" + formatMoney(r.total || 0);
+    if (a.tool === "get_invoice_detail") {
+      return (r.kind === "purchase" ? "Purchase " : "Invoice ") + (r.invoice_no || r.id || "") + " · ₹" + formatMoney(r.total || 0);
+    }
     if (a.tool === "add_or_update_party") return (r.type || "party") + " · " + (r.name || "");
     return a.tool + (a.ok ? " ✓" : "");
   }).join(" · ");

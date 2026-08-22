@@ -204,5 +204,8 @@ $billDate = format_display_date($purchase['purchase_date']);
     });
   }
 </script>
+<?php if (!empty($_GET['print'])): ?>
+<script>window.addEventListener("load", function () { window.print(); });</script>
+<?php endif; ?>
 
 <?php require __DIR__ . '/includes/footer.php'; ?>

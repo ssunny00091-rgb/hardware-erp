@@ -265,9 +265,26 @@ textarea::placeholder {
   font-weight: 700;
 }
 
-.chat-table td:nth-child(n+4) {
-  text-align: right;
+.chat-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.55rem 0 0.75rem;
 }
+
+.chat-action-btn {
+  display: inline-block;
+  padding: 0.45rem 0.8rem;
+  border-radius: 0.7rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-decoration: none;
+  color: #fff;
+}
+
+.chat-action-view { background: #2563eb; }
+.chat-action-download { background: #0f766e; }
+.chat-action-edit { background: #d97706; }
 
 .photo-chip {
   display: inline-flex;

@@ -35,38 +35,59 @@ require __DIR__ . '/includes/header.php';
 </div>
 
 <section id="sale-form" class="mt-8 hidden rounded-2xl border border-white/20 bg-white/10 p-4 shadow-2xl backdrop-blur-xl sm:rounded-3xl sm:p-8">
-  <div class="mb-6 border-b border-white/10 pb-4 sm:mb-8">
-    <h2 id="sale-form-title" class="text-2xl font-bold sm:text-3xl">📝 New Sale</h2>
-    <p class="mt-2 text-sm text-gray-300">Create a new invoice, add customer details and products.</p>
-    <p class="mt-3 text-lg font-semibold text-emerald-300">Invoice No: <span id="next-invoice">—</span></p>
-    <label class="mt-3 block max-w-xs text-sm font-medium text-gray-200">
+  <div class="mb-6 flex flex-col gap-3 border-b border-white/10 pb-4 sm:mb-8 sm:flex-row sm:items-start sm:justify-between">
+    <div>
+      <h2 id="sale-form-title" class="text-2xl font-bold sm:text-3xl">📝 New Sale</h2>
+      <p class="mt-2 text-sm text-gray-300">Pehle customer, phir saman, last mein payment. Bill pehle preview hoga, phir save.</p>
+      <p class="mt-3 text-lg font-semibold text-emerald-300">Invoice No: <span id="next-invoice">—</span></p>
+    </div>
+    <button type="button" id="btn-close-sale" class="rounded-lg bg-white/10 px-4 py-2 text-sm hover:bg-white/20">✖ Close</button>
+  </div>
+
+  <input type="hidden" id="editing-sale-id" value="">
+
+  <div class="mb-6 rounded-2xl border border-white/10 bg-black/20 p-4">
+    <h3 class="mb-3 font-semibold">1. Customer</h3>
+    <label class="mb-3 block text-sm text-gray-300">Customer name
+      <span class="relative mt-1 block">
+        <input type="text" id="customer-name" placeholder="Naam likho" autocomplete="off" class="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none">
+        <div id="customer-suggest" class="suggest hidden absolute left-0 right-0 z-50 mt-1 max-h-72 overflow-y-auto rounded-lg border bg-white text-gray-900 shadow-xl"></div>
+      </span>
+    </label>
+    <label class="mb-3 block text-sm text-gray-300">Mobile
+      <input type="text" id="customer-mobile" placeholder="10 digit number" class="mt-1 w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none">
+    </label>
+    <label class="mb-3 block text-sm text-gray-300">Address
+      <input type="text" id="customer-address" placeholder="Optional" class="mt-1 w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none">
+    </label>
+    <label class="mb-3 block text-sm text-gray-300">GST number
+      <input type="text" id="customer-gst" placeholder="Agar GST bill ho" class="mt-1 w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none">
+    </label>
+    <label class="block max-w-xs text-sm font-medium text-gray-200">
       Bill Date (dd/mm/yyyy)
       <span class="date-field mt-1">
         <input type="text" id="sale-date" inputmode="numeric" placeholder="dd/mm/yyyy" maxlength="10" autocomplete="off" class="rounded-xl border border-gray-300 bg-white px-3 py-2 text-base text-gray-900">
         <input type="date" id="sale-date-picker" title="Calendar" aria-label="Calendar">
       </span>
     </label>
-  </div>
-
-  <input type="hidden" id="editing-sale-id" value="">
-  <input type="text" id="customer-name" placeholder="Customer Name" class="mb-4 w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none">
-  <input type="text" id="customer-mobile" placeholder="Mobile Number" class="mb-4 w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none">
-  <input type="text" id="customer-address" placeholder="Address" class="mb-4 w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none">
-  <input type="text" id="customer-gst" placeholder="GST Number" class="mb-4 w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none">
-  <div class="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-    <select id="ref-type" class="rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-900">
-      <option value="">Reference: None</option>
-      <option value="painter">Painter</option>
-      <option value="plumber">Plumber</option>
-      <option value="electrician">Electrician</option>
-    </select>
-    <div class="relative md:col-span-1">
-      <input type="text" id="ref-name" placeholder="Painter / Plumber / Electrician name" autocomplete="off" class="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none">
-      <div id="ref-suggest" class="suggest hidden absolute left-0 right-0 z-50 mt-1 max-h-72 overflow-y-auto rounded-lg border bg-white text-gray-900 shadow-xl"></div>
+    <p class="mt-4 mb-2 text-sm text-gray-400">Painter / plumber / electrician ke through sale ho to yahan likho.</p>
+    <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
+      <select id="ref-type" class="rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-900">
+        <option value="">Reference: None</option>
+        <option value="painter">Painter</option>
+        <option value="plumber">Plumber</option>
+        <option value="electrician">Electrician</option>
+      </select>
+      <div class="relative md:col-span-1">
+        <input type="text" id="ref-name" placeholder="Unka naam" autocomplete="off" class="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none">
+        <div id="ref-suggest" class="suggest hidden absolute left-0 right-0 z-50 mt-1 max-h-72 overflow-y-auto rounded-lg border bg-white text-gray-900 shadow-xl"></div>
+      </div>
+      <input type="text" id="ref-mobile" placeholder="Unka mobile (optional)" class="rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none">
     </div>
-    <input type="text" id="ref-mobile" placeholder="Their mobile (optional)" class="rounded-2xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none">
   </div>
   <div class="mt-8">
+    <h3 class="mb-3 font-semibold">2. Saman / Items</h3>
+    <p class="mb-3 text-sm text-gray-400">Product naam type karo, list se choose karo. Last price par Enter dabane se next line khulti hai.</p>
     <div class="line-head mb-4 hidden grid-cols-6 gap-3 rounded-2xl border border-white/10 bg-white/10 p-4 font-semibold md:grid">
       <div>📦 Product</div>
       <div>🎨 Colour / Shade</div>
@@ -97,6 +118,7 @@ require __DIR__ . '/includes/header.php';
       <option value="Black"></option>
     </datalist>
     <div id="product-rows"></div>
+    <button type="button" id="btn-add-sale-row" class="mt-2 rounded-xl bg-white/15 px-4 py-3 font-semibold hover:bg-white/25">➕ Aur item add karo</button>
   </div>
 
   <div class="mt-6 text-right text-2xl font-bold text-green-400">
@@ -106,15 +128,16 @@ require __DIR__ . '/includes/header.php';
 
   <div class="mt-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
     <div class="rounded-2xl border border-white/20 bg-white/10 p-4">
-      <div class="mb-2 font-semibold">Payment</div>
+      <div class="mb-2 font-semibold">3. Payment</div>
+      <p class="mb-2 text-xs text-gray-400">Cash mil gaya to Full paid. Thoda mila to Partial. Udhaar to Credit / Due.</p>
       <div class="flex flex-wrap items-center gap-3 text-sm">
         <label class="flex items-center gap-2"><input type="radio" name="pay-mode" value="full" checked> Full paid</label>
         <label class="flex items-center gap-2"><input type="radio" name="pay-mode" value="partial"> Partial</label>
         <label class="flex items-center gap-2"><input type="radio" name="pay-mode" value="due"> Credit / Due</label>
       </div>
-      <input type="number" id="sale-received" placeholder="Partial amount received" class="mt-3 hidden w-full max-w-xs rounded-xl border border-gray-300 bg-white px-4 py-2 text-gray-900">
+      <input type="number" id="sale-received" placeholder="Kitna cash mila" class="mt-3 hidden w-full max-w-xs rounded-xl border border-gray-300 bg-white px-4 py-2 text-gray-900">
     </div>
-    <button type="button" id="btn-preview" class="rounded-xl bg-green-600 px-6 py-3 font-semibold text-white hover:bg-green-500">💾 Save Sale</button>
+    <button type="button" id="btn-preview" class="rounded-xl bg-green-600 px-6 py-3 font-semibold text-white hover:bg-green-500">👀 Preview bill</button>
   </div>
 </section>
 
@@ -498,8 +521,54 @@ require __DIR__ . '/includes/header.php';
     document.getElementById("ref-mobile").value = "";
     setDateField("sale-date", "sale-date-picker", todayIsoDate());
     document.getElementById("sale-form").classList.remove("hidden");
+    document.getElementById("sale-form").scrollIntoView({ behavior: "smooth", block: "start" });
     renderRows();
     loadNextInvoice();
+  });
+
+  document.getElementById("btn-close-sale").addEventListener("click", () => {
+    document.getElementById("sale-form").classList.add("hidden");
+  });
+
+  document.getElementById("btn-add-sale-row").addEventListener("click", () => {
+    saleRows.push(emptyRow());
+    renderRows();
+    focusRowField("product-rows", saleRows.length - 1, "name");
+  });
+
+  async function showCustomerSuggestions() {
+    const box = document.getElementById("customer-suggest");
+    const search = document.getElementById("customer-name").value.trim();
+    if (!search) {
+      box.classList.add("hidden");
+      return;
+    }
+    const data = await api("/api/parties.php?type=customer&q=" + encodeURIComponent(search));
+    const parties = data.parties || [];
+    if (!parties.length) {
+      box.classList.add("hidden");
+      return;
+    }
+    box.innerHTML = parties.map((p) => `
+      <div class="cursor-pointer border-b p-3 hover:bg-blue-100" data-cust-pick="${p.id}" data-name="${escapeHtml(p.name)}" data-mobile="${escapeHtml(p.mobile || "")}" data-address="${escapeHtml(p.address || "")}">
+        <div class="font-medium">${escapeHtml(p.name)}</div>
+        <div class="text-sm text-gray-500">${escapeHtml(p.mobile || "")}</div>
+      </div>
+    `).join("");
+    box.classList.remove("hidden");
+    setSuggestActive(box, 0);
+  }
+
+  document.getElementById("customer-name").addEventListener("input", () => {
+    showCustomerSuggestions().catch(() => {});
+  });
+  document.getElementById("customer-suggest").addEventListener("click", (e) => {
+    const pick = e.target.closest("[data-cust-pick]");
+    if (!pick) return;
+    document.getElementById("customer-name").value = pick.dataset.name || "";
+    if (pick.dataset.mobile) document.getElementById("customer-mobile").value = pick.dataset.mobile;
+    if (pick.dataset.address) document.getElementById("customer-address").value = pick.dataset.address;
+    document.getElementById("customer-suggest").classList.add("hidden");
   });
 
   document.getElementById("customer-mobile").addEventListener("blur", async (e) => {
@@ -725,51 +794,54 @@ require __DIR__ . '/includes/header.php';
     document.getElementById("history-modal").classList.remove("flex");
   });
 
+  function applySaleToForm(sale) {
+    document.getElementById("editing-sale-id").value = sale.id;
+    document.getElementById("sale-form-title").textContent = "✏️ Edit Sale";
+    document.getElementById("next-invoice").textContent = sale.invoice_no;
+    document.getElementById("customer-name").value = sale.customer_name || "";
+    document.getElementById("customer-mobile").value = sale.mobile || "";
+    document.getElementById("customer-address").value = sale.address || "";
+    document.getElementById("customer-gst").value = sale.gst || "";
+    document.getElementById("ref-type").value = sale.ref_type || "";
+    document.getElementById("ref-name").value = sale.ref_name || "";
+    document.getElementById("ref-mobile").value = "";
+    setDateField("sale-date", "sale-date-picker", sale.sale_date || sale.created_at);
+    const rec = sale.received == null || sale.received === "" ? Number(sale.total) : Number(sale.received);
+    const tot = Number(sale.total) || 0;
+    if (rec <= 0) {
+      setPayMode("due");
+      document.getElementById("sale-received").value = "";
+    } else if (Math.abs(rec - tot) < 0.009) {
+      setPayMode("full");
+      document.getElementById("sale-received").value = "";
+    } else {
+      setPayMode("partial");
+      document.getElementById("sale-received").value = String(rec);
+    }
+    saleRows = (sale.products || []).length
+      ? sale.products.map((row) => ({
+          name: row.name || "",
+          color: row.color || "",
+          color_hex: row.color_hex || "#ffffff",
+          hsn: row.hsn || "",
+          qty: row.qty,
+          unit: row.unit || "Piece",
+          price: row.price,
+          product_id: row.product_id || null,
+        }))
+      : [emptyRow()];
+    renderRows();
+    document.getElementById("sale-form").classList.remove("hidden");
+    document.getElementById("sale-form").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   document.getElementById("sales-history-body").addEventListener("click", async (e) => {
     const editBtn = e.target.closest("[data-sale-edit]");
     if (editBtn) {
       const data = await api("/api/sales.php?id=" + editBtn.dataset.saleEdit);
-      const sale = data.sale;
-      document.getElementById("editing-sale-id").value = sale.id;
-      document.getElementById("sale-form-title").textContent = "✏️ Edit Sale";
-      document.getElementById("next-invoice").textContent = sale.invoice_no;
-      document.getElementById("customer-name").value = sale.customer_name || "";
-      document.getElementById("customer-mobile").value = sale.mobile || "";
-      document.getElementById("customer-address").value = sale.address || "";
-      document.getElementById("customer-gst").value = sale.gst || "";
-      document.getElementById("ref-type").value = sale.ref_type || "";
-      document.getElementById("ref-name").value = sale.ref_name || "";
-      document.getElementById("ref-mobile").value = "";
-      setDateField("sale-date", "sale-date-picker", sale.sale_date || sale.created_at);
-      const rec = sale.received == null || sale.received === "" ? Number(sale.total) : Number(sale.received);
-      const tot = Number(sale.total) || 0;
-      if (rec <= 0) {
-        setPayMode("due");
-        document.getElementById("sale-received").value = "";
-      } else if (Math.abs(rec - tot) < 0.009) {
-        setPayMode("full");
-        document.getElementById("sale-received").value = "";
-      } else {
-        setPayMode("partial");
-        document.getElementById("sale-received").value = String(rec);
-      }
-      saleRows = (sale.products || []).length
-        ? sale.products.map((row) => ({
-            name: row.name || "",
-            color: row.color || "",
-            color_hex: row.color_hex || "#ffffff",
-            hsn: row.hsn || "",
-            qty: row.qty,
-            unit: row.unit || "Piece",
-            price: row.price,
-            product_id: row.product_id || null,
-          }))
-        : [emptyRow()];
-      renderRows();
-      document.getElementById("sale-form").classList.remove("hidden");
+      applySaleToForm(data.sale);
       document.getElementById("history-modal").classList.add("hidden");
       document.getElementById("history-modal").classList.remove("flex");
-      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
     const btn = e.target.closest("[data-sale-delete]");
@@ -782,6 +854,13 @@ require __DIR__ . '/includes/header.php';
 
   bindDateField("sale-date", "sale-date-picker");
   setDateField("sale-date", "sale-date-picker", todayIsoDate());
+
+  const editFromUrl = Number(new URLSearchParams(window.location.search).get("edit") || 0);
+  if (editFromUrl > 0) {
+    api("/api/sales.php?id=" + editFromUrl)
+      .then((data) => applySaleToForm(data.sale))
+      .catch((err) => alert(err.message));
+  }
 
   loadDashboard().catch((err) => {
     const go = confirm("MySQL connect nahi hua: " + err.message + "\n\nSetup wizard (install.php) kholun?");

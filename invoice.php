@@ -83,6 +83,7 @@ $email = (string) ($company['email'] ?? '');
 <body class="invoice-page">
   <div class="no-print">
     <button type="button" onclick="window.print()">Print / Save PDF</button>
+    <a href="<?= $h(app_url('index.php?edit=' . $id)) ?>">Edit</a>
     <a href="<?= $h(app_url('index.php')) ?>">Back</a>
   </div>
 
@@ -220,5 +221,8 @@ $email = (string) ($company['email'] ?? '');
       </tbody>
     </table>
   </article>
+  <?php if (!empty($_GET['print'])): ?>
+  <script>window.addEventListener("load", function () { window.print(); });</script>
+  <?php endif; ?>
 </body>
 </html>

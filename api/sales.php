@@ -16,27 +16,9 @@ try {
         $id = (int) ($_GET['id'] ?? 0);
 
         if ($id > 0) {
-            $saleStmt = $pdo->prepare('SELECT * FROM sales WHERE id = :id');
-            $saleStmt->execute(['id' => $id]);
-            $sale = $saleStmt->fetch();
+            $sale = load_sale_full($pdo, $id);
             if (!$sale) {
                 json_response(['error' => 'Sale not found'], 404);
-            }
-
-            $itemStmt = $pdo->prepare(
-                'SELECT product_id, product_name AS name, color_code AS color, color_hex, hsn_code AS hsn, qty, unit, price, total
-                 FROM sale_items WHERE sale_id = :id ORDER BY id ASC'
-            );
-            try {
-                $itemStmt->execute(['id' => $id]);
-                $sale['products'] = $itemStmt->fetchAll();
-            } catch (Throwable $e) {
-                $legacy = $pdo->prepare(
-                    'SELECT product_id, product_name AS name, qty, unit, price, total
-                     FROM sale_items WHERE sale_id = :id ORDER BY id ASC'
-                );
-                $legacy->execute(['id' => $id]);
-                $sale['products'] = $legacy->fetchAll();
             }
             json_response(['sale' => $sale]);
         }
