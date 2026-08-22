@@ -33,6 +33,13 @@ function sale_payload(array $body): array
         ? $grandTotal
         : (float) $receivedRaw;
     $saleDate = parse_sale_date($body['sale_date'] ?? '');
+    $dueDate = null;
+    if ($received + 0.009 < $grandTotal) {
+        $dueRaw = trim((string) ($body['due_date'] ?? ''));
+        $dueDate = $dueRaw !== ''
+            ? parse_sale_date($dueRaw)
+            : date('Y-m-d', strtotime($saleDate . ' +7 days') ?: time());
+    }
 
     return compact(
         'valid',
@@ -45,7 +52,8 @@ function sale_payload(array $body): array
         'refMobile',
         'grandTotal',
         'received',
-        'saleDate'
+        'saleDate',
+        'dueDate'
     );
 }
 
@@ -85,6 +93,7 @@ function persist_sale_header(PDO $pdo, array $data, ?int $saleId, ?string $invoi
         'ref_name' => $data['refName'] !== '' ? $data['refName'] : null,
         'customer_party_id' => $customerPartyId,
         'sale_date' => $data['saleDate'],
+        'due_date' => $data['dueDate'] ?? null,
         'created_at' => $data['saleDate'] . ' ' . date('H:i:s'),
     ];
 
@@ -118,6 +127,8 @@ function persist_sale_header(PDO $pdo, array $data, ?int $saleId, ?string $invoi
         $no = generate_invoice_number($pdo);
         $inserted = false;
         $attempts = [
+            'INSERT INTO sales (invoice_no, customer_id, customer_name, mobile, address, gst, total, received, line_items, ref_type, ref_party_id, ref_name, customer_party_id, sale_date, due_date, created_at)
+             VALUES (:invoice_no, :customer_id, :customer_name, :mobile, :address, :gst, :total, :received, :line_items, :ref_type, :ref_party_id, :ref_name, :customer_party_id, :sale_date, :due_date, :created_at)',
             'INSERT INTO sales (invoice_no, customer_id, customer_name, mobile, address, gst, total, received, line_items, ref_type, ref_party_id, ref_name, customer_party_id, sale_date, created_at)
              VALUES (:invoice_no, :customer_id, :customer_name, :mobile, :address, :gst, :total, :received, :line_items, :ref_type, :ref_party_id, :ref_name, :customer_party_id, :sale_date, :created_at)',
             'INSERT INTO sales (invoice_no, customer_id, customer_name, mobile, address, gst, total, received, line_items, ref_type, ref_party_id, ref_name, customer_party_id, created_at)
@@ -138,7 +149,7 @@ function persist_sale_header(PDO $pdo, array $data, ?int $saleId, ?string $invoi
                     'gst' => $data['gst'],
                     'total' => $data['grandTotal'],
                 ];
-                foreach (['received', 'line_items', 'ref_type', 'ref_party_id', 'ref_name', 'customer_party_id', 'sale_date', 'created_at'] as $col) {
+                foreach (['received', 'line_items', 'ref_type', 'ref_party_id', 'ref_name', 'customer_party_id', 'sale_date', 'due_date', 'created_at'] as $col) {
                     if (str_contains($sql, ':' . $col)) {
                         $payload[$col] = $fields[$col];
                     }

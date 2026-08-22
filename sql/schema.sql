@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS sales (
   ref_name VARCHAR(255) DEFAULT NULL,
   customer_party_id INT UNSIGNED DEFAULT NULL,
   sale_date DATE DEFAULT NULL,
+  due_date DATE DEFAULT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uniq_sales_invoice (invoice_no),
   KEY idx_sales_created (created_at),

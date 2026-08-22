@@ -136,6 +136,13 @@ require __DIR__ . '/includes/header.php';
         <label class="flex items-center gap-2"><input type="radio" name="pay-mode" value="due"> Credit / Due</label>
       </div>
       <input type="number" id="sale-received" placeholder="Kitna cash mila" class="mt-3 hidden w-full max-w-xs rounded-xl border border-gray-300 bg-white px-4 py-2 text-gray-900">
+      <label id="due-date-wrap" class="mt-3 hidden block max-w-xs text-sm text-gray-200">
+        Due date (dd/mm/yyyy)
+        <span class="date-field mt-1">
+          <input type="text" id="sale-due-date" inputmode="numeric" placeholder="dd/mm/yyyy" maxlength="10" autocomplete="off" class="rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900">
+          <input type="date" id="sale-due-date-picker" title="Calendar" aria-label="Due date">
+        </span>
+      </label>
     </div>
     <button type="button" id="btn-preview" class="rounded-xl bg-green-600 px-6 py-3 font-semibold text-white hover:bg-green-500">👀 Preview bill</button>
   </div>
@@ -256,6 +263,16 @@ require __DIR__ . '/includes/header.php';
     const mode = payMode();
     const receivedBox = document.getElementById("sale-received");
     receivedBox.classList.toggle("hidden", mode !== "partial");
+    const dueWrap = document.getElementById("due-date-wrap");
+    const showDue = mode === "partial" || mode === "due";
+    if (dueWrap) dueWrap.classList.toggle("hidden", !showDue);
+    if (showDue && dueWrap && !document.getElementById("sale-due-date").value) {
+      const base = parseToIsoDate(document.getElementById("sale-date").value || todayIsoDate());
+      const d = new Date(base + "T00:00:00");
+      d.setDate(d.getDate() + 7);
+      const iso = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+      setDateField("sale-due-date", "sale-due-date-picker", iso);
+    }
     const total = saleGrandTotal();
     const received = saleReceivedAmount(total);
     const dueEl = document.getElementById("sale-due");
@@ -515,6 +532,7 @@ require __DIR__ . '/includes/header.php';
     document.getElementById("customer-address").value = "";
     document.getElementById("customer-gst").value = "";
     document.getElementById("sale-received").value = "";
+    document.getElementById("sale-due-date").value = "";
     setPayMode("full");
     document.getElementById("ref-type").value = "";
     document.getElementById("ref-name").value = "";
@@ -842,6 +860,7 @@ require __DIR__ . '/includes/header.php';
         products,
         received: saleReceivedAmount(),
         sale_date: saleDateIso(),
+        due_date: payMode() === "full" ? "" : parseToIsoDate(document.getElementById("sale-due-date").value),
       };
       if (editId) payload.id = Number(editId);
       const result = await api("/api/sales.php" + (editId ? "?id=" + editId : ""), {
@@ -875,6 +894,7 @@ require __DIR__ . '/includes/header.php';
         <td class="border p-3">
           <div class="flex justify-center gap-2">
             <a href="${appUrl("invoice.php?id=" + sale.id)}" target="_blank" class="rounded bg-blue-600 px-3 py-1 text-white">👁</a>
+            ${sale.mobile ? `<a href="${appUrl("invoice.php?id=" + sale.id + "&whatsapp=1")}" target="_blank" class="rounded bg-green-600 px-3 py-1 text-white">WA</a>` : ""}
             <button type="button" data-sale-edit="${sale.id}" class="rounded bg-amber-500 px-3 py-1 text-white">✏️</button>
             <button type="button" data-sale-delete="${sale.id}" class="rounded bg-red-600 px-3 py-1 text-white">🗑</button>
           </div>
@@ -915,6 +935,9 @@ require __DIR__ . '/includes/header.php';
       setPayMode("partial");
       document.getElementById("sale-received").value = String(rec);
     }
+    if (sale.due_date) {
+      setDateField("sale-due-date", "sale-due-date-picker", sale.due_date);
+    }
     saleRows = (sale.products || []).length
       ? sale.products.map((row) => ({
           name: row.name || "",
@@ -950,6 +973,7 @@ require __DIR__ . '/includes/header.php';
   });
 
   bindDateField("sale-date", "sale-date-picker");
+  bindDateField("sale-due-date", "sale-due-date-picker");
   setDateField("sale-date", "sale-date-picker", todayIsoDate());
 
   const editFromUrl = Number(new URLSearchParams(window.location.search).get("edit") || 0);

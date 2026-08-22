@@ -25,7 +25,7 @@ try {
 
         try {
             $stmt = $pdo->query(
-                'SELECT id, invoice_no, customer_name, mobile, total, received, ref_type, ref_name, sale_date, created_at
+                'SELECT id, invoice_no, customer_name, mobile, total, received, ref_type, ref_name, sale_date, due_date, created_at
                  FROM sales
                  ORDER BY COALESCE(sale_date, DATE(created_at)) DESC, id DESC
                  LIMIT 200'

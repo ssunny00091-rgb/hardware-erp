@@ -6,6 +6,7 @@ require_once __DIR__ . '/bootstrap.php';
 require_once dirname(__DIR__) . '/includes/invoice.php';
 require_once dirname(__DIR__) . '/includes/commerce.php';
 require_once dirname(__DIR__) . '/includes/sales_ops.php';
+require_once dirname(__DIR__) . '/includes/whatsapp.php';
 
 function db(): PDO
 {

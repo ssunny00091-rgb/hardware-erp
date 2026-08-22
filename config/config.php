@@ -21,6 +21,7 @@ if (!isset($GLOBALS['APP_CONFIG']) || !is_array($GLOBALS['APP_CONFIG'])) {
             'mobile' => '9431875263, 9831046765',
             'email' => 'sunnynayak01@gmail.com',
             'gst' => '10ADTPN8807A1ZP',
+            'whatsapp' => getenv('OWNER_WHATSAPP') ?: '9831046765',
         ],
         'openrouter' => [
             'api_key' => (string) (getenv('OPENROUTER_API_KEY') ?: ''),

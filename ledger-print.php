@@ -61,6 +61,20 @@ if ($format === 'csv' || $format === 'xlsx' || $format === 'excel') {
 $typeLabel = ucfirst((string) $party['type']);
 $printedOn = date('d/m/Y');
 $autoPrint = isset($_GET['print']);
+
+if (isset($_GET['whatsapp'])) {
+    $phone = trim((string) ($_GET['phone'] ?? $party['mobile'] ?? ''));
+    if (whatsapp_digits($phone) === '') {
+        http_response_code(400);
+        echo 'Is party ka mobile nahi hai.';
+        exit;
+    }
+    header('Location: ' . whatsapp_url($phone, whatsapp_ledger_text($company, $ledger)));
+    exit;
+}
+$waLedger = whatsapp_digits((string) ($party['mobile'] ?? '')) !== ''
+    ? app_url('ledger-print.php?id=' . $id . '&whatsapp=1')
+    : '';
 ?>
 <!DOCTYPE html>
 <html lang="hi">
@@ -94,6 +108,9 @@ $autoPrint = isset($_GET['print']);
     <div class="no-print">
       <button type="button" class="btn" style="background:#2563eb" onclick="window.print()">🖨️ Print / Save PDF</button>
       <a class="btn" style="background:#059669" href="<?= $h(app_url('ledger-print.php?id=' . $id . '&format=csv')) ?>">⬇ Excel (CSV)</a>
+      <?php if ($waLedger !== ''): ?>
+        <a class="btn" style="background:#16a34a" href="<?= $h($waLedger) ?>">WhatsApp</a>
+      <?php endif; ?>
       <a class="btn" style="background:#475569" href="<?= $h(app_url('ledger.php')) ?>">← Ledger</a>
     </div>
     <div class="head">

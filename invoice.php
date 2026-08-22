@@ -72,6 +72,21 @@ $received = isset($sale['received']) && $sale['received'] !== null && $sale['rec
 $balance = $grand - $received;
 $state = gst_state_label((string) $company['gst']);
 $email = (string) ($company['email'] ?? '');
+
+if (isset($_GET['whatsapp'])) {
+    $phone = trim((string) ($_GET['phone'] ?? $sale['mobile'] ?? ''));
+    if (whatsapp_digits($phone) === '') {
+        http_response_code(400);
+        echo 'WhatsApp number nahi mila. Customer mobile likho.';
+        exit;
+    }
+    header('Location: ' . whatsapp_url($phone, whatsapp_invoice_text($company, $sale, $items)));
+    exit;
+}
+
+$waHref = whatsapp_digits((string) ($sale['mobile'] ?? '')) !== ''
+    ? app_url('invoice.php?id=' . $id . '&whatsapp=1')
+    : '';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -83,6 +98,9 @@ $email = (string) ($company['email'] ?? '');
 <body class="invoice-page">
   <div class="no-print">
     <button type="button" onclick="window.print()">Print / Save PDF</button>
+    <?php if ($waHref !== ''): ?>
+      <a href="<?= $h($waHref) ?>">WhatsApp customer</a>
+    <?php endif; ?>
     <a href="<?= $h(app_url('index.php?edit=' . $id)) ?>">Edit</a>
     <a href="<?= $h(app_url('index.php')) ?>">Back</a>
   </div>
@@ -134,6 +152,9 @@ $email = (string) ($company['email'] ?? '');
             <div class="section-lbl">Invoice Details</div>
             <div class="meta-line"><span>Invoice No.</span><span><?= $h($sale['invoice_no']) ?></span></div>
             <div class="meta-line"><span>Date</span><span><?= $h($date) ?></span></div>
+            <?php if ($balance > 0.009 && !empty($sale['due_date'])): ?>
+              <div class="meta-line"><span>Due Date</span><span><?= $h(format_display_date($sale['due_date'])) ?></span></div>
+            <?php endif; ?>
             <?php if (!empty($sale['ref_name'])): ?>
               <div class="meta-line"><span><?= $h(ucfirst((string) ($sale['ref_type'] ?: 'Ref'))) ?></span><span><?= $h($sale['ref_name']) ?></span></div>
             <?php endif; ?>

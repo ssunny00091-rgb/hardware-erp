@@ -46,6 +46,7 @@ $types = [
       <h2 id="ledger-party-name" class="text-xl font-bold sm:text-2xl">Ledger</h2>
       <div class="flex flex-wrap gap-2">
         <a id="btn-download-ledger" href="#" target="_blank" class="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-center text-white sm:flex-none">⬇ Download</a>
+        <a id="btn-wa-ledger" href="#" target="_blank" class="flex-1 rounded-lg bg-green-600 px-4 py-2 text-center text-white sm:flex-none">WhatsApp</a>
         <button type="button" id="btn-delete-party" class="flex-1 rounded-lg bg-red-700 px-4 py-2 text-white sm:flex-none">Delete</button>
         <button type="button" id="btn-close-ledger" class="flex-1 rounded-lg bg-slate-600 px-4 py-2 text-white sm:flex-none">Close</button>
       </div>
@@ -108,6 +109,7 @@ $types = [
           <div class="flex flex-wrap gap-2">
             <button type="button" data-party-edit="${row.id}" class="rounded bg-amber-500 px-3 py-1 text-white">✏️</button>
             <a href="${appUrl("ledger-print.php?id=" + row.id)}" target="_blank" class="rounded bg-blue-600 px-3 py-1 text-white">⬇</a>
+            ${row.mobile ? `<a href="${appUrl("ledger-print.php?id=" + row.id + "&whatsapp=1")}" target="_blank" class="rounded bg-green-600 px-3 py-1 text-white">WA</a>` : ""}
             <button type="button" data-del-party="${row.id}" class="rounded bg-red-600 px-3 py-1 text-white">🗑</button>
           </div>
         </td>
@@ -129,6 +131,14 @@ $types = [
     document.getElementById("edit-party-address").value = party.address || "";
     const dl = document.getElementById("btn-download-ledger");
     dl.href = appUrl("ledger-print.php?id=" + id);
+    const wa = document.getElementById("btn-wa-ledger");
+    if (party.mobile) {
+      wa.href = appUrl("ledger-print.php?id=" + id + "&whatsapp=1");
+      wa.classList.remove("hidden");
+    } else {
+      wa.href = "#";
+      wa.classList.add("hidden");
+    }
     document.getElementById("ledger-entries").innerHTML = (data.entries || []).map((row) => `
       <tr data-entry-id="${row.id}">
         <td class="border p-2"><input type="text" data-f="entry_date" value="${escapeHtml(invoiceDateLabel(row.entry_date))}" class="w-28 rounded border p-1"></td>

@@ -75,6 +75,7 @@ function ensure_commerce_schema(PDO $pdo): void
         "ALTER TABLE purchases ADD COLUMN supplier_party_id INT UNSIGNED NULL",
         "ALTER TABLE purchases ADD COLUMN paid DECIMAL(12,2) NULL",
         "ALTER TABLE sales ADD COLUMN sale_date DATE NULL",
+        "ALTER TABLE sales ADD COLUMN due_date DATE NULL",
     ];
     foreach ($alters as $sql) {
         try {
