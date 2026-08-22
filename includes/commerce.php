@@ -89,11 +89,18 @@ function ensure_commerce_schema(PDO $pdo): void
     } catch (Throwable $e) {
         // ignore
     }
-    try {
-        $pdo->exec('ALTER TABLE parties ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL');
-    } catch (Throwable $e) {
-        // Already exists.
-    }
+        try {
+            $pdo->exec('ALTER TABLE parties ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL');
+        } catch (Throwable $e) {
+            // Already exists.
+        }
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS app_settings (
+                setting_key VARCHAR(64) NOT NULL PRIMARY KEY,
+                setting_value TEXT,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB'
+        );
 }
 
 function parse_sale_date(mixed $raw): string

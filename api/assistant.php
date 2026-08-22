@@ -14,6 +14,7 @@ try {
             'configured' => $cfg['api_key'] !== '',
             'model' => $cfg['model'],
             'env_path' => $cfg['env_path'] ?? '',
+            'settings_path' => $cfg['settings_path'] ?? '',
             'curl' => function_exists('curl_init'),
         ]);
     }
@@ -27,28 +28,36 @@ try {
         $decoded = json_decode((string) $_POST['payload'], true);
         $payload = is_array($decoded) ? $decoded : [];
     }
-
-    if (isset($payload['openrouter_api_key']) || !empty($payload['test_openrouter'])) {
-        $current = openrouter_config();
-        $key = isset($payload['openrouter_api_key'])
-            ? normalize_openrouter_key((string) $payload['openrouter_api_key'])
-            : $current['api_key'];
-        $model = trim((string) ($payload['openrouter_model'] ?? ''));
-        if (isset($payload['openrouter_api_key'])) {
-            $save = ['OPENROUTER_API_KEY' => $key];
-            if ($model !== '') {
-                $save['OPENROUTER_MODEL'] = $model;
-            }
-            save_env_file($save);
+    foreach (['openrouter_api_key', 'openrouter_model', 'test_openrouter', 'skip_test'] as $field) {
+        if (!isset($payload[$field]) && isset($_POST[$field])) {
+            $payload[$field] = $_POST[$field];
         }
-        $test = $key !== ''
-            ? openrouter_test_key($key)
-            : ['ok' => false, 'error' => 'Key khali hai'];
+    }
+
+    $providedKey = trim((string) ($payload['openrouter_api_key'] ?? ''));
+    $hasNewKey = $providedKey !== '';
+    if ($hasNewKey || !empty($payload['test_openrouter'])) {
+        $current = openrouter_config();
+        $key = $hasNewKey ? normalize_openrouter_key($providedKey) : $current['api_key'];
+        $model = trim((string) ($payload['openrouter_model'] ?? ''));
+        $saved = ['ok' => false, 'saved_to' => [], 'errors' => []];
+        if ($hasNewKey) {
+            $saved = persist_openrouter_key($key, $model);
+        }
+        $wantTest = !empty($payload['test_openrouter']) && empty($payload['skip_test']);
+        $test = null;
+        if ($wantTest && $key !== '') {
+            $test = openrouter_test_key($key);
+        }
+        $fresh = openrouter_config();
         json_response([
             'ok' => true,
-            'saved' => isset($payload['openrouter_api_key']),
-            'configured' => $key !== '',
-            'model' => $model !== '' ? $model : $current['model'],
+            'saved' => !empty($saved['ok']),
+            'saved_to' => $saved['saved_to'] ?? [],
+            'save_notes' => $saved['errors'] ?? [],
+            'configured' => $fresh['api_key'] !== '',
+            'model' => $fresh['model'],
+            'settings_path' => $fresh['settings_path'] ?? '',
             'test' => $test,
         ]);
     }

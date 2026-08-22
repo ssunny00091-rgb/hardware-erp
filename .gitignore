@@ -37,6 +37,8 @@ yarn-error.log*
 .env.*.local
 !.env.example
 install.lock
+/data/app-settings.json
+/data/app-settings.json.tmp
 
 # vercel
 .vercel

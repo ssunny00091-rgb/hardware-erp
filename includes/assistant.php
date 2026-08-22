@@ -4,11 +4,36 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/reports.php';
 
+function openrouter_pick(string $name, string $fallback = ''): string
+{
+    $fromEnv = (string) (getenv($name) ?: ($_ENV[$name] ?? $_SERVER[$name] ?? ''));
+    if (trim($fromEnv) !== '') {
+        return $fromEnv;
+    }
+    $settings = read_app_settings();
+    $fromFile = (string) ($settings[$name] ?? '');
+    if (trim($fromFile) !== '') {
+        return $fromFile;
+    }
+    try {
+        $pdo = db();
+        $st = $pdo->prepare('SELECT setting_value FROM app_settings WHERE setting_key = :k LIMIT 1');
+        $st->execute(['k' => $name]);
+        $v = $st->fetchColumn();
+        if (is_string($v) && trim($v) !== '') {
+            return $v;
+        }
+    } catch (Throwable $e) {
+        // MySQL optional for key storage.
+    }
+    return $fallback;
+}
+
 function openrouter_config(): array
 {
-    $key = normalize_openrouter_key((string) (getenv('OPENROUTER_API_KEY') ?: ($_ENV['OPENROUTER_API_KEY'] ?? $_SERVER['OPENROUTER_API_KEY'] ?? '')));
-    $model = trim((string) (getenv('OPENROUTER_MODEL') ?: ($_ENV['OPENROUTER_MODEL'] ?? 'google/gemini-2.5-flash')));
-    $maxTokens = (int) (getenv('OPENROUTER_MAX_TOKENS') ?: ($_ENV['OPENROUTER_MAX_TOKENS'] ?? 4000));
+    $key = normalize_openrouter_key(openrouter_pick('OPENROUTER_API_KEY'));
+    $model = trim(openrouter_pick('OPENROUTER_MODEL', 'google/gemini-2.5-flash'));
+    $maxTokens = (int) openrouter_pick('OPENROUTER_MAX_TOKENS', '4000');
     if ($maxTokens < 256) {
         $maxTokens = 256;
     }
@@ -20,6 +45,73 @@ function openrouter_config(): array
         'model' => $model !== '' ? $model : 'google/gemini-2.5-flash',
         'max_tokens' => $maxTokens,
         'env_path' => APP_ROOT . DIRECTORY_SEPARATOR . '.env',
+        'settings_path' => settings_json_path(),
+    ];
+}
+
+function persist_openrouter_key(string $key, string $model = ''): array
+{
+    $key = normalize_openrouter_key($key);
+    $values = ['OPENROUTER_API_KEY' => $key];
+    if ($model !== '') {
+        $values['OPENROUTER_MODEL'] = $model;
+    }
+    $savedTo = [];
+    $errors = [];
+
+    try {
+        write_app_settings($values);
+        $savedTo[] = 'data/app-settings.json';
+    } catch (Throwable $e) {
+        $errors[] = $e->getMessage();
+    }
+
+    try {
+        save_env_file($values);
+        $savedTo[] = '.env';
+    } catch (Throwable $e) {
+        $errors[] = $e->getMessage();
+    }
+
+    try {
+        $pdo = db();
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS app_settings (
+                setting_key VARCHAR(64) NOT NULL PRIMARY KEY,
+                setting_value TEXT,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB'
+        );
+        $st = $pdo->prepare(
+            'INSERT INTO app_settings (setting_key, setting_value) VALUES (:k, :v)
+             ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)'
+        );
+        foreach ($values as $k => $v) {
+            $st->execute(['k' => $k, 'v' => $v]);
+        }
+        $savedTo[] = 'mysql';
+    } catch (Throwable $e) {
+        $errors[] = $e->getMessage();
+    }
+
+    foreach ($values as $k => $v) {
+        putenv($k . '=' . $v);
+        $_ENV[$k] = $v;
+        $_SERVER[$k] = $v;
+    }
+
+    if ($savedTo === []) {
+        throw new RuntimeException(
+            'Key kahin save nahi hui. Folder writable karo: ' . APP_ROOT
+            . (count($errors) ? ' — ' . implode(' | ', $errors) : '')
+        );
+    }
+
+    return [
+        'ok' => true,
+        'saved_to' => $savedTo,
+        'errors' => $errors,
+        'settings_path' => settings_json_path(),
     ];
 }
 

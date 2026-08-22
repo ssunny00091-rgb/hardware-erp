@@ -129,3 +129,9 @@ CREATE TABLE IF NOT EXISTS ledger_entries (
   KEY idx_ledger_sale (sale_id),
   KEY idx_ledger_purchase (purchase_id)
 ) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS app_settings (
+  setting_key VARCHAR(64) NOT NULL PRIMARY KEY,
+  setting_value TEXT,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;

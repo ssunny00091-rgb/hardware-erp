@@ -71,6 +71,55 @@ function load_env_file(?string $path = null): void
     }
 }
 
+function settings_json_path(): string
+{
+    return APP_ROOT . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'app-settings.json';
+}
+
+function read_app_settings(): array
+{
+    $path = settings_json_path();
+    if (!is_readable($path)) {
+        return [];
+    }
+    $data = json_decode((string) file_get_contents($path), true);
+    return is_array($data) ? $data : [];
+}
+
+function write_app_settings(array $values): void
+{
+    $dir = APP_ROOT . DIRECTORY_SEPARATOR . 'data';
+    if (!is_dir($dir) && !@mkdir($dir, 0777, true) && !is_dir($dir)) {
+        throw new RuntimeException('data folder nahi bani: ' . $dir . ' — folder writable karo.');
+    }
+    if (!is_writable($dir)) {
+        @chmod($dir, 0777);
+    }
+    $merged = read_app_settings();
+    foreach ($values as $key => $value) {
+        $merged[(string) $key] = str_replace(["\r", "\n"], '', (string) $value);
+    }
+    $path = settings_json_path();
+    $json = json_encode($merged, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+    if ($json === false) {
+        throw new RuntimeException('Settings encode nahi hui');
+    }
+    $tmp = $path . '.tmp';
+    if (@file_put_contents($tmp, $json . "\n") === false) {
+        if (@file_put_contents($path, $json . "\n") === false) {
+            throw new RuntimeException('Key file nahi likhi: ' . $path);
+        }
+        return;
+    }
+    if (!@rename($tmp, $path)) {
+        @unlink($path);
+        if (!@rename($tmp, $path) && @file_put_contents($path, $json . "\n") === false) {
+            throw new RuntimeException('Key file nahi likhi: ' . $path);
+        }
+        @unlink($tmp);
+    }
+}
+
 function save_env_file(array $values): void
 {
     $merged = read_env_file();
@@ -85,9 +134,17 @@ function save_env_file(array $values): void
     foreach ($merged as $key => $value) {
         $lines[] = $key . '=' . $value;
     }
-    $target = APP_ROOT . '/.env';
-    if (file_put_contents($target, implode("\n", $lines) . "\n") === false) {
-        throw new RuntimeException('.env file nahi likh paye. Folder writable hona chahiye.');
+    $target = APP_ROOT . DIRECTORY_SEPARATOR . '.env';
+    $dir = APP_ROOT;
+    if (is_file($target) && !is_writable($target)) {
+        @chmod($target, 0666);
+    }
+    if (!is_file($target) && !is_writable($dir)) {
+        @chmod($dir, 0777);
+    }
+    $ok = @file_put_contents($target, implode("\n", $lines) . "\n");
+    if ($ok === false) {
+        throw new RuntimeException('.env nahi likh paye: ' . $target);
     }
     load_env_file();
 }

@@ -16,19 +16,24 @@ require __DIR__ . '/includes/header.php';
 </div>
 
 <section class="mb-4 rounded-2xl border border-white/20 bg-white/10 p-4">
-  <details>
-    <summary class="cursor-pointer font-semibold">OpenRouter API key</summary>
-    <p class="mt-2 text-sm text-gray-300">Key <a class="underline" href="https://openrouter.ai/keys" target="_blank" rel="noreferrer">openrouter.ai/keys</a> se lo. <strong>sk-or-v1-</strong> se start honi chahiye. ChatGPT/OpenAI key nahi chalegi. Credits: <a class="underline" href="https://openrouter.ai/settings/credits" target="_blank" rel="noreferrer">openrouter.ai/settings/credits</a>. Sirf shop PC ke <code>.env</code> mein save hoti hai.</p>
-    <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
-      <input type="password" id="or-key" placeholder="sk-or-v1-..." class="rounded-xl border border-gray-300 bg-white p-3 text-gray-900 md:col-span-2" autocomplete="off">
-      <input type="text" id="or-model" placeholder="google/gemini-2.5-flash" class="rounded-xl border border-gray-300 bg-white p-3 text-gray-900">
+  <h2 class="font-semibold">OpenRouter API key</h2>
+  <p class="mt-2 text-sm text-gray-300">
+    Key <a class="underline" href="https://openrouter.ai/keys" target="_blank" rel="noreferrer">openrouter.ai/keys</a> se copy karo
+    (<strong>sk-or-v1-</strong>). ChatGPT key nahi chalegi.
+    Pehle <strong>Key save karo</strong> — internet test baad mein.
+  </p>
+  <form id="or-key-form" class="mt-3" action="<?= htmlspecialchars(app_url('api/assistant.php'), ENT_QUOTES, 'UTF-8') ?>" method="post">
+    <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
+      <input type="password" id="or-key" name="openrouter_api_key" placeholder="sk-or-v1-..." class="rounded-xl border border-gray-300 bg-white p-3 text-gray-900 md:col-span-2" autocomplete="off">
+      <input type="text" id="or-model" name="openrouter_model" placeholder="google/gemini-2.5-flash" class="rounded-xl border border-gray-300 bg-white p-3 text-gray-900">
     </div>
+    <input type="hidden" name="skip_test" value="1">
     <div class="mt-3 flex flex-wrap gap-2">
-      <button type="button" id="btn-save-key" class="rounded-xl bg-emerald-600 px-4 py-2 font-semibold">Save + test key</button>
-      <button type="button" id="btn-test-key" class="rounded-xl bg-sky-700 px-4 py-2 font-semibold">Sirf test</button>
+      <button type="submit" id="btn-save-key" class="rounded-xl bg-emerald-600 px-4 py-2 font-semibold">Key save karo</button>
+      <button type="button" id="btn-test-key" class="rounded-xl bg-sky-700 px-4 py-2 font-semibold">Internet se test</button>
     </div>
-    <p id="or-test-msg" class="mt-2 text-sm text-gray-300"></p>
-  </details>
+  </form>
+  <p id="or-test-msg" class="mt-2 text-sm text-gray-300"></p>
 </section>
 
 <div id="chat-log" class="chat-log mb-4 flex flex-col gap-3 overflow-y-auto rounded-2xl border border-white/20 bg-black/30 p-3 sm:p-4"></div>

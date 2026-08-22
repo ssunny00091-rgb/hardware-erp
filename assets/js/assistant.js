@@ -385,63 +385,99 @@ applyVoiceLang(localStorage.getItem("assistantVoiceLang") || "hi-IN");
 
 function applyKeyStatus(data) {
   const test = data.test || null;
-  const testOk = test ? !!test.ok : !!data.configured;
   const testMsg = document.getElementById("or-test-msg");
-  if (data.configured && testOk) {
-    keyStatus.textContent = "OpenRouter ready · " + (data.model || "");
+  if (data.saved || data.configured) {
+    keyStatus.textContent = data.configured
+      ? "OpenRouter key save hai · " + (data.model || "")
+      : "Save try hua";
     keyStatus.className = "text-sm text-emerald-300";
-  } else if (data.configured && test && !test.ok) {
-    keyStatus.textContent = "Key save hai, lekin OpenRouter reject kar raha hai";
-    keyStatus.className = "text-sm text-amber-300";
   } else {
-    keyStatus.textContent = "Pehle OpenRouter API key save karo (neeche)";
+    keyStatus.textContent = "Pehle OpenRouter API key save karo";
     keyStatus.className = "text-sm text-amber-300";
   }
   if (testMsg) {
-    if (test && test.ok) {
-      testMsg.textContent = "Test OK — OpenRouter key chal rahi hai.";
-      testMsg.className = "mt-2 text-sm text-emerald-300";
-    } else if (test && test.error) {
-      testMsg.textContent = test.error;
-      testMsg.className = "mt-2 text-sm text-rose-300";
-    } else {
-      testMsg.textContent = data.curl === false
-        ? "Warning: PHP curl band hai. XAMPP php.ini mein extension=curl on karo, Apache restart."
-        : "";
+    const bits = [];
+    if (data.saved) {
+      bits.push("Key save ho gayi" + (data.saved_to && data.saved_to.length ? " (" + data.saved_to.join(", ") + ")" : "") + ".");
     }
+    if (test && test.ok) {
+      bits.push("Internet test OK.");
+    } else if (test && test.error) {
+      bits.push("Save alag hai. Test: " + test.error);
+    }
+    if (data.curl === false) {
+      bits.push("PHP curl band hai — php.ini mein extension=curl on karo.");
+    }
+    testMsg.textContent = bits.join(" ");
+    testMsg.className = "mt-2 text-sm " + (data.saved || data.configured ? "text-emerald-300" : "text-rose-300");
   }
   if (data.model) document.getElementById("or-model").placeholder = data.model;
 }
 
+async function postKeyForm(extra) {
+  const form = document.getElementById("or-key-form");
+  const fd = new FormData(form);
+  Object.keys(extra || {}).forEach((k) => {
+    if (extra[k] === "" || extra[k] == null) {
+      fd.delete(k);
+    } else {
+      fd.set(k, extra[k]);
+    }
+  });
+  const typed = (fd.get("openrouter_api_key") || "").toString().trim();
+  if (!typed) {
+    fd.delete("openrouter_api_key");
+  }
+  const response = await fetch(appUrl("/api/assistant.php"), {
+    method: "POST",
+    body: fd,
+  });
+  const text = await response.text();
+  let data = {};
+  try {
+    data = JSON.parse(text);
+  } catch (e) {
+    throw new Error(text ? text.slice(0, 180) : "Server ne JSON nahi diya (HTTP " + response.status + ")");
+  }
+  if (!response.ok) {
+    throw new Error(data.error || "Save fail (HTTP " + response.status + ")");
+  }
+  return data;
+}
+
 async function saveOrTestKey(mode) {
   const typed = document.getElementById("or-key").value.trim();
-  const body = {
-    openrouter_model: document.getElementById("or-model").value.trim(),
-  };
+  const extra = {};
   if (mode === "save") {
     if (!typed) {
       alert("Pehle OpenRouter key paste karo (sk-or-v1-...).");
       return;
     }
-    body.openrouter_api_key = typed;
-  } else if (typed) {
-    body.openrouter_api_key = typed;
+    extra.skip_test = "1";
   } else {
-    body.test_openrouter = true;
+    extra.test_openrouter = "1";
+    extra.skip_test = "";
+    if (!typed) {
+      extra.test_openrouter = "1";
+    }
   }
-  const data = await api("/api/assistant.php", {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
+  const data = await postKeyForm(extra);
   applyKeyStatus(data);
-  if (data.test && data.test.ok) {
-    alert(mode === "test" ? "Key test OK" : "Key save + test OK");
+  if (mode === "save") {
+    if (data.saved || data.configured) {
+      alert("Key save ho gayi." + (data.saved_to && data.saved_to.length ? "\n" + data.saved_to.join(", ") : ""));
+    } else {
+      alert(data.error || "Key save nahi hui");
+    }
+  } else if (data.test && data.test.ok) {
+    alert("Key test OK");
   } else {
     alert((data.test && data.test.error) || "Key test fail");
   }
 }
 
-btnSaveKey.addEventListener("click", async () => {
+document.getElementById("or-key-form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
   try {
     await saveOrTestKey("save");
   } catch (err) {
