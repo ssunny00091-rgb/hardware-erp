@@ -163,7 +163,10 @@ function actionSummary(actions) {
       return "Supplier/bill save · #" + (r.id || r.party_id || "") + " · ₹" + formatMoney(r.total || 0);
     }
     if (a.tool === "create_sale") return "Sale " + (r.invoice_no || "") + " · ₹" + formatMoney(r.total || 0);
-    if (a.tool === "get_invoice_detail") {
+    if (a.tool === "get_profit_report") {
+      const s = r.summary || {};
+      return "Profit ₹" + formatMoney(s.profit || 0) + " · Sale ₹" + formatMoney(s.sales || 0);
+    }
       return (r.kind === "purchase" ? "Purchase " : "Invoice ") + (r.invoice_no || r.id || "") + " · ₹" + formatMoney(r.total || 0);
     }
     if (a.tool === "add_or_update_party") return (r.type || "party") + " · " + (r.name || "");

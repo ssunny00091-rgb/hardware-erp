@@ -49,6 +49,7 @@ $activeNav = $activeNav ?? 'home';
         <a href="<?= htmlspecialchars(app_url('products.php'), ENT_QUOTES, 'UTF-8') ?>" class="rounded-lg px-3 py-2 text-center text-sm <?= $activeNav === 'products' ? 'bg-green-600' : 'bg-white/10 hover:bg-white/20' ?>">📦 Products</a>
         <a href="<?= htmlspecialchars(app_url('purchase.php'), ENT_QUOTES, 'UTF-8') ?>" class="rounded-lg px-3 py-2 text-center text-sm <?= $activeNav === 'purchase' ? 'bg-green-600' : 'bg-white/10 hover:bg-white/20' ?>">🛒 Purchase</a>
         <a href="<?= htmlspecialchars(app_url('ledger.php'), ENT_QUOTES, 'UTF-8') ?>" class="rounded-lg px-3 py-2 text-center text-sm <?= $activeNav === 'ledger' ? 'bg-green-600' : 'bg-white/10 hover:bg-white/20' ?>">📒 Ledger</a>
+        <a href="<?= htmlspecialchars(app_url('reports.php'), ENT_QUOTES, 'UTF-8') ?>" class="rounded-lg px-3 py-2 text-center text-sm <?= $activeNav === 'reports' ? 'bg-green-600' : 'bg-white/10 hover:bg-white/20' ?>">📊 Reports</a>
       </div>
     </div>
   </nav>

@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/reports.php';
+
 function openrouter_config(): array
 {
     $key = trim((string) (getenv('OPENROUTER_API_KEY') ?: ($_ENV['OPENROUTER_API_KEY'] ?? '')));
@@ -52,6 +54,7 @@ Voice/text commands you should automate:
 - Ledger dikhana (spelling galat ho to bhi paas ke naam)
 - Ledger receipt/payment
 - Dashboard totals, recent sales/purchases
+- Profit, sabse zyada / kam sale products — din, mahina, saal (get_profit_report)
 - Kisi invoice / bill ka POORA detail (invoice number 11, bill no, sale id). get_invoice_detail call karo. Sirf total mat bolo. Customer, date, har item (qty, rate, amount), received, due, aur tool ke links (view / print-download / edit) mention karo.
 
 When the user asks for an invoice or bill by number (e.g. "invoice 11", "invoice number 11 ka detail", "11 ka bill"):
@@ -96,6 +99,24 @@ function assistant_tool_schemas(): array
                 'name' => 'get_dashboard',
                 'description' => 'Today sales, purchases, cash and pending totals',
                 'parameters' => ['type' => 'object', 'properties' => new stdClass()],
+            ],
+        ],
+        [
+            'type' => 'function',
+            'function' => [
+                'name' => 'get_profit_report',
+                'description' => 'Profit, sales, cost, top-selling and slow-selling products for a day, month, year, or date range',
+                'parameters' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'period' => ['type' => 'string', 'enum' => ['day', 'month', 'year', 'range']],
+                        'date' => ['type' => 'string', 'description' => 'Day date dd/mm/yyyy'],
+                        'month' => ['type' => 'string', 'description' => 'YYYY-MM'],
+                        'year' => ['type' => 'integer'],
+                        'from' => ['type' => 'string'],
+                        'to' => ['type' => 'string'],
+                    ],
+                ],
             ],
         ],
         [
@@ -313,6 +334,7 @@ function assistant_run_tool(PDO $pdo, string $name, array $args): array
     try {
         return match ($name) {
             'get_dashboard' => assistant_tool_dashboard($pdo),
+            'get_profit_report' => reports_build($pdo, $args),
             'search_products' => assistant_tool_search_products($pdo, $args),
             'save_product' => assistant_tool_save_product($pdo, $args),
             'search_parties' => assistant_tool_search_parties($pdo, $args),
@@ -1273,6 +1295,62 @@ function assistant_tables_from_actions(array $actions): array
                 ['Cash in hand', assistant_inr($r['cash_in_hand'] ?? 0)],
                 ['Pending', assistant_inr($r['pending_payment'] ?? 0)],
             ]));
+        }
+
+        if ($tool === 'get_profit_report' && !empty($r['summary']) && is_array($r['summary'])) {
+            $s = $r['summary'];
+            $push(assistant_table_pack(
+                'Profit — ' . (string) ($r['label'] ?? ''),
+                ['Item', 'Amount'],
+                [
+                    ['Sale', assistant_inr($s['sales'] ?? 0)],
+                    ['Cost', assistant_inr($s['cogs'] ?? 0)],
+                    ['Profit', assistant_inr($s['profit'] ?? 0)],
+                    ['Supplier kharid', assistant_inr($s['purchase_spend'] ?? 0)],
+                    ['Bills', (string) ($s['bills'] ?? 0)],
+                ]
+            ));
+            $topRows = [];
+            foreach (($r['top_products'] ?? []) as $p) {
+                if (!is_array($p)) {
+                    continue;
+                }
+                $topRows[] = [
+                    (string) ($p['name'] ?? ''),
+                    (string) ($p['qty'] ?? ''),
+                    assistant_inr($p['amount'] ?? 0),
+                    assistant_inr($p['profit'] ?? 0),
+                ];
+            }
+            $push(assistant_table_pack('Sabse zyada sale', ['Product', 'Qty', 'Sale', 'Profit'], $topRows));
+            $slowRows = [];
+            foreach (($r['slow_products'] ?? []) as $p) {
+                if (!is_array($p)) {
+                    continue;
+                }
+                $slowRows[] = [
+                    (string) ($p['name'] ?? ''),
+                    (string) ($p['qty'] ?? ''),
+                    assistant_inr($p['amount'] ?? 0),
+                    assistant_inr($p['profit'] ?? 0),
+                ];
+            }
+            $push(assistant_table_pack('Kam sale', ['Product', 'Qty', 'Sale', 'Profit'], $slowRows));
+            if (!empty($r['breakup']) && is_array($r['breakup'])) {
+                $bRows = [];
+                foreach ($r['breakup'] as $b) {
+                    if (!is_array($b)) {
+                        continue;
+                    }
+                    $bRows[] = [
+                        (string) ($b['label'] ?? ''),
+                        (string) ($b['bills'] ?? ''),
+                        assistant_inr($b['sales'] ?? 0),
+                        assistant_inr($b['profit'] ?? 0),
+                    ];
+                }
+                $push(assistant_table_pack('Breakup', ['Period', 'Bills', 'Sale', 'Profit'], $bRows));
+            }
         }
 
         if ($tool === 'search_products' && !empty($r['products']) && is_array($r['products'])) {
