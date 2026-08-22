@@ -661,13 +661,21 @@ require __DIR__ . '/includes/header.php';
     e.preventDefault();
     focusRowField("product-rows", 0, "name");
   });
+
+  document.getElementById("customer-mobile").addEventListener("blur", async (e) => {
     const mobile = e.target.value.trim();
     if (!mobile) return;
     const data = await api("/api/customer_lookup.php?mobile=" + encodeURIComponent(mobile));
     if (data.customer) {
-      document.getElementById("customer-name").value = data.customer.name || "";
-      document.getElementById("customer-address").value = data.customer.address || "";
-      document.getElementById("customer-gst").value = data.customer.gst || "";
+      if (!document.getElementById("customer-name").value.trim()) {
+        document.getElementById("customer-name").value = data.customer.name || "";
+      }
+      if (!document.getElementById("customer-address").value.trim()) {
+        document.getElementById("customer-address").value = data.customer.address || "";
+      }
+      if (!document.getElementById("customer-gst").value.trim()) {
+        document.getElementById("customer-gst").value = data.customer.gst || "";
+      }
     }
   });
 
