@@ -230,7 +230,8 @@ $waFilename = 'Invoice-' . $safeInv . '.pdf';
       </tbody>
     </table>
   </article>
-  <script src="<?= $h(app_url('assets/vendor/html2pdf.bundle.min.js')) ?>"></script>
+  <script src="<?= $h(app_url('assets/vendor/html2canvas.min.js')) ?>"></script>
+  <script src="<?= $h(app_url('assets/vendor/jspdf.umd.min.js')) ?>"></script>
   <script src="<?= $h(app_url('assets/js/whatsapp-pdf.js')) ?>"></script>
   <script>
     (function () {

@@ -12,9 +12,7 @@ function whatsappChatUrl(phone, text) {
   const n = whatsappDigitsJs(phone);
   if (!n) return "";
   const msg = String(text || "");
-  if (msg === "") {
-    return "https://wa.me/" + n;
-  }
+  if (msg === "") return "https://wa.me/" + n;
   return "https://wa.me/" + n + "?text=" + encodeURIComponent(msg);
 }
 
@@ -30,66 +28,105 @@ function downloadBlobFile(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
 
-function cloneInvoiceForPdf(sourceEl) {
-  const wrap = document.createElement("div");
-  wrap.setAttribute("data-pdf-capture", "1");
-  wrap.style.cssText =
-    "position:fixed;left:0;top:0;width:794px;max-width:794px;background:#fff;color:#000;z-index:2147483000;padding:16px;box-sizing:border-box;overflow:visible;";
-  const clone = sourceEl.cloneNode(true);
-  clone.style.width = "762px";
-  clone.style.maxWidth = "762px";
-  clone.style.margin = "0";
-  clone.style.background = "#fff";
-  clone.style.color = "#000";
-  wrap.appendChild(clone);
-  document.body.appendChild(wrap);
-  return { wrap, clone };
+function invoiceCssHref() {
+  const link = document.querySelector('link[href*="invoice-print.css"]');
+  if (link && link.href) return link.href;
+  if (typeof appUrl === "function") {
+    return window.location.origin + appUrl("assets/css/invoice-print.css");
+  }
+  return "assets/css/invoice-print.css";
+}
+
+function pdfLib() {
+  if (window.jspdf && window.jspdf.jsPDF) return window.jspdf.jsPDF;
+  if (window.jsPDF) return window.jsPDF;
+  return null;
+}
+
+function waitFrame(iframe) {
+  return new Promise((resolve) => {
+    const done = () => resolve();
+    iframe.addEventListener("load", done, { once: true });
+    setTimeout(done, 600);
+  });
 }
 
 async function invoiceElementToPdfBlob(sourceEl, filename) {
-  if (typeof html2pdf !== "function") {
-    throw new Error("PDF library load nahi hui. Ctrl+F5 karke page refresh karo.");
+  if (typeof html2canvas !== "function") {
+    throw new Error("PDF library load nahi hui. Ctrl+F5 karke refresh karo.");
   }
-  const { wrap, clone } = cloneInvoiceForPdf(sourceEl);
+  const JsPDF = pdfLib();
+  if (!JsPDF) {
+    throw new Error("PDF engine nahi mili. Ctrl+F5 karke refresh karo.");
+  }
+
+  const sheet = sourceEl.classList && sourceEl.classList.contains("invoice")
+    ? sourceEl
+    : (sourceEl.querySelector && sourceEl.querySelector(".invoice")) || sourceEl;
+
+  const iframe = document.createElement("iframe");
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.style.cssText = "position:fixed;left:-4000px;top:0;width:794px;height:1400px;border:0;background:#fff;";
+  document.body.appendChild(iframe);
+
+  const extraCss = Array.from(document.querySelectorAll("style"))
+    .map((s) => s.textContent || "")
+    .join("\n");
+  const doc = iframe.contentDocument;
+  doc.open();
+  doc.write(
+    "<!DOCTYPE html><html><head><meta charset=\"UTF-8\">" +
+      "<link rel=\"stylesheet\" href=\"" + invoiceCssHref() + "\">" +
+      "<style>html,body{background:#fff!important;margin:0;padding:12px;} .no-print{display:none!important;} .invoice,.wrap,#ledger-sheet{width:190mm;max-width:100%;margin:0 auto;background:#fff;} " + extraCss + "</style>" +
+      "</head><body class=\"invoice-page\">" + sheet.outerHTML + "</body></html>"
+  );
+  doc.close();
+  await waitFrame(iframe);
+  if (doc.fonts && doc.fonts.ready) {
+    try { await doc.fonts.ready; } catch (e) { /* ignore */ }
+  }
+  await new Promise((r) => setTimeout(r, 120));
+
+  const target = doc.querySelector(".invoice") || doc.body;
+  iframe.style.height = Math.max(target.scrollHeight + 40, 400) + "px";
+
   try {
-    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-    const opt = {
-      margin: [8, 8, 8, 8],
-      filename: filename,
-      image: { type: "jpeg", quality: 0.95 },
-      html2canvas: {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: "#ffffff",
-        scrollX: 0,
-        scrollY: 0,
-        windowWidth: 794,
-      },
-      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-      pagebreak: { mode: ["css", "legacy"] },
-    };
-    const worker = html2pdf().set(opt).from(clone);
-    let pdfDoc = null;
-    try {
-      pdfDoc = await worker.toPdf().get("pdf");
-    } catch (err) {
-      pdfDoc = null;
+    const canvas = await html2canvas(target, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: "#ffffff",
+      windowWidth: 794,
+      scrollX: 0,
+      scrollY: 0,
+    });
+
+    const pdf = new JsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const margin = 8;
+    const imgW = pageW - margin * 2;
+    const imgH = (canvas.height * imgW) / canvas.width;
+    const img = canvas.toDataURL("image/jpeg", 0.95);
+    const pageInner = pageH - margin * 2;
+
+    let heightLeft = imgH;
+    let y = margin;
+    pdf.addImage(img, "JPEG", margin, y, imgW, imgH);
+    heightLeft -= pageInner;
+    while (heightLeft > 3) {
+      y = margin - (imgH - heightLeft);
+      pdf.addPage();
+      pdf.addImage(img, "JPEG", margin, y, imgW, imgH);
+      heightLeft -= pageInner;
     }
-    if (pdfDoc && typeof pdfDoc.output === "function") {
-      const out = pdfDoc.output("blob");
-      if (out instanceof Blob) return out;
-    }
-    let blob = await html2pdf().set(opt).from(clone).outputPdf("blob");
-    if (blob instanceof Uint8Array) {
-      blob = new Blob([blob], { type: "application/pdf" });
-    }
-    if (!(blob instanceof Blob)) {
-      throw new Error("PDF ban nahi paya.");
+    const blob = pdf.output("blob");
+    if (filename) {
+      try { pdf.setProperties({ title: filename.replace(/\.pdf$/i, "") }); } catch (e) { /* ignore */ }
     }
     return blob;
   } finally {
-    wrap.remove();
+    iframe.remove();
   }
 }
 
@@ -121,17 +158,13 @@ async function shareInvoicePdfToWhatsApp(options) {
       await navigator.share({ files: [file], title: filename });
       return "shared";
     } catch (err) {
-      if (err && err.name === "AbortError") {
-        return "cancel";
-      }
+      if (err && err.name === "AbortError") return "cancel";
     }
   }
 
   downloadBlobFile(blob, filename);
   const url = whatsappChatUrl(phone, "");
-  if (url) {
-    window.open(url, "_blank");
-  }
+  if (url) window.open(url, "_blank");
   return "download";
 }
 
@@ -146,7 +179,7 @@ async function bindWhatsAppPdfButton(btn, getContext) {
       const ctx = typeof getContext === "function" ? getContext() : getContext;
       const result = await shareInvoicePdfToWhatsApp(ctx);
       if (result === "download") {
-        alert("PDF download ho gaya. Customer ko TEXT mat bhejo — WhatsApp mein 📎 se sirf yeh PDF attach karke Send karo.");
+        alert("Sirf PDF download hua. WhatsApp mein 📎 Document se yeh PDF attach karo — text mat likho.");
       }
     } catch (err) {
       alert(err.message || String(err));

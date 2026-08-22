@@ -160,7 +160,8 @@ $waCaption = whatsapp_ledger_text($company, $ledger);
     <p style="margin-top:28px;font-size:12px;color:#444">Yeh statement <?= $h($company['name'] ?? '') ?> ke records se nikala gaya hai.</p>
     </div>
   </div>
-  <script src="<?= $h(app_url('assets/vendor/html2pdf.bundle.min.js')) ?>"></script>
+  <script src="<?= $h(app_url('assets/vendor/html2canvas.min.js')) ?>"></script>
+  <script src="<?= $h(app_url('assets/vendor/jspdf.umd.min.js')) ?>"></script>
   <script src="<?= $h(app_url('assets/js/whatsapp-pdf.js')) ?>"></script>
   <script>
     (function () {

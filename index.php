@@ -1041,7 +1041,8 @@ require __DIR__ . '/includes/header.php';
   loadNextInvoice().catch(() => {});
   renderRows();
 </script>
-<script src="<?= htmlspecialchars(app_url('assets/vendor/html2pdf.bundle.min.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(app_url('assets/vendor/html2canvas.min.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(app_url('assets/vendor/jspdf.umd.min.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(app_url('assets/js/whatsapp-pdf.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
 
 <?php require __DIR__ . '/includes/footer.php'; ?>
