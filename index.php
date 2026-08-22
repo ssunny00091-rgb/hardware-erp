@@ -536,42 +536,131 @@ require __DIR__ . '/includes/header.php';
     focusRowField("product-rows", saleRows.length - 1, "name");
   });
 
+  let customerSuggestNav = -1;
+
+  function closeCustomerSuggest() {
+    const box = document.getElementById("customer-suggest");
+    box.classList.add("hidden");
+    box.innerHTML = "";
+    customerSuggestNav = -1;
+  }
+
+  function customerSuggestItems() {
+    return [...document.querySelectorAll("#customer-suggest [data-cust-new], #customer-suggest [data-cust-pick]")];
+  }
+
+  function highlightCustomerSuggest(index) {
+    const items = customerSuggestItems();
+    if (!items.length) {
+      customerSuggestNav = -1;
+      return;
+    }
+    customerSuggestNav = Math.max(0, Math.min(index, items.length - 1));
+    items.forEach((el, i) => el.classList.toggle("suggest-active", i === customerSuggestNav));
+    items[customerSuggestNav].scrollIntoView({ block: "nearest" });
+  }
+
+  function goCustomerNextField() {
+    closeCustomerSuggest();
+    document.getElementById("customer-mobile").focus();
+  }
+
+  function pickCustomerRow(el) {
+    if (!el) return goCustomerNextField();
+    if (el.dataset.custNew) {
+      goCustomerNextField();
+      return;
+    }
+    document.getElementById("customer-name").value = el.dataset.name || "";
+    if (el.dataset.mobile) document.getElementById("customer-mobile").value = el.dataset.mobile;
+    if (el.dataset.address) document.getElementById("customer-address").value = el.dataset.address;
+    goCustomerNextField();
+  }
+
   async function showCustomerSuggestions() {
     const box = document.getElementById("customer-suggest");
     const search = document.getElementById("customer-name").value.trim();
-    if (!search) {
-      box.classList.add("hidden");
+    customerSuggestNav = -1;
+    if (search.length < 2) {
+      closeCustomerSuggest();
       return;
     }
     const data = await api("/api/parties.php?type=customer&q=" + encodeURIComponent(search));
-    const parties = data.parties || [];
-    if (!parties.length) {
-      box.classList.add("hidden");
-      return;
-    }
-    box.innerHTML = parties.map((p) => `
+    const q = search.toLowerCase();
+    const parties = (data.parties || []).filter((p) => {
+      const name = String(p.name || "").toLowerCase();
+      const score = Number(p.match_score || 0);
+      return name.includes(q) || score >= 700;
+    }).slice(0, 8);
+    const newRow = `
+      <div class="cursor-pointer border-b bg-green-50 p-3 font-semibold text-green-800 hover:bg-green-100" data-cust-new="1">
+        ➕ Naya customer: "${escapeHtml(search)}"
+      </div>`;
+    const oldRows = parties.map((p) => `
       <div class="cursor-pointer border-b p-3 hover:bg-blue-100" data-cust-pick="${p.id}" data-name="${escapeHtml(p.name)}" data-mobile="${escapeHtml(p.mobile || "")}" data-address="${escapeHtml(p.address || "")}">
         <div class="font-medium">${escapeHtml(p.name)}</div>
         <div class="text-sm text-gray-500">${escapeHtml(p.mobile || "")}</div>
       </div>
     `).join("");
+    box.innerHTML = newRow + oldRows;
     box.classList.remove("hidden");
-    setSuggestActive(box, 0);
   }
 
   document.getElementById("customer-name").addEventListener("input", () => {
     showCustomerSuggestions().catch(() => {});
   });
-  document.getElementById("customer-suggest").addEventListener("click", (e) => {
-    const pick = e.target.closest("[data-cust-pick]");
-    if (!pick) return;
-    document.getElementById("customer-name").value = pick.dataset.name || "";
-    if (pick.dataset.mobile) document.getElementById("customer-mobile").value = pick.dataset.mobile;
-    if (pick.dataset.address) document.getElementById("customer-address").value = pick.dataset.address;
-    document.getElementById("customer-suggest").classList.add("hidden");
+  document.getElementById("customer-name").addEventListener("keydown", (e) => {
+    const box = document.getElementById("customer-suggest");
+    const open = box && !box.classList.contains("hidden") && customerSuggestItems().length;
+    if (e.key === "ArrowDown" && open) {
+      e.preventDefault();
+      highlightCustomerSuggest(customerSuggestNav < 0 ? 0 : customerSuggestNav + 1);
+      return;
+    }
+    if (e.key === "ArrowUp" && open) {
+      e.preventDefault();
+      highlightCustomerSuggest(customerSuggestNav < 0 ? 0 : customerSuggestNav - 1);
+      return;
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      closeCustomerSuggest();
+      return;
+    }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (open && customerSuggestNav >= 0) {
+        pickCustomerRow(customerSuggestItems()[customerSuggestNav]);
+      } else {
+        goCustomerNextField();
+      }
+    }
+  });
+  document.getElementById("customer-name").addEventListener("blur", () => {
+    setTimeout(closeCustomerSuggest, 180);
+  });
+  document.getElementById("customer-suggest").addEventListener("mousedown", (e) => {
+    const row = e.target.closest("[data-cust-new], [data-cust-pick]");
+    if (!row) return;
+    e.preventDefault();
+    pickCustomerRow(row);
   });
 
-  document.getElementById("customer-mobile").addEventListener("blur", async (e) => {
+  document.getElementById("customer-mobile").addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    document.getElementById("customer-address").focus();
+  });
+  document.getElementById("customer-address").addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    document.getElementById("customer-gst").focus();
+  });
+  document.getElementById("customer-gst").addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    focusRowField("product-rows", 0, "name");
+  });
     const mobile = e.target.value.trim();
     if (!mobile) return;
     const data = await api("/api/customer_lookup.php?mobile=" + encodeURIComponent(mobile));
