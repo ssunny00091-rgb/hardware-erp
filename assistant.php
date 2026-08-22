@@ -89,7 +89,10 @@ require __DIR__ . '/includes/reminder-banner.php';
     <label class="flex items-center gap-2 rounded-lg bg-white/10 px-3 py-2">
       <input type="radio" name="voice-lang" value="en-IN"> Hinglish
     </label>
+    <button type="button" id="btn-sound" class="rounded-lg bg-white/15 px-3 py-2 font-semibold">🔇 Sound band</button>
   </div>
+  <p id="mic-status" class="mb-2 text-sm text-amber-200"></p>
+  <p id="https-mic-hint" class="mb-2 hidden rounded-lg bg-rose-800/80 px-3 py-2 text-xs text-rose-50"></p>
   <div id="chat-files" class="mb-2 hidden"></div>
   <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
     <textarea id="chat-input" rows="2" placeholder="Bolo ya likho: 'Ram ko 2 Asian paint 10 litre @ 450, 2000 due'  ·  ya bill photo attach karo" class="min-h-[52px] flex-1 rounded-xl border border-gray-300 bg-white p-3 text-gray-900"></textarea>
@@ -98,13 +101,21 @@ require __DIR__ . '/includes/reminder-banner.php';
         📷 Photo
         <input type="file" id="chat-file" class="hidden" accept="image/*,.pdf,application/pdf" multiple>
       </label>
+      <label class="cursor-pointer rounded-xl bg-violet-700 px-4 py-3 text-center font-semibold">
+        🎙️ Voice note
+        <input type="file" id="chat-voice-file" class="hidden" accept="audio/*,video/webm,video/mp4,.webm,.m4a,.mp3,.wav,.ogg,.aac" capture>
+      </label>
       <button type="button" id="btn-add-more" class="hidden rounded-xl bg-sky-600 px-4 py-3 font-semibold">➕ Add more photo</button>
       <button type="button" id="btn-mic" class="rounded-xl bg-rose-600 px-4 py-3 font-semibold">🎤 Bolke</button>
       <button type="button" id="btn-send" class="rounded-xl bg-green-600 px-5 py-3 font-semibold">Send</button>
     </div>
   </div>
-  <p class="mt-2 text-xs text-gray-400">2+ page ka bill ho to pehli photo ke baad <strong>Add more photo</strong> dabao — saari pages ek hi bill mein save hongi. Mic ~3 second wait. Jawab bina awaaz ke text mein aata hai.</p>
+  <p class="mt-2 text-xs text-gray-400">
+    Phone par <strong>Bolke</strong> dabao, bolo, phir <strong>Stop</strong>. Mic allow karna zaroori hai.
+    Agar live mic na chale to <strong>Voice note</strong> se phone ka recorder khulega.
+    <strong>Sound</strong> on karo to jawab awaaz mein aayega.
+  </p>
 </div>
 
-<script src="<?= htmlspecialchars(app_url('assets/js/assistant.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(app_url('assets/js/assistant.js'), ENT_QUOTES, 'UTF-8') ?>?v=voice3"></script>
 <?php require __DIR__ . '/includes/footer.php'; ?>

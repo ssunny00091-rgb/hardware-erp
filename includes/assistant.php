@@ -147,6 +147,11 @@ Today's date is {$today} (dd/mm/yyyy). Reply in simple Hindi (ok to mix English 
 
 You MUST use tools to actually change the software. Do not pretend you saved something without a tool result.
 
+When the user sends a voice note / audio recording:
+1. Treat it as a spoken shop command in Hindi or Hinglish (names, qty, rates, due dates).
+2. Transcribe internally and immediately use tools — do not ask them to type the same thing.
+3. Confirm briefly what you heard.
+
 When the user sends photo(s), screenshot, scan, or PDF of a supplier bill / invoice / challan / quotation / WhatsApp bill / handwritten bill (any format):
 1. Read all visible text even if rotated, blurry, or mixed Hindi/English.
 2. If there are 2 or more images/pages, they are pages of THE SAME bill unless the user says otherwise. Merge every page: one supplier, one invoice number, one date, ALL line items from all pages, one grand total (usually on the last page), one paid amount. Call import_supplier_bill ONCE only.
@@ -1446,10 +1451,54 @@ function assistant_normalize_history(array $history): array
     return $out;
 }
 
+function assistant_is_audio_upload(string $mime, string $filename): bool
+{
+    $mime = strtolower(trim($mime));
+    $filename = strtolower($filename);
+    if (str_starts_with($mime, 'audio/')) {
+        return true;
+    }
+    if ($mime === 'video/webm' || $mime === 'video/mp4') {
+        return (bool) preg_match('/\.(webm|m4a|mp4|3gp)$/i', $filename) || str_contains($filename, 'voice');
+    }
+    return (bool) preg_match('/\.(webm|m4a|mp3|wav|ogg|aac|3gp|opus)$/i', $filename);
+}
+
+function assistant_part_is_audio(array $part): bool
+{
+    if (($part['type'] ?? '') === 'input_audio') {
+        return true;
+    }
+    $name = (string) ($part['file']['filename'] ?? '');
+    $data = (string) ($part['file']['file_data'] ?? '');
+    return (bool) preg_match('/audio\/|voice|webm|m4a|ogg|wav|mp3|opus/i', $name . substr($data, 0, 48));
+}
+
 function assistant_file_part(string $mime, string $filename, string $binary): ?array
 {
     $mime = strtolower($mime);
     $b64 = base64_encode($binary);
+    if (assistant_is_audio_upload($mime, $filename)) {
+        if ($mime === '' || $mime === 'application/octet-stream') {
+            if (str_ends_with(strtolower($filename), '.m4a') || str_ends_with(strtolower($filename), '.mp4')) {
+                $mime = 'audio/mp4';
+            } elseif (str_ends_with(strtolower($filename), '.mp3')) {
+                $mime = 'audio/mpeg';
+            } elseif (str_ends_with(strtolower($filename), '.wav')) {
+                $mime = 'audio/wav';
+            } else {
+                $mime = 'audio/webm';
+            }
+        }
+        $safeName = $filename !== '' ? $filename : 'voice.webm';
+        return [
+            'type' => 'file',
+            'file' => [
+                'filename' => $safeName,
+                'file_data' => 'data:' . $mime . ';base64,' . $b64,
+            ],
+        ];
+    }
     if (str_contains($mime, 'pdf') || str_ends_with(strtolower($filename), '.pdf')) {
         return [
             'type' => 'file',
@@ -1488,7 +1537,7 @@ function assistant_collect_uploads(): array
             $name = is_array($bucket['name']) ? (string) $bucket['name'][$i] : (string) $bucket['name'];
             $mime = is_array($bucket['type']) ? (string) $bucket['type'][$i] : (string) $bucket['type'];
             $size = is_array($bucket['size']) ? (int) $bucket['size'][$i] : (int) $bucket['size'];
-            if ($size > 8 * 1024 * 1024 || !is_readable($tmp)) {
+            if ($size > 12 * 1024 * 1024 || !is_readable($tmp)) {
                 continue;
             }
             $bin = file_get_contents($tmp);
@@ -1511,10 +1560,19 @@ function assistant_chat(PDO $pdo, string $userText, array $history, array $fileP
         throw new InvalidArgumentException('Message ya photo bhejo');
     }
     if ($userText === '' && $fileParts !== []) {
+        $audioOnly = $fileParts !== [] && array_reduce(
+            $fileParts,
+            static fn (bool $ok, array $part): bool => $ok && assistant_part_is_audio($part),
+            true
+        );
         $n = count($fileParts);
-        $userText = $n > 1
-            ? ('Yeh ek hi supplier bill ki ' . $n . ' pages/photos hain. Page 1 pehli image, phir page 2, 3... Saari pages padhkar EK hi bill mein merge karke import_supplier_bill ek baar call karo. Saari items, ek total, ek supplier.')
-            : 'Is photo/PDF se supplier aur unka bill automatically add karo. Jo dikh raha hai usko save karo.';
+        if ($audioOnly) {
+            $userText = 'Yeh voice note hai (Hindi / Hinglish shop command). Pehle jo bola gaya usko samajho, phir tools se wahi kaam karo. Jawab simple Hindi mein do aur short mein confirm karo kya suna.';
+        } else {
+            $userText = $n > 1
+                ? ('Yeh ek hi supplier bill ki ' . $n . ' pages/photos hain. Page 1 pehli image, phir page 2, 3... Saari pages padhkar EK hi bill mein merge karke import_supplier_bill ek baar call karo. Saari items, ek total, ek supplier.')
+                : 'Is photo/PDF se supplier aur unka bill automatically add karo. Jo dikh raha hai usko save karo.';
+        }
     }
 
     $messages = [['role' => 'system', 'content' => assistant_system_prompt()]];

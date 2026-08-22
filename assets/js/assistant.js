@@ -14,7 +14,15 @@ let listening = false;
 let recognition = null;
 let busy = false;
 let voiceSendTimer = null;
-const VOICE_SILENCE_MS = 3200;
+let mediaRecorder = null;
+let mediaStream = null;
+let recordedChunks = [];
+let audioCtx = null;
+const VOICE_SILENCE_MS = 2800;
+const btnSound = document.getElementById("btn-sound");
+const micStatus = document.getElementById("mic-status");
+const httpsHint = document.getElementById("https-mic-hint");
+const chatVoiceFile = document.getElementById("chat-voice-file");
 
 function currentVoiceLang() {
   const picked = document.querySelector('input[name="voice-lang"]:checked');
@@ -266,11 +274,18 @@ async function sendChat(text) {
   btnSend.disabled = true;
   const filesNow = pendingFiles.slice();
   let outgoing = message;
+  const filesAreAudio = filesNow.length > 0 && filesNow.every((f) => {
+    const t = (f.type || "").toLowerCase();
+    const n = (f.name || "").toLowerCase();
+    return t.startsWith("audio/") || t === "video/webm" || /\.(webm|m4a|mp3|wav|ogg|aac|3gp)$/.test(n);
+  });
   if (!outgoing && filesNow.length) {
-    outgoing = filesNow.length > 1
-      ? ("Yeh ek hi bill ki " + filesNow.length + " pages hain. Saari pages mila ke ek bill save karo.")
-      : "Is photo se supplier bill save karo.";
-  } else if (outgoing && filesNow.length > 1) {
+    outgoing = filesAreAudio
+      ? "🎤 Voice note"
+      : (filesNow.length > 1
+        ? ("Yeh ek hi bill ki " + filesNow.length + " pages hain. Saari pages mila ke ek bill save karo.")
+        : "Is photo se supplier bill save karo.");
+  } else if (outgoing && filesNow.length > 1 && !filesAreAudio) {
     outgoing += " (Iske saath " + filesNow.length + " pages/photos hain — ek hi bill.)";
   }
   addBubble("user", outgoing || ("📎 " + filesNow.map((f) => f.name).join(", ")));
@@ -280,7 +295,10 @@ async function sendChat(text) {
   chatFile.value = "";
 
   const form = new FormData();
-  form.append("payload", JSON.stringify({ message: outgoing || message, history }));
+  form.append("payload", JSON.stringify({
+    message: filesAreAudio && !message ? "" : (outgoing || message),
+    history,
+  }));
   filesNow.forEach((file, i) => form.append("files[]", file, "page-" + (i + 1) + "-" + file.name));
 
   try {
@@ -293,8 +311,9 @@ async function sendChat(text) {
     if (!response.ok) throw new Error(data.error || "Assistant fail");
     const reply = data.reply || "Ho gaya.";
     const extra = actionSummary(data.actions || []);
-    addBubble("assistant", reply, extra, data.tables || []);
-    history.push({ role: "user", content: outgoing || "Photo/PDF bheji hai" });
+  addBubble("assistant", reply, extra, data.tables || []);
+    speakText(reply);
+    history.push({ role: "user", content: outgoing || (filesAreAudio ? "Voice note" : "Photo/PDF bheji hai") });
     history.push({ role: "assistant", content: reply });
   } catch (err) {
     addBubble("assistant", "Error: " + err.message);
@@ -316,6 +335,117 @@ function micSupported() {
   return window.SpeechRecognition || window.webkitSpeechRecognition;
 }
 
+function isMobileShop() {
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || "")
+    || ((navigator.maxTouchPoints || 0) > 1 && window.innerWidth < 920);
+}
+
+function canUseLiveMic() {
+  const host = location.hostname;
+  return window.isSecureContext || host === "localhost" || host === "127.0.0.1";
+}
+
+function setMicStatus(text, danger) {
+  if (!micStatus) return;
+  micStatus.textContent = text || "";
+  micStatus.className = "mb-2 text-sm " + (danger ? "text-rose-300" : "text-amber-200");
+}
+
+function soundOn() {
+  return localStorage.getItem("assistantSoundOn") === "1";
+}
+
+function renderSoundButton() {
+  if (!btnSound) return;
+  if (soundOn()) {
+    btnSound.textContent = "🔊 Sound on";
+    btnSound.classList.add("sound-on");
+  } else {
+    btnSound.textContent = "🔇 Sound band";
+    btnSound.classList.remove("sound-on");
+  }
+}
+
+function unlockAudio() {
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (Ctx) {
+      if (!audioCtx) audioCtx = new Ctx();
+      audioCtx.resume();
+    }
+  } catch (e) {
+    // ignore
+  }
+  try {
+    window.speechSynthesis && window.speechSynthesis.resume();
+  } catch (e2) {
+    // ignore
+  }
+}
+
+function playBeep() {
+  if (!soundOn()) return;
+  try {
+    unlockAudio();
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.08, audioCtx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.18);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.2);
+  } catch (e) {
+    // ignore
+  }
+}
+
+function pickVoice(lang) {
+  if (!window.speechSynthesis) return null;
+  const voices = window.speechSynthesis.getVoices() || [];
+  const want = lang === "en-IN" ? ["en-IN", "en-GB", "hi-IN", "en"] : ["hi-IN", "hi", "en-IN", "en"];
+  for (let i = 0; i < want.length; i++) {
+    const hit = voices.find((v) => (v.lang || "").toLowerCase().startsWith(want[i].toLowerCase()));
+    if (hit) return hit;
+  }
+  return voices[0] || null;
+}
+
+function speakText(text) {
+  if (!soundOn() || !window.speechSynthesis) return;
+  const plain = String(text || "")
+    .replace(/[#*_`>|-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 450);
+  if (!plain) return;
+  unlockAudio();
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(plain);
+  u.lang = currentVoiceLang();
+  u.rate = 1.04;
+  const voice = pickVoice(u.lang);
+  if (voice) u.voice = voice;
+  window.speechSynthesis.speak(u);
+}
+
+function micIdleLabel() {
+  btnMic.textContent = "🎤 Bolke";
+  btnMic.classList.remove("ring-2", "ring-white", "mic-live");
+}
+
+function stopMediaStream() {
+  if (mediaStream) {
+    mediaStream.getTracks().forEach((t) => {
+      try { t.stop(); } catch (e) { /* ignore */ }
+    });
+    mediaStream = null;
+  }
+}
+
 function stopMic() {
   if (voiceSendTimer) {
     clearTimeout(voiceSendTimer);
@@ -325,7 +455,6 @@ function stopMic() {
   if (recognition) {
     try {
       recognition.onend = null;
-      recognition.onresult = null;
       recognition.onerror = null;
       recognition.stop();
     } catch (e) {
@@ -333,8 +462,12 @@ function stopMic() {
     }
     recognition = null;
   }
-  btnMic.textContent = "🎤 Bolke";
-  btnMic.classList.remove("ring-2", "ring-white");
+  if (mediaRecorder && mediaRecorder.state === "recording") {
+    try { mediaRecorder.stop(); } catch (e2) { /* ignore */ }
+  }
+  mediaRecorder = null;
+  stopMediaStream();
+  micIdleLabel();
 }
 
 function queueVoiceSend() {
@@ -344,55 +477,260 @@ function queueVoiceSend() {
     const text = (chatInput.value || "").trim();
     if (!text || !listening) return;
     stopMic();
+    setMicStatus("Bhej raha hoon…");
     sendChat(text);
   }, VOICE_SILENCE_MS);
 }
 
-btnMic.addEventListener("click", () => {
+function recorderMime() {
+  if (!window.MediaRecorder) return "";
+  const types = [
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/mp4",
+    "audio/ogg;codecs=opus",
+    "audio/ogg",
+  ];
+  return types.find((t) => MediaRecorder.isTypeSupported(t)) || "";
+}
+
+function extForMime(mime) {
+  if (mime.includes("mp4")) return "m4a";
+  if (mime.includes("ogg")) return "ogg";
+  if (mime.includes("mpeg") || mime.includes("mp3")) return "mp3";
+  if (mime.includes("wav")) return "wav";
+  return "webm";
+}
+
+async function askMicPermission() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    throw new Error("Is browser mein mic API nahi hai");
+  }
+  const stream = await navigator.mediaDevices.getUserMedia({
+    audio: { echoCancellation: true, noiseSuppression: true },
+  });
+  return stream;
+}
+
+async function startRecorder() {
+  recordedChunks = [];
+  const mime = recorderMime();
+  mediaStream = await askMicPermission();
+  mediaRecorder = mime
+    ? new MediaRecorder(mediaStream, { mimeType: mime })
+    : new MediaRecorder(mediaStream);
+  const usedMime = mediaRecorder.mimeType || mime || "audio/webm";
+  mediaRecorder.ondataavailable = (ev) => {
+    if (ev.data && ev.data.size) recordedChunks.push(ev.data);
+  };
+  mediaRecorder.onerror = () => {
+    setMicStatus("Recording error. Voice note try karo.", true);
+    stopMic();
+  };
+  mediaRecorder.onstop = async () => {
+    const chunks = recordedChunks.slice();
+    recordedChunks = [];
+    stopMediaStream();
+    micIdleLabel();
+    if (!chunks.length) {
+      setMicStatus("Kuch record nahi hua. Phir se Bolke dabao.", true);
+      return;
+    }
+    const blob = new Blob(chunks, { type: usedMime.split(";")[0] || "audio/webm" });
+    if (blob.size < 800) {
+      setMicStatus("Bahut chhoti recording. Thoda lamba bolo.", true);
+      return;
+    }
+    const file = new File([blob], "voice." + extForMime(usedMime), { type: blob.type || "audio/webm" });
+    setMicStatus("Voice bhej raha hoon…");
+    pendingFiles.push(file);
+    showFiles();
+    await sendChat((chatInput.value || "").trim());
+    setMicStatus("");
+  };
+  mediaRecorder.start(250);
+  listening = true;
+  btnMic.textContent = "⏹ Stop";
+  btnMic.classList.add("ring-2", "ring-white", "mic-live");
+  playBeep();
+  setMicStatus("Sun raha hoon — bolo, khatam hone par Stop dabao.");
+}
+
+function startWebSpeech() {
   const Ctor = micSupported();
   if (!Ctor) {
-    alert("Yeh browser voice nahi sunta. Chrome use karo, ya type karo.");
-    return;
-  }
-  if (listening) {
-    stopMic();
-    return;
+    throw new Error("Live speech nahi");
   }
   recognition = new Ctor();
   recognition.lang = currentVoiceLang();
   recognition.interimResults = true;
-  recognition.continuous = true;
+  recognition.continuous = !isMobileShop();
+  recognition.maxAlternatives = 1;
   listening = true;
   btnMic.textContent = "⏹ Stop";
-  btnMic.classList.add("ring-2", "ring-white");
+  btnMic.classList.add("ring-2", "ring-white", "mic-live");
+  playBeep();
+  setMicStatus("Sun raha hoon — bolo…");
   recognition.onresult = (ev) => {
     let said = "";
     for (let i = 0; i < ev.results.length; i++) {
       said += ev.results[i][0].transcript;
     }
     chatInput.value = said.trim();
+    setMicStatus(said.trim() ? ("Suna: " + said.trim()) : "Sun raha hoon…");
     if (ev.results[ev.results.length - 1].isFinal) {
       queueVoiceSend();
     }
   };
-  recognition.onerror = () => {
-    stopMic();
+  recognition.onerror = (ev) => {
+    const err = (ev && ev.error) || "";
+    if (err === "no-speech" || err === "aborted") {
+      return;
+    }
+    if (err === "not-allowed" || err === "service-not-allowed") {
+      setMicStatus("Mic permission band hai. Chrome settings se mic allow karo, ya Voice note use karo.", true);
+      stopMic();
+      return;
+    }
+    if (err === "audio-capture" || err === "network") {
+      setMicStatus("Live mic fail (" + err + "). Ab recording mode.", true);
+      stopMic();
+      startRecorder().catch(() => {
+        if (chatVoiceFile) chatVoiceFile.click();
+      });
+      return;
+    }
+    setMicStatus("Mic error: " + err, true);
   };
   recognition.onend = () => {
-    if (!listening) return;
+    if (!listening || !recognition) return;
+    const text = (chatInput.value || "").trim();
+    if (isMobileShop()) {
+      if (text) {
+        queueVoiceSend();
+        return;
+      }
+      try {
+        setTimeout(() => {
+          if (listening && recognition) recognition.start();
+        }, 280);
+      } catch (e) {
+        queueVoiceSend();
+      }
+      return;
+    }
     try {
       recognition.start();
-    } catch (e) {
+    } catch (e2) {
       queueVoiceSend();
     }
   };
   recognition.start();
+}
+
+function showHttpsHint() {
+  if (!httpsHint) return;
+  if (canUseLiveMic()) {
+    httpsHint.classList.add("hidden");
+    return;
+  }
+  httpsHint.classList.remove("hidden");
+  httpsHint.textContent = "Phone par live mic ke liye site HTTPS (lock) chahiye. Abhi http hai, isliye Bolke block ho sakta hai. Voice note button use karo — phone ka recorder chalega. Ya PC Chrome se localhost kholo.";
+}
+
+async function toggleMic() {
+  if (listening) {
+    if (mediaRecorder && mediaRecorder.state === "recording") {
+      listening = false;
+      try { mediaRecorder.stop(); } catch (e) { stopMic(); }
+      btnMic.textContent = "…";
+      return;
+    }
+    const text = (chatInput.value || "").trim();
+    stopMic();
+    if (text) sendChat(text);
+    else setMicStatus("");
+    return;
+  }
+  if (!canUseLiveMic()) {
+    showHttpsHint();
+    setMicStatus("Live mic is page par band hai. Voice note dabao.", true);
+    if (chatVoiceFile) chatVoiceFile.click();
+    return;
+  }
+  unlockAudio();
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  try {
+    if (isMobileShop() && window.MediaRecorder) {
+      await startRecorder();
+      return;
+    }
+    if (micSupported()) {
+      try {
+        const stream = await askMicPermission();
+        stream.getTracks().forEach((t) => t.stop());
+      } catch (permErr) {
+        setMicStatus("Mic allow nahi hua. Browser popup mein Allow dabao.", true);
+        return;
+      }
+      startWebSpeech();
+      return;
+    }
+    if (window.MediaRecorder) {
+      await startRecorder();
+      return;
+    }
+    if (chatVoiceFile) chatVoiceFile.click();
+    else alert("Yeh browser voice nahi sunta. Chrome use karo.");
+  } catch (err) {
+    setMicStatus((err && err.message) || "Mic start nahi hua", true);
+    if (chatVoiceFile) chatVoiceFile.click();
+  }
+}
+
+btnMic.addEventListener("click", () => {
+  toggleMic();
 });
+
+if (chatVoiceFile) {
+  chatVoiceFile.addEventListener("change", async () => {
+    const file = (chatVoiceFile.files && chatVoiceFile.files[0]) || null;
+    chatVoiceFile.value = "";
+    if (!file) return;
+    pendingFiles.push(file);
+    showFiles();
+    setMicStatus("Voice note bhej raha hoon…");
+    await sendChat((chatInput.value || "").trim());
+    setMicStatus("");
+  });
+}
+
+if (btnSound) {
+  btnSound.addEventListener("click", () => {
+    const next = soundOn() ? "0" : "1";
+    localStorage.setItem("assistantSoundOn", next);
+    renderSoundButton();
+    unlockAudio();
+    if (next === "1") {
+      speakText("Sound on hai. Ab assistant jawab bol kar sunayega.");
+    } else if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+  });
+}
+
+if (window.speechSynthesis) {
+  window.speechSynthesis.addEventListener("voiceschanged", () => {
+    pickVoice(currentVoiceLang());
+  });
+}
 
 document.querySelectorAll('input[name="voice-lang"]').forEach((el) => {
   el.addEventListener("change", () => applyVoiceLang(el.value));
 });
 applyVoiceLang(localStorage.getItem("assistantVoiceLang") || "hi-IN");
+renderSoundButton();
+showHttpsHint();
 
 function applyKeyStatus(data) {
   const test = data.test || null;
