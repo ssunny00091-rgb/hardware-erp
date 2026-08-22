@@ -19,11 +19,6 @@ $activeNav = $activeNav ?? 'home';
     window.COMPANY = <?= json_encode($company, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
   </script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <?php if ($activeNav === 'home'): ?>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <?php endif; ?>
   <link rel="stylesheet" href="<?= htmlspecialchars(app_url('assets/css/style.css'), ENT_QUOTES, 'UTF-8') ?>">
   <link rel="stylesheet" href="<?= htmlspecialchars(app_url('assets/css/invoice-print.css'), ENT_QUOTES, 'UTF-8') ?>">
   <style>
@@ -37,7 +32,7 @@ $activeNav = $activeNav ?? 'home';
   </style>
   <script src="<?= htmlspecialchars(app_url('assets/js/app.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
 </head>
-<body class="min-h-screen bg-slate-950 text-white<?= $activeNav === 'home' ? ' page-home' : '' ?>">
+<body class="min-h-screen bg-slate-950 text-white">
   <div class="animated-bg" aria-hidden="true">
     <span class="blob blob-blue"></span>
     <span class="blob blob-orange"></span>
