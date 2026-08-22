@@ -7,34 +7,80 @@ $activeNav = 'home';
 require __DIR__ . '/includes/header.php';
 ?>
 
-<h1 class="mb-4 text-2xl font-bold sm:mb-6 sm:text-4xl">🏪 SATYANARAYAN HARDWARE STORES</h1>
+<section class="shop-hero no-print" aria-label="Shop counter">
+  <div class="hazard-tape" aria-hidden="true"></div>
+  <div class="shop-floaters" aria-hidden="true">
+    <span class="floater f1">🔩</span>
+    <span class="floater f2">🪣</span>
+    <span class="floater f3">🔧</span>
+    <span class="floater f4">🎨</span>
+    <span class="floater f5">⚙️</span>
+    <span class="floater f6">🪛</span>
+  </div>
+  <p class="shop-kicker">Jayanagar · Paint · Pipe · Cement · Tools</p>
+  <h1 class="shop-title">SATYANARAYAN<br><span>HARDWARE STORES</span></h1>
+  <p class="shop-tag">Dukaan wala counter — bill, stock aur hisaab ek jagah. Safety-yellow board, steel rack feel.</p>
+  <div class="shop-actions">
+    <button type="button" id="btn-new-sale" class="shop-btn shop-btn-sale">
+      <span class="shop-btn-ico">🧾</span>
+      <span>New Sale</span>
+      <small>Counter par bill kaato</small>
+    </button>
+    <a href="<?= htmlspecialchars(app_url('assistant.php'), ENT_QUOTES, 'UTF-8') ?>" class="shop-btn shop-btn-talk">
+      <span class="shop-btn-ico">🎙️</span>
+      <span>Bolke / Photo</span>
+      <small>Supplier bill uthhao</small>
+    </a>
+    <button type="button" id="btn-sales-history" class="shop-btn shop-btn-hist">
+      <span class="shop-btn-ico">🗂️</span>
+      <span>Sales History</span>
+      <small>Purane invoices</small>
+    </button>
+  </div>
+  <div class="aisle-marquee" aria-hidden="true">
+    <div class="aisle-track">
+      <span>Asian Paints</span><span>Cement</span><span>GI Pipe</span><span>Electrical</span><span>Sanitary</span><span>Putty</span><span>Nails &amp; Bolts</span><span>Brush &amp; Roller</span>
+      <span>Asian Paints</span><span>Cement</span><span>GI Pipe</span><span>Electrical</span><span>Sanitary</span><span>Putty</span><span>Nails &amp; Bolts</span><span>Brush &amp; Roller</span>
+    </div>
+  </div>
+</section>
 
-<div class="mb-6 flex flex-col gap-3 no-print sm:flex-row sm:flex-wrap">
-  <button type="button" id="btn-new-sale" class="w-full rounded-lg bg-green-600 px-5 py-3 text-white hover:bg-green-700 sm:w-auto">➕ New Sale</button>
-  <a href="<?= htmlspecialchars(app_url('assistant.php'), ENT_QUOTES, 'UTF-8') ?>" class="w-full rounded-lg bg-rose-600 px-5 py-3 text-center text-white hover:bg-rose-500 sm:w-auto">🤖 Bolke / Photo se kaam</a>
-  <button type="button" id="btn-sales-history" class="w-full rounded-lg bg-indigo-600 px-5 py-3 text-white hover:bg-indigo-700 sm:w-auto">🧾 Sales History</button>
+<div id="dashboard-cards" class="shop-bins">
+  <article class="bin-card bin-sales" style="--d:0">
+    <span class="bin-bolt" aria-hidden="true"></span>
+    <span class="bin-bolt bin-bolt-r" aria-hidden="true"></span>
+    <div class="bin-icon">🧾</div>
+    <h3>Aaj ki sale</h3>
+    <p data-stat="today_sales">₹0.00</p>
+    <small>Counter collection</small>
+  </article>
+  <article class="bin-card bin-buy" style="--d:1">
+    <span class="bin-bolt" aria-hidden="true"></span>
+    <span class="bin-bolt bin-bolt-r" aria-hidden="true"></span>
+    <div class="bin-icon">📦</div>
+    <h3>Aaj ki purchase</h3>
+    <p data-stat="today_purchase">₹0.00</p>
+    <small>Godown in</small>
+  </article>
+  <article class="bin-card bin-cash" style="--d:2">
+    <span class="bin-bolt" aria-hidden="true"></span>
+    <span class="bin-bolt bin-bolt-r" aria-hidden="true"></span>
+    <div class="bin-icon">💰</div>
+    <h3>Cash in hand</h3>
+    <p data-stat="cash_in_hand">₹0.00</p>
+    <small>Received sales</small>
+  </article>
+  <article class="bin-card bin-due" style="--d:3">
+    <span class="bin-bolt" aria-hidden="true"></span>
+    <span class="bin-bolt bin-bolt-r" aria-hidden="true"></span>
+    <div class="bin-icon">⏳</div>
+    <h3>Pending payment</h3>
+    <p data-stat="pending_payment">₹0.00</p>
+    <small>Udhaar + supplier due</small>
+  </article>
 </div>
 
-<div id="dashboard-cards" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-  <article class="relative overflow-hidden rounded-2xl p-6 shadow-xl" style="background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)">
-    <h3 class="text-lg font-semibold">Today's Sales</h3>
-    <p class="mt-3 text-4xl font-bold" data-stat="today_sales">₹0.00</p>
-  </article>
-  <article class="relative overflow-hidden rounded-2xl p-6 shadow-xl" style="background: linear-gradient(135deg, #f97316 0%, #ef4444 100%)">
-    <h3 class="text-lg font-semibold">Today's Purchase</h3>
-    <p class="mt-3 text-4xl font-bold" data-stat="today_purchase">₹0.00</p>
-  </article>
-  <article class="relative overflow-hidden rounded-2xl p-6 shadow-xl" style="background: linear-gradient(135deg, #059669 0%, #14b8a6 100%)">
-    <h3 class="text-lg font-semibold">Cash in Hand</h3>
-    <p class="mt-3 text-4xl font-bold" data-stat="cash_in_hand">₹0.00</p>
-  </article>
-  <article class="relative overflow-hidden rounded-2xl p-6 shadow-xl" style="background: linear-gradient(135deg, #9333ea 0%, #ec4899 100%)">
-    <h3 class="text-lg font-semibold">Pending Payment</h3>
-    <p class="mt-3 text-4xl font-bold" data-stat="pending_payment">₹0.00</p>
-  </article>
-</div>
-
-<section id="sale-form" class="mt-8 hidden rounded-2xl border border-white/20 bg-white/10 p-4 shadow-2xl backdrop-blur-xl sm:rounded-3xl sm:p-8">
+<section id="sale-form" class="shop-counter mt-8 hidden rounded-2xl border border-white/20 bg-white/10 p-4 shadow-2xl backdrop-blur-xl sm:rounded-3xl sm:p-8">
   <div class="mb-6 border-b border-white/10 pb-4 sm:mb-8">
     <h2 id="sale-form-title" class="text-2xl font-bold sm:text-3xl">📝 New Sale</h2>
     <p class="mt-2 text-sm text-gray-300">Create a new invoice, add customer details and products.</p>
@@ -278,10 +324,28 @@ require __DIR__ . '/includes/header.php';
     });
   }
 
+  function animateStat(el, value) {
+    const target = Number(value) || 0;
+    const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) {
+      el.textContent = "₹" + formatMoney(target);
+      return;
+    }
+    const start = performance.now();
+    const dur = 900;
+    function tick(now) {
+      const t = Math.min(1, (now - start) / dur);
+      const eased = 1 - Math.pow(1 - t, 3);
+      el.textContent = "₹" + formatMoney(target * eased);
+      if (t < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
   async function loadDashboard() {
     const stats = await api("/api/dashboard.php");
     document.querySelectorAll("[data-stat]").forEach((el) => {
-      el.textContent = "₹" + formatMoney(stats[el.dataset.stat] || 0);
+      animateStat(el, stats[el.dataset.stat] || 0);
     });
   }
 
@@ -498,6 +562,7 @@ require __DIR__ . '/includes/header.php';
     document.getElementById("ref-mobile").value = "";
     setDateField("sale-date", "sale-date-picker", todayIsoDate());
     document.getElementById("sale-form").classList.remove("hidden");
+    document.getElementById("sale-form").scrollIntoView({ behavior: "smooth", block: "start" });
     renderRows();
     loadNextInvoice();
   });
