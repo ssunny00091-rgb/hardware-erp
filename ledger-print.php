@@ -169,7 +169,6 @@ $waCaption = whatsapp_ledger_text($company, $ledger);
         element: document.getElementById("ledger-sheet"),
         filename: <?= json_encode($waFilename, JSON_UNESCAPED_UNICODE) ?>,
         phone: <?= json_encode($waPhone, JSON_UNESCAPED_UNICODE) ?>,
-        caption: <?= json_encode($waCaption, JSON_UNESCAPED_UNICODE) ?>,
       };
       bindWhatsAppPdfButton(btn, ctx);
       <?php if ($autoWaPdf): ?>

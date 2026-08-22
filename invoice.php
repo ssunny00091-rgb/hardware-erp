@@ -77,7 +77,6 @@ $autoWaPdf = isset($_GET['whatsapp']);
 $waPhone = trim((string) ($_GET['phone'] ?? $sale['mobile'] ?? ''));
 $safeInv = preg_replace('/[^A-Za-z0-9._-]+/', '-', (string) ($sale['invoice_no'] ?? 'invoice')) ?: 'invoice';
 $waFilename = 'Invoice-' . $safeInv . '.pdf';
-$waCaption = whatsapp_invoice_text($company, $sale, $items);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -240,7 +239,6 @@ $waCaption = whatsapp_invoice_text($company, $sale, $items);
         element: document.querySelector("article.invoice"),
         filename: <?= json_encode($waFilename, JSON_UNESCAPED_UNICODE) ?>,
         phone: <?= json_encode($waPhone, JSON_UNESCAPED_UNICODE) ?>,
-        caption: <?= json_encode($waCaption, JSON_UNESCAPED_UNICODE) ?>,
       };
       bindWhatsAppPdfButton(btn, ctx);
       <?php if ($autoWaPdf): ?>

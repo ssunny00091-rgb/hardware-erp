@@ -914,8 +914,6 @@ require __DIR__ . '/includes/header.php';
         element: sheet,
         filename: "Invoice-" + String(result.invoice_no).replace(/[^A-Za-z0-9._-]+/g, "-") + ".pdf",
         phone: customer.mobile,
-        caption: (window.COMPANY && window.COMPANY.name ? window.COMPANY.name : "Hardware Store") +
-          " — Tax Invoice " + result.invoice_no,
       });
       if (sent === "download") {
         alert("PDF save ho gaya. WhatsApp mein 📎 se wahi Invoice PDF attach karke customer ko bhejo.");

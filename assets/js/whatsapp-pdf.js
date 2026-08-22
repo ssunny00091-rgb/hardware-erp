@@ -11,9 +11,9 @@ function whatsappDigitsJs(phone) {
 function whatsappChatUrl(phone, text) {
   const n = whatsappDigitsJs(phone);
   if (!n) return "";
-  let msg = String(text || "");
-  if (msg.length > 3500) {
-    msg = msg.slice(0, 3400) + "\n\n...baaki detail bill PDF mein hai.";
+  const msg = String(text || "");
+  if (msg === "") {
+    return "https://wa.me/" + n;
   }
   return "https://wa.me/" + n + "?text=" + encodeURIComponent(msg);
 }
@@ -32,13 +32,15 @@ function downloadBlobFile(blob, filename) {
 
 function cloneInvoiceForPdf(sourceEl) {
   const wrap = document.createElement("div");
-  wrap.className = "invoice-page";
-  wrap.style.cssText = "position:fixed;left:-12000px;top:0;width:190mm;background:#fff;z-index:-1;padding:0;margin:0;";
+  wrap.setAttribute("data-pdf-capture", "1");
+  wrap.style.cssText =
+    "position:fixed;left:0;top:0;width:794px;max-width:794px;background:#fff;color:#000;z-index:2147483000;padding:16px;box-sizing:border-box;overflow:visible;";
   const clone = sourceEl.cloneNode(true);
-  clone.style.width = "190mm";
-  clone.style.maxWidth = "190mm";
+  clone.style.width = "762px";
+  clone.style.maxWidth = "762px";
   clone.style.margin = "0";
   clone.style.background = "#fff";
+  clone.style.color = "#000";
   wrap.appendChild(clone);
   document.body.appendChild(wrap);
   return { wrap, clone };
@@ -46,24 +48,38 @@ function cloneInvoiceForPdf(sourceEl) {
 
 async function invoiceElementToPdfBlob(sourceEl, filename) {
   if (typeof html2pdf !== "function") {
-    throw new Error("PDF library load nahi hui. Page refresh karke phir try karo.");
+    throw new Error("PDF library load nahi hui. Ctrl+F5 karke page refresh karo.");
   }
   const { wrap, clone } = cloneInvoiceForPdf(sourceEl);
   try {
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     const opt = {
       margin: [8, 8, 8, 8],
       filename: filename,
-      image: { type: "jpeg", quality: 0.98 },
+      image: { type: "jpeg", quality: 0.95 },
       html2canvas: {
         scale: 2,
         useCORS: true,
         logging: false,
         backgroundColor: "#ffffff",
+        scrollX: 0,
+        scrollY: 0,
         windowWidth: 794,
       },
       jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
       pagebreak: { mode: ["css", "legacy"] },
     };
+    const worker = html2pdf().set(opt).from(clone);
+    let pdfDoc = null;
+    try {
+      pdfDoc = await worker.toPdf().get("pdf");
+    } catch (err) {
+      pdfDoc = null;
+    }
+    if (pdfDoc && typeof pdfDoc.output === "function") {
+      const out = pdfDoc.output("blob");
+      if (out instanceof Blob) return out;
+    }
     let blob = await html2pdf().set(opt).from(clone).outputPdf("blob");
     if (blob instanceof Uint8Array) {
       blob = new Blob([blob], { type: "application/pdf" });
@@ -81,7 +97,6 @@ async function shareInvoicePdfToWhatsApp(options) {
   const sourceEl = options.element;
   const filename = options.filename || "Invoice.pdf";
   let phone = String(options.phone || "").trim();
-  const caption = String(options.caption || filename);
 
   if (!sourceEl) {
     throw new Error("Invoice preview nahi mili.");
@@ -103,11 +118,7 @@ async function shareInvoicePdfToWhatsApp(options) {
 
   if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
     try {
-      await navigator.share({
-        files: [file],
-        title: filename,
-        text: caption,
-      });
+      await navigator.share({ files: [file], title: filename });
       return "shared";
     } catch (err) {
       if (err && err.name === "AbortError") {
@@ -117,10 +128,7 @@ async function shareInvoicePdfToWhatsApp(options) {
   }
 
   downloadBlobFile(blob, filename);
-  const extra =
-    caption +
-    "\n\nBill ka PDF (Invoice Preview jaisa) download ho gaya hai.\nWhatsApp mein 📎 Attach document se wahi PDF bhejein, phir Send dabayein.";
-  const url = whatsappChatUrl(phone, extra);
+  const url = whatsappChatUrl(phone, "");
   if (url) {
     window.open(url, "_blank");
   }
@@ -138,7 +146,7 @@ async function bindWhatsAppPdfButton(btn, getContext) {
       const ctx = typeof getContext === "function" ? getContext() : getContext;
       const result = await shareInvoicePdfToWhatsApp(ctx);
       if (result === "download") {
-        alert("PDF save ho gaya. WhatsApp chat khul gaya — 📎 se wahi PDF attach karke customer ko bhejo.");
+        alert("PDF download ho gaya. Customer ko TEXT mat bhejo — WhatsApp mein 📎 se sirf yeh PDF attach karke Send karo.");
       }
     } catch (err) {
       alert(err.message || String(err));

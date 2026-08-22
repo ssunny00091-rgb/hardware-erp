@@ -167,6 +167,7 @@ function actionSummary(actions) {
       const s = r.summary || {};
       return "Profit ₹" + formatMoney(s.profit || 0) + " · Sale ₹" + formatMoney(s.sales || 0);
     }
+    if (a.tool === "get_invoice_detail") {
       return (r.kind === "purchase" ? "Purchase " : "Invoice ") + (r.invoice_no || r.id || "") + " · ₹" + formatMoney(r.total || 0);
     }
     if (a.tool === "add_or_update_party") return (r.type || "party") + " · " + (r.name || "");
@@ -277,7 +278,11 @@ async function sendChat(text) {
   filesNow.forEach((file, i) => form.append("files[]", file, "page-" + (i + 1) + "-" + file.name));
 
   try {
-    const response = await fetch(appUrl("/api/assistant.php"), { method: "POST", body: form });
+    const response = await fetch(appUrl("/api/assistant.php"), {
+      method: "POST",
+      headers: { "X-Requested-With": "fetch", Accept: "application/json" },
+      body: form,
+    });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || "Assistant fail");
     const reply = data.reply || "Ho gaya.";

@@ -1475,6 +1475,19 @@ function assistant_chat(PDO $pdo, string $userText, array $history, array $fileP
         $toolCalls = $choice['tool_calls'] ?? [];
         if (!is_array($toolCalls) || $toolCalls === []) {
             $reply = assistant_text_from_message($choice['content'] ?? '');
+            if ($reply === '') {
+                try {
+                    $nudge = $messages;
+                    $nudge[] = [
+                        'role' => 'user',
+                        'content' => 'Ab simple Hindi mein jawab likho. Jo table/data tools se aaya hai usko summarise karo.',
+                    ];
+                    $resp2 = openrouter_complete($nudge, false);
+                    $reply = assistant_text_from_message($resp2['choices'][0]['message']['content'] ?? '');
+                } catch (Throwable $e) {
+                    $reply = '';
+                }
+            }
             break;
         }
         foreach ($toolCalls as $call) {
