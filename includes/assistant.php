@@ -6,19 +6,20 @@ require_once __DIR__ . '/reports.php';
 
 function openrouter_config(): array
 {
-    $key = trim((string) (getenv('OPENROUTER_API_KEY') ?: ($_ENV['OPENROUTER_API_KEY'] ?? '')));
+    $key = normalize_openrouter_key((string) (getenv('OPENROUTER_API_KEY') ?: ($_ENV['OPENROUTER_API_KEY'] ?? $_SERVER['OPENROUTER_API_KEY'] ?? '')));
     $model = trim((string) (getenv('OPENROUTER_MODEL') ?: ($_ENV['OPENROUTER_MODEL'] ?? 'google/gemini-2.5-flash')));
     $maxTokens = (int) (getenv('OPENROUTER_MAX_TOKENS') ?: ($_ENV['OPENROUTER_MAX_TOKENS'] ?? 4000));
     if ($maxTokens < 256) {
         $maxTokens = 256;
     }
-    if ($maxTokens > 8000) {
-        $maxTokens = 8000;
+    if ($maxTokens > 16000) {
+        $maxTokens = 16000;
     }
     return [
         'api_key' => $key,
         'model' => $model !== '' ? $model : 'google/gemini-2.5-flash',
         'max_tokens' => $maxTokens,
+        'env_path' => APP_ROOT . DIRECTORY_SEPARATOR . '.env',
     ];
 }
 
@@ -969,36 +970,144 @@ function assistant_tool_purchases(PDO $pdo): array
     return ['purchases' => $rows];
 }
 
-function http_post_json(string $url, array $headers, array $payload, int $timeout = 120): array
+function openrouter_error_hindi(int $code, string $rawMsg): string
 {
-    $body = json_encode($payload, JSON_UNESCAPED_UNICODE);
-    if ($body === false) {
-        throw new RuntimeException('Request encode nahi hua');
+    $msg = trim($rawMsg);
+    $low = strtolower($msg);
+    if ($code === 401 || str_contains($low, 'user not found') || str_contains($low, 'invalid api') || str_contains($low, 'unauthorized') || str_contains($low, 'no cookie') || str_contains($low, 'missing authentication')) {
+        return 'OpenRouter key galat / expire hai. openrouter.ai/keys se naya key copy karo — sirf sk-or-v1- se start hona chahiye (ChatGPT/OpenAI key nahi chalega). Quotes ke bina paste karo.';
     }
-    if (function_exists('curl_init')) {
-        $ch = curl_init($url);
-        $hdr = [];
-        foreach ($headers as $k => $v) {
-            $hdr[] = is_int($k) ? (string) $v : $k . ': ' . $v;
+    if ($code === 402 || str_contains($low, 'insufficient') || str_contains($low, 'credits') || str_contains($low, 'payment required')) {
+        return 'OpenRouter account mein credits khatam hain. openrouter.ai/settings/credits pe credits add karo, phir try karo.';
+    }
+    if ($code === 403 || str_contains($low, 'forbidden')) {
+        return 'Is OpenRouter key ko is model ki permission nahi hai. Dusra model try karo, ya key permissions check karo.';
+    }
+    if ($code === 429 || str_contains($low, 'rate limit')) {
+        return 'OpenRouter rate limit. 20 second baad phir Send dabao.';
+    }
+    if ($code === 404 || str_contains($low, 'not a valid model') || str_contains($low, 'no endpoints')) {
+        return 'Model ID galat hai. google/gemini-2.5-flash likho, Save key, phir try.';
+    }
+    if ($msg === '') {
+        return 'OpenRouter error (HTTP ' . $code . '). Internet aur key check karo.';
+    }
+    return 'OpenRouter: ' . $msg;
+}
+
+function openrouter_headers(?string $apiKey = null): array
+{
+    $key = $apiKey !== null ? normalize_openrouter_key($apiKey) : openrouter_config()['api_key'];
+    return [
+        'Authorization: Bearer ' . $key,
+        'Content-Type: application/json',
+        'HTTP-Referer: https://github.com/ssunny00091-rgb/hardware-erp',
+        'X-Title: Hardware ERP Assistant',
+        'X-OpenRouter-Title: Hardware ERP Assistant',
+    ];
+}
+
+function openrouter_ca_file(): string
+{
+    $candidates = [
+        APP_ROOT . '/config/cacert.pem',
+        (string) ini_get('curl.cainfo'),
+        (string) ini_get('openssl.cafile'),
+    ];
+    foreach ($candidates as $path) {
+        if ($path !== '' && is_readable($path)) {
+            return $path;
         }
-        curl_setopt_array($ch, [
-            CURLOPT_POST => true,
-            CURLOPT_HTTPHEADER => $hdr,
-            CURLOPT_POSTFIELDS => $body,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => $timeout,
-        ]);
-        $raw = curl_exec($ch);
-        $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $err = curl_error($ch);
-        curl_close($ch);
-        if ($raw === false) {
+    }
+    return '';
+}
+
+function openrouter_is_ssl_error(string $err): bool
+{
+    $err = strtolower($err);
+    return str_contains($err, 'ssl')
+        || str_contains($err, 'certificate')
+        || str_contains($err, 'cert')
+        || str_contains($err, 'cainfo')
+        || str_contains($err, 'ca bundle');
+}
+
+function openrouter_http(string $method, string $url, ?array $payload = null, ?string $apiKey = null, int $timeout = 120): array
+{
+    $body = null;
+    if ($payload !== null) {
+        $body = json_encode($payload, JSON_UNESCAPED_UNICODE);
+        if ($body === false) {
+            throw new RuntimeException('Request encode nahi hua');
+        }
+    }
+    $headers = openrouter_headers($apiKey);
+
+    if (function_exists('curl_init')) {
+        $attempt = static function (bool $insecure) use ($method, $url, $headers, $body, $timeout): array {
+            $ch = curl_init($url);
+            $opts = [
+                CURLOPT_CUSTOMREQUEST => $method,
+                CURLOPT_HTTPHEADER => $headers,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => $timeout,
+                CURLOPT_CONNECTTIMEOUT => 25,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            ];
+            if (defined('CURL_IPRESOLVE_V4')) {
+                $opts[CURLOPT_IPRESOLVE] = CURL_IPRESOLVE_V4;
+            }
+            if ($body !== null) {
+                $opts[CURLOPT_POSTFIELDS] = $body;
+            }
+            $ca = openrouter_ca_file();
+            if ($insecure) {
+                $opts[CURLOPT_SSL_VERIFYPEER] = false;
+                $opts[CURLOPT_SSL_VERIFYHOST] = 0;
+            } elseif ($ca !== '') {
+                $opts[CURLOPT_CAINFO] = $ca;
+                $opts[CURLOPT_SSL_VERIFYPEER] = true;
+            }
+            curl_setopt_array($ch, $opts);
+            $raw = curl_exec($ch);
+            $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $err = curl_error($ch);
+            curl_close($ch);
+            return ['raw' => $raw, 'code' => $code, 'err' => $err];
+        };
+
+        $res = $attempt(false);
+        if ($res['raw'] === false && openrouter_is_ssl_error((string) $res['err'])) {
+            $res = $attempt(true);
+        }
+        if ($res['raw'] === false) {
+            $err = trim((string) $res['err']);
+            if (openrouter_is_ssl_error($err)) {
+                throw new RuntimeException('OpenRouter SSL fail. XAMPP mein internet/SSL issue hai. Apache restart karke phir try karo. Detail: ' . $err);
+            }
+            if ($err === '') {
+                throw new RuntimeException('OpenRouter connect fail. Internet check karo, firewall mein openrouter.ai allow karo.');
+            }
             throw new RuntimeException('OpenRouter connect fail: ' . $err);
         }
-        $decoded = json_decode((string) $raw, true);
+        $decoded = json_decode((string) $res['raw'], true);
+        $code = (int) $res['code'];
         if ($code >= 400) {
-            $msg = is_array($decoded) ? (string) ($decoded['error']['message'] ?? $decoded['error'] ?? $raw) : (string) $raw;
-            throw new RuntimeException('OpenRouter: ' . $msg);
+            $msg = '';
+            if (is_array($decoded)) {
+                $err = $decoded['error'] ?? null;
+                if (is_array($err)) {
+                    $msg = (string) ($err['message'] ?? json_encode($err));
+                } elseif (is_string($err)) {
+                    $msg = $err;
+                } else {
+                    $msg = (string) $res['raw'];
+                }
+            } else {
+                $msg = (string) $res['raw'];
+            }
+            throw new RuntimeException(openrouter_error_hindi($code, $msg));
         }
         if (!is_array($decoded)) {
             throw new RuntimeException('OpenRouter ne galat jawab diya');
@@ -1006,31 +1115,67 @@ function http_post_json(string $url, array $headers, array $payload, int $timeou
         return $decoded;
     }
 
-    $headerLines = '';
-    foreach ($headers as $k => $v) {
-        $headerLines .= (is_int($k) ? (string) $v : $k . ': ' . $v) . "\r\n";
+    if (!ini_get('allow_url_fopen')) {
+        throw new RuntimeException('PHP curl band hai. XAMPP php.ini mein extension=curl uncomment karo, Apache restart.');
+    }
+    $ca = openrouter_ca_file();
+    $ssl = ['verify_peer' => true, 'verify_peer_name' => true];
+    if ($ca !== '') {
+        $ssl['cafile'] = $ca;
     }
     $ctx = stream_context_create([
         'http' => [
-            'method' => 'POST',
-            'header' => $headerLines . "Content-Type: application/json\r\n",
-            'content' => $body,
+            'method' => $method,
+            'header' => implode("\r\n", $headers),
+            'content' => $body ?? '',
             'timeout' => $timeout,
             'ignore_errors' => true,
         ],
+        'ssl' => $ssl,
     ]);
-    $raw = file_get_contents($url, false, $ctx);
+    $raw = @file_get_contents($url, false, $ctx);
     if ($raw === false) {
-        throw new RuntimeException('OpenRouter connect fail');
+        throw new RuntimeException('OpenRouter connect fail. php.ini mein extension=curl on karo (XAMPP).');
     }
     $decoded = json_decode($raw, true);
+    if (is_array($decoded) && isset($decoded['error'])) {
+        $err = $decoded['error'];
+        $msg = is_array($err) ? (string) ($err['message'] ?? json_encode($err)) : (string) $err;
+        throw new RuntimeException(openrouter_error_hindi(0, $msg));
+    }
     if (!is_array($decoded)) {
         throw new RuntimeException('OpenRouter ne galat jawab diya');
     }
-    if (isset($decoded['error'])) {
-        throw new RuntimeException('OpenRouter: ' . (string) ($decoded['error']['message'] ?? json_encode($decoded['error'])));
-    }
     return $decoded;
+}
+
+function openrouter_test_key(string $apiKey): array
+{
+    $apiKey = normalize_openrouter_key($apiKey);
+    if ($apiKey === '') {
+        return ['ok' => false, 'error' => 'Key khali hai'];
+    }
+    if (!str_starts_with($apiKey, 'sk-or-')) {
+        return [
+            'ok' => false,
+            'error' => 'Yeh OpenRouter key nahi lagti. sk-or-v1- se start honi chahiye. OpenAI/ChatGPT key yahan nahi chalti.',
+        ];
+    }
+    try {
+        $data = openrouter_http('GET', 'https://openrouter.ai/api/v1/key', null, $apiKey, 40);
+        $info = is_array($data['data'] ?? null) ? $data['data'] : $data;
+        $remaining = $info['limit_remaining'] ?? $info['limitRemaining'] ?? null;
+        if ($remaining !== null && is_numeric($remaining) && (float) $remaining <= 0) {
+            return [
+                'ok' => false,
+                'error' => 'Key sahi hai lekin credits 0 hain. openrouter.ai/settings/credits pe add karo.',
+                'info' => $info,
+            ];
+        }
+        return ['ok' => true, 'info' => $info];
+    } catch (Throwable $e) {
+        return ['ok' => false, 'error' => $e->getMessage()];
+    }
 }
 
 function openrouter_complete(array $messages, bool $withTools = true): array
@@ -1039,26 +1184,46 @@ function openrouter_complete(array $messages, bool $withTools = true): array
     if ($cfg['api_key'] === '') {
         throw new RuntimeException('OpenRouter API key nahi mili. Assistant page pe key save karo.');
     }
+    $primary = $cfg['model'];
+    $fallbacks = array_values(array_unique(array_filter([
+        $primary,
+        'google/gemini-2.5-flash',
+        'google/gemini-2.0-flash-001',
+        'openai/gpt-4o-mini',
+    ])));
     $payload = [
-        'model' => $cfg['model'],
+        'model' => $primary,
+        'models' => $fallbacks,
+        'route' => 'fallback',
         'messages' => $messages,
         'temperature' => 0.2,
-        'max_tokens' => $cfg['max_tokens'],
+        'max_tokens' => max(1024, $cfg['max_tokens']),
+        'reasoning' => ['effort' => 'none'],
     ];
     if ($withTools) {
         $payload['tools'] = assistant_tool_schemas();
         $payload['tool_choice'] = 'auto';
     }
-    return http_post_json(
-        'https://openrouter.ai/api/v1/chat/completions',
-        [
-            'Authorization: Bearer ' . $cfg['api_key'],
-            'Content-Type: application/json',
-            'HTTP-Referer: https://github.com/ssunny00091-rgb/hardware-erp',
-            'X-Title: Hardware ERP Assistant',
-        ],
-        $payload
-    );
+    try {
+        return openrouter_http(
+            'POST',
+            'https://openrouter.ai/api/v1/chat/completions',
+            $payload,
+            $cfg['api_key']
+        );
+    } catch (Throwable $e) {
+        $msg = strtolower($e->getMessage());
+        if (isset($payload['reasoning']) && (str_contains($msg, 'reasoning') || str_contains($msg, 'unknown'))) {
+            unset($payload['reasoning']);
+            return openrouter_http(
+                'POST',
+                'https://openrouter.ai/api/v1/chat/completions',
+                $payload,
+                $cfg['api_key']
+            );
+        }
+        throw $e;
+    }
 }
 
 function assistant_text_from_message(mixed $content): string

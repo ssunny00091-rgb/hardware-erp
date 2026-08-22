@@ -62,6 +62,14 @@ OPENROUTER_API_KEY=sk-or-v1-...
 OPENROUTER_MODEL=google/gemini-2.5-flash
 ```
 
+Key kaam na kare to:
+
+1. Key `sk-or-v1-` se start honi chahiye (ChatGPT key nahi).
+2. Assistant page pe **Save + test key** dabao — asli error dikhega.
+3. [Credits](https://openrouter.ai/settings/credits) 0 na hon.
+4. XAMPP `php.ini` mein `extension=curl` on, Apache restart.
+5. Quotes (`"`) ke bina paste karo.
+
 ## Tables
 
 | Table | Kaam |

@@ -383,29 +383,82 @@ document.querySelectorAll('input[name="voice-lang"]').forEach((el) => {
 });
 applyVoiceLang(localStorage.getItem("assistantVoiceLang") || "hi-IN");
 
+function applyKeyStatus(data) {
+  const test = data.test || null;
+  const testOk = test ? !!test.ok : !!data.configured;
+  const testMsg = document.getElementById("or-test-msg");
+  if (data.configured && testOk) {
+    keyStatus.textContent = "OpenRouter ready · " + (data.model || "");
+    keyStatus.className = "text-sm text-emerald-300";
+  } else if (data.configured && test && !test.ok) {
+    keyStatus.textContent = "Key save hai, lekin OpenRouter reject kar raha hai";
+    keyStatus.className = "text-sm text-amber-300";
+  } else {
+    keyStatus.textContent = "Pehle OpenRouter API key save karo (neeche)";
+    keyStatus.className = "text-sm text-amber-300";
+  }
+  if (testMsg) {
+    if (test && test.ok) {
+      testMsg.textContent = "Test OK — OpenRouter key chal rahi hai.";
+      testMsg.className = "mt-2 text-sm text-emerald-300";
+    } else if (test && test.error) {
+      testMsg.textContent = test.error;
+      testMsg.className = "mt-2 text-sm text-rose-300";
+    } else {
+      testMsg.textContent = data.curl === false
+        ? "Warning: PHP curl band hai. XAMPP php.ini mein extension=curl on karo, Apache restart."
+        : "";
+    }
+  }
+  if (data.model) document.getElementById("or-model").placeholder = data.model;
+}
+
+async function saveOrTestKey(mode) {
+  const typed = document.getElementById("or-key").value.trim();
+  const body = {
+    openrouter_model: document.getElementById("or-model").value.trim(),
+  };
+  if (mode === "save") {
+    if (!typed) {
+      alert("Pehle OpenRouter key paste karo (sk-or-v1-...).");
+      return;
+    }
+    body.openrouter_api_key = typed;
+  } else if (typed) {
+    body.openrouter_api_key = typed;
+  } else {
+    body.test_openrouter = true;
+  }
+  const data = await api("/api/assistant.php", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+  applyKeyStatus(data);
+  if (data.test && data.test.ok) {
+    alert(mode === "test" ? "Key test OK" : "Key save + test OK");
+  } else {
+    alert((data.test && data.test.error) || "Key test fail");
+  }
+}
+
 btnSaveKey.addEventListener("click", async () => {
   try {
-    const data = await api("/api/assistant.php", {
-      method: "POST",
-      body: JSON.stringify({
-        openrouter_api_key: document.getElementById("or-key").value.trim(),
-        openrouter_model: document.getElementById("or-model").value.trim(),
-      }),
-    });
-    keyStatus.textContent = data.configured ? "OpenRouter ready ✓" : "Key save hui, lekin khali hai";
-    keyStatus.className = "text-sm " + (data.configured ? "text-emerald-300" : "text-amber-300");
-    alert("Key save ho gayi");
+    await saveOrTestKey("save");
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+document.getElementById("btn-test-key").addEventListener("click", async () => {
+  try {
+    await saveOrTestKey("test");
   } catch (err) {
     alert(err.message);
   }
 });
 
 api("/api/assistant.php").then((data) => {
-  keyStatus.textContent = data.configured
-    ? "OpenRouter ready · " + (data.model || "")
-    : "Pehle OpenRouter API key save karo (neeche)";
-  keyStatus.className = "text-sm " + (data.configured ? "text-emerald-300" : "text-amber-300");
-  if (data.model) document.getElementById("or-model").placeholder = data.model;
+  applyKeyStatus(data);
 }).catch((err) => {
   keyStatus.textContent = err.message;
 });

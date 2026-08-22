@@ -13,6 +13,8 @@ try {
         json_response([
             'configured' => $cfg['api_key'] !== '',
             'model' => $cfg['model'],
+            'env_path' => $cfg['env_path'] ?? '',
+            'curl' => function_exists('curl_init'),
         ]);
     }
 
@@ -26,15 +28,29 @@ try {
         $payload = is_array($decoded) ? $decoded : [];
     }
 
-    if (isset($payload['openrouter_api_key'])) {
-        $key = trim((string) $payload['openrouter_api_key']);
+    if (isset($payload['openrouter_api_key']) || !empty($payload['test_openrouter'])) {
+        $current = openrouter_config();
+        $key = isset($payload['openrouter_api_key'])
+            ? normalize_openrouter_key((string) $payload['openrouter_api_key'])
+            : $current['api_key'];
         $model = trim((string) ($payload['openrouter_model'] ?? ''));
-        $save = ['OPENROUTER_API_KEY' => $key];
-        if ($model !== '') {
-            $save['OPENROUTER_MODEL'] = $model;
+        if (isset($payload['openrouter_api_key'])) {
+            $save = ['OPENROUTER_API_KEY' => $key];
+            if ($model !== '') {
+                $save['OPENROUTER_MODEL'] = $model;
+            }
+            save_env_file($save);
         }
-        save_env_file($save);
-        json_response(['ok' => true, 'configured' => $key !== '']);
+        $test = $key !== ''
+            ? openrouter_test_key($key)
+            : ['ok' => false, 'error' => 'Key khali hai'];
+        json_response([
+            'ok' => true,
+            'saved' => isset($payload['openrouter_api_key']),
+            'configured' => $key !== '',
+            'model' => $model !== '' ? $model : $current['model'],
+            'test' => $test,
+        ]);
     }
 
     $pdo = db();

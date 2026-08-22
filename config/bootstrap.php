@@ -6,19 +6,44 @@ if (!defined('APP_ROOT')) {
     define('APP_ROOT', dirname(__DIR__));
 }
 
+function strip_env_quotes(string $value): string
+{
+    $value = trim($value);
+    $value = preg_replace('/^\xEF\xBB\xBF/u', '', $value) ?? $value;
+    $value = trim($value);
+    $len = strlen($value);
+    if ($len >= 2) {
+        $a = $value[0];
+        $b = $value[$len - 1];
+        if (($a === '"' && $b === '"') || ($a === "'" && $b === "'")) {
+            return stripcslashes(substr($value, 1, -1));
+        }
+    }
+    return $value;
+}
+
 function parse_env_line(string $line): ?array
 {
     $line = trim($line);
+    $line = preg_replace('/^\xEF\xBB\xBF/u', '', $line) ?? $line;
     if ($line === '' || str_starts_with($line, '#')) {
         return null;
     }
     [$key, $value] = array_pad(explode('=', $line, 2), 2, '');
     $key = trim($key);
-    $value = trim($value);
+    $value = strip_env_quotes($value);
     if ($key === '') {
         return null;
     }
     return [$key, $value];
+}
+
+function normalize_openrouter_key(string $key): string
+{
+    $key = strip_env_quotes($key);
+    $key = preg_replace('/^Bearer\s+/i', '', $key) ?? $key;
+    $key = preg_replace('/[\s\x00-\x1F\x7F\x{200B}-\x{200D}\x{FEFF}]+/u', '', $key) ?? $key;
+    return trim($key);
 }
 
 function read_env_file(?string $path = null): array
@@ -50,7 +75,11 @@ function save_env_file(array $values): void
 {
     $merged = read_env_file();
     foreach ($values as $key => $value) {
-        $merged[(string) $key] = str_replace(["\r", "\n"], '', (string) $value);
+        $v = str_replace(["\r", "\n"], '', (string) $value);
+        if ($key === 'OPENROUTER_API_KEY') {
+            $v = normalize_openrouter_key($v);
+        }
+        $merged[(string) $key] = $v;
     }
     $lines = [];
     foreach ($merged as $key => $value) {
