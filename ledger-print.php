@@ -62,19 +62,10 @@ $typeLabel = ucfirst((string) $party['type']);
 $printedOn = date('d/m/Y');
 $autoPrint = isset($_GET['print']);
 
-if (isset($_GET['whatsapp'])) {
-    $phone = trim((string) ($_GET['phone'] ?? $party['mobile'] ?? ''));
-    if (whatsapp_digits($phone) === '') {
-        http_response_code(400);
-        echo 'Is party ka mobile nahi hai.';
-        exit;
-    }
-    header('Location: ' . whatsapp_url($phone, whatsapp_ledger_text($company, $ledger)));
-    exit;
-}
-$waLedger = whatsapp_digits((string) ($party['mobile'] ?? '')) !== ''
-    ? app_url('ledger-print.php?id=' . $id . '&whatsapp=1')
-    : '';
+$autoWaPdf = isset($_GET['whatsapp']);
+$waPhone = trim((string) ($_GET['phone'] ?? $party['mobile'] ?? ''));
+$waFilename = $filename . '.pdf';
+$waCaption = whatsapp_ledger_text($company, $ledger);
 ?>
 <!DOCTYPE html>
 <html lang="hi">
@@ -108,11 +99,10 @@ $waLedger = whatsapp_digits((string) ($party['mobile'] ?? '')) !== ''
     <div class="no-print">
       <button type="button" class="btn" style="background:#2563eb" onclick="window.print()">🖨️ Print / Save PDF</button>
       <a class="btn" style="background:#059669" href="<?= $h(app_url('ledger-print.php?id=' . $id . '&format=csv')) ?>">⬇ Excel (CSV)</a>
-      <?php if ($waLedger !== ''): ?>
-        <a class="btn" style="background:#16a34a" href="<?= $h($waLedger) ?>">WhatsApp</a>
-      <?php endif; ?>
+      <button type="button" class="btn" id="btn-wa-pdf" style="background:#16a34a">WhatsApp PDF</button>
       <a class="btn" style="background:#475569" href="<?= $h(app_url('ledger.php')) ?>">← Ledger</a>
     </div>
+    <div id="ledger-sheet">
     <div class="head">
       <h1><?= $h($company['name'] ?? '') ?></h1>
       <p><?= $h($company['address_line1'] ?? '') ?></p>
@@ -168,7 +158,25 @@ $waLedger = whatsapp_digits((string) ($party['mobile'] ?? '')) !== ''
       </tbody>
     </table>
     <p style="margin-top:28px;font-size:12px;color:#444">Yeh statement <?= $h($company['name'] ?? '') ?> ke records se nikala gaya hai.</p>
+    </div>
   </div>
+  <script src="<?= $h(app_url('assets/vendor/html2pdf.bundle.min.js')) ?>"></script>
+  <script src="<?= $h(app_url('assets/js/whatsapp-pdf.js')) ?>"></script>
+  <script>
+    (function () {
+      const btn = document.getElementById("btn-wa-pdf");
+      const ctx = {
+        element: document.getElementById("ledger-sheet"),
+        filename: <?= json_encode($waFilename, JSON_UNESCAPED_UNICODE) ?>,
+        phone: <?= json_encode($waPhone, JSON_UNESCAPED_UNICODE) ?>,
+        caption: <?= json_encode($waCaption, JSON_UNESCAPED_UNICODE) ?>,
+      };
+      bindWhatsAppPdfButton(btn, ctx);
+      <?php if ($autoWaPdf): ?>
+      window.addEventListener("load", function () { btn.click(); });
+      <?php endif; ?>
+    })();
+  </script>
   <?php if ($autoPrint): ?>
     <script>window.addEventListener("load", () => window.print());</script>
   <?php endif; ?>

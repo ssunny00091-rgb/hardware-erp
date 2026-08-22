@@ -32,6 +32,8 @@ html, body.invoice-page {
 }
 
 .no-print a { background: #334155; }
+.no-print button.wa-btn,
+.no-print a.wa-btn { background: #16a34a; }
 
 .invoice {
   width: 190mm;

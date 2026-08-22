@@ -182,6 +182,7 @@ require __DIR__ . '/includes/header.php';
     <div class="sticky bottom-0 flex flex-wrap justify-center gap-2 border-t bg-white p-3 print-hide sm:gap-4 sm:p-4">
       <button type="button" id="btn-edit-sale" class="w-full rounded-lg bg-gray-600 px-5 py-2 text-white sm:w-auto">✏️ Edit</button>
       <button type="button" id="btn-print-invoice" class="w-full rounded-lg bg-blue-600 px-5 py-2 text-white sm:w-auto">🖨️ Print</button>
+      <button type="button" id="btn-wa-preview" class="w-full rounded-lg bg-green-600 px-5 py-2 text-white sm:w-auto">📲 WhatsApp PDF</button>
       <button type="button" id="btn-confirm-save" class="w-full rounded-lg bg-purple-600 px-5 py-2 text-white sm:w-auto">💾 Save Sale</button>
     </div>
   </div>
@@ -470,6 +471,9 @@ require __DIR__ . '/includes/header.php';
                 <div class="section-lbl">Invoice Details</div>
                 <div class="meta-line"><span>Invoice No.</span><span>${escapeHtml(no)}</span></div>
                 <div class="meta-line"><span>Date</span><span>${invoiceDateLabel()}</span></div>
+                ${balance > 0.009 && document.getElementById("sale-due-date") && document.getElementById("sale-due-date").value
+                  ? '<div class="meta-line"><span>Due Date</span><span>' + escapeHtml(document.getElementById("sale-due-date").value) + "</span></div>"
+                  : ""}
                 ${customer.ref_type && customer.ref_name ? '<div class="meta-line"><span>' + escapeHtml(customer.ref_type) + '</span><span>' + escapeHtml(customer.ref_name) + '</span></div>' : ""}
               </td>
             </tr>
@@ -844,29 +848,34 @@ require __DIR__ . '/includes/header.php';
     printInvoiceSheet(invoiceSheetHtml(currentCustomer(), products, total));
   });
 
+  async function persistCurrentSale() {
+    const customer = currentCustomer();
+    const products = validProducts();
+    const editId = document.getElementById("editing-sale-id").value;
+    const payload = {
+      customer_name: customer.name,
+      mobile: customer.mobile,
+      address: customer.address,
+      gst: customer.gst,
+      ref_type: customer.ref_type,
+      ref_name: customer.ref_name,
+      ref_mobile: customer.ref_mobile,
+      products,
+      received: saleReceivedAmount(),
+      sale_date: saleDateIso(),
+      due_date: payMode() === "full" ? "" : parseToIsoDate(document.getElementById("sale-due-date").value),
+    };
+    if (editId) payload.id = Number(editId);
+    return api("/api/sales.php" + (editId ? "?id=" + editId : ""), {
+      method: editId ? "PUT" : "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
   document.getElementById("btn-confirm-save").addEventListener("click", async () => {
     try {
-      const customer = currentCustomer();
-      const products = validProducts();
       const editId = document.getElementById("editing-sale-id").value;
-      const payload = {
-        customer_name: customer.name,
-        mobile: customer.mobile,
-        address: customer.address,
-        gst: customer.gst,
-        ref_type: customer.ref_type,
-        ref_name: customer.ref_name,
-        ref_mobile: customer.ref_mobile,
-        products,
-        received: saleReceivedAmount(),
-        sale_date: saleDateIso(),
-        due_date: payMode() === "full" ? "" : parseToIsoDate(document.getElementById("sale-due-date").value),
-      };
-      if (editId) payload.id = Number(editId);
-      const result = await api("/api/sales.php" + (editId ? "?id=" + editId : ""), {
-        method: editId ? "PUT" : "POST",
-        body: JSON.stringify(payload),
-      });
+      const result = await persistCurrentSale();
       alert((editId ? "✅ Sale Updated\\nInvoice: " : "✅ Sale Saved Successfully\\nInvoice: ") + result.invoice_no);
       document.getElementById("editing-sale-id").value = "";
       document.getElementById("preview-modal").classList.add("hidden");
@@ -877,6 +886,49 @@ require __DIR__ . '/includes/header.php';
       loadNextInvoice();
     } catch (err) {
       alert(err.message);
+    }
+  });
+
+  document.getElementById("btn-wa-preview").addEventListener("click", async () => {
+    const btn = document.getElementById("btn-wa-preview");
+    const customer = currentCustomer();
+    if (!String(customer.mobile || "").replace(/\D+/g, "")) {
+      alert("Customer ka mobile number likho, tab WhatsApp PDF jayega.");
+      return;
+    }
+    const original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "PDF bana rahe hain…";
+    try {
+      const result = await persistCurrentSale();
+      const products = validProducts();
+      const total = products.reduce((sum, row) => sum + rowTotal(row), 0);
+      document.getElementById("invoice-preview-body").innerHTML = invoiceSheetHtml(
+        customer,
+        products,
+        total,
+        result.invoice_no
+      );
+      const sheet = document.querySelector("#invoice-preview-body .invoice");
+      const sent = await shareInvoicePdfToWhatsApp({
+        element: sheet,
+        filename: "Invoice-" + String(result.invoice_no).replace(/[^A-Za-z0-9._-]+/g, "-") + ".pdf",
+        phone: customer.mobile,
+        caption: (window.COMPANY && window.COMPANY.name ? window.COMPANY.name : "Hardware Store") +
+          " — Tax Invoice " + result.invoice_no,
+      });
+      if (sent === "download") {
+        alert("PDF save ho gaya. WhatsApp mein 📎 se wahi Invoice PDF attach karke customer ko bhejo.");
+      }
+      document.getElementById("editing-sale-id").value = "";
+      loadDashboard();
+      loadCatalog();
+      loadNextInvoice();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = original;
     }
   });
 
@@ -991,5 +1043,7 @@ require __DIR__ . '/includes/header.php';
   loadNextInvoice().catch(() => {});
   renderRows();
 </script>
+<script src="<?= htmlspecialchars(app_url('assets/vendor/html2pdf.bundle.min.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(app_url('assets/js/whatsapp-pdf.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
 
 <?php require __DIR__ . '/includes/footer.php'; ?>

@@ -73,20 +73,11 @@ $balance = $grand - $received;
 $state = gst_state_label((string) $company['gst']);
 $email = (string) ($company['email'] ?? '');
 
-if (isset($_GET['whatsapp'])) {
-    $phone = trim((string) ($_GET['phone'] ?? $sale['mobile'] ?? ''));
-    if (whatsapp_digits($phone) === '') {
-        http_response_code(400);
-        echo 'WhatsApp number nahi mila. Customer mobile likho.';
-        exit;
-    }
-    header('Location: ' . whatsapp_url($phone, whatsapp_invoice_text($company, $sale, $items)));
-    exit;
-}
-
-$waHref = whatsapp_digits((string) ($sale['mobile'] ?? '')) !== ''
-    ? app_url('invoice.php?id=' . $id . '&whatsapp=1')
-    : '';
+$autoWaPdf = isset($_GET['whatsapp']);
+$waPhone = trim((string) ($_GET['phone'] ?? $sale['mobile'] ?? ''));
+$safeInv = preg_replace('/[^A-Za-z0-9._-]+/', '-', (string) ($sale['invoice_no'] ?? 'invoice')) ?: 'invoice';
+$waFilename = 'Invoice-' . $safeInv . '.pdf';
+$waCaption = whatsapp_invoice_text($company, $sale, $items);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -98,9 +89,7 @@ $waHref = whatsapp_digits((string) ($sale['mobile'] ?? '')) !== ''
 <body class="invoice-page">
   <div class="no-print">
     <button type="button" onclick="window.print()">Print / Save PDF</button>
-    <?php if ($waHref !== ''): ?>
-      <a href="<?= $h($waHref) ?>">WhatsApp customer</a>
-    <?php endif; ?>
+    <button type="button" class="wa-btn" id="btn-wa-pdf">WhatsApp PDF</button>
     <a href="<?= $h(app_url('index.php?edit=' . $id)) ?>">Edit</a>
     <a href="<?= $h(app_url('index.php')) ?>">Back</a>
   </div>
@@ -242,6 +231,25 @@ $waHref = whatsapp_digits((string) ($sale['mobile'] ?? '')) !== ''
       </tbody>
     </table>
   </article>
+  <script src="<?= $h(app_url('assets/vendor/html2pdf.bundle.min.js')) ?>"></script>
+  <script src="<?= $h(app_url('assets/js/whatsapp-pdf.js')) ?>"></script>
+  <script>
+    (function () {
+      const btn = document.getElementById("btn-wa-pdf");
+      const ctx = {
+        element: document.querySelector("article.invoice"),
+        filename: <?= json_encode($waFilename, JSON_UNESCAPED_UNICODE) ?>,
+        phone: <?= json_encode($waPhone, JSON_UNESCAPED_UNICODE) ?>,
+        caption: <?= json_encode($waCaption, JSON_UNESCAPED_UNICODE) ?>,
+      };
+      bindWhatsAppPdfButton(btn, ctx);
+      <?php if ($autoWaPdf): ?>
+      window.addEventListener("load", function () {
+        btn.click();
+      });
+      <?php endif; ?>
+    })();
+  </script>
   <?php if (!empty($_GET['print'])): ?>
   <script>window.addEventListener("load", function () { window.print(); });</script>
   <?php endif; ?>

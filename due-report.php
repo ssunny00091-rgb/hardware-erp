@@ -37,7 +37,7 @@ foreach ($rows as $row) {
 
 <h1 class="mb-2 text-2xl font-bold sm:text-4xl">⏰ Due reminder + WhatsApp</h1>
 <p class="mb-4 text-sm text-gray-300">
-  Customer ko bill/ledger WhatsApp se bhejo. Raat 9 baje aapke number
+  Customer ko <strong>invoice preview jaisa PDF</strong> WhatsApp se bhejo. Raat 9 baje aapke number
   <strong>+91 <?= $h(substr($owner, -10)) ?></strong> par due report khulni chahiye.
 </p>
 
@@ -64,7 +64,7 @@ foreach ($rows as $row) {
     </li>
     <li>Shop PC on ho, WhatsApp Desktop/Web login ho. Browser WhatsApp kholega — <strong>Send</strong> dabao.</li>
   </ol>
-  <p class="mt-3 text-xs text-gray-400">WhatsApp official API ke bina message khud send nahi hota; ek tap zaroori hai. Bill customer ko invoice page se WhatsApp button se bhejo.</p>
+  <p class="mt-3 text-xs text-gray-400">Bill WhatsApp par PDF jata hai (invoice preview jaisa). Phone/PC par share sheet se WhatsApp choose karo. Desktop par PDF download hota hai — chat khulne ke baad 📎 se wahi PDF attach karo. Raat wali due report text rehti hai; Send tap zaroori hai.</p>
 </div>
 
 <div class="table-scroll overflow-auto rounded-2xl border border-white/15 bg-white/10">
