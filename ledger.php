@@ -23,7 +23,26 @@ $types = [
     <button type="button" data-type="<?= htmlspecialchars($key, ENT_QUOTES, 'UTF-8') ?>" class="ledger-tab rounded-lg bg-white/10 px-4 py-2 hover:bg-white/20"><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></button>
   <?php endforeach; ?>
 </div>
+<div class="mb-6">
+  <div class="relative max-w-xl">
+    <input
+      type="search"
+      id="ledger-search"
+      placeholder="🔎 Search by name or mobile number..."
+      autocomplete="off"
+      class="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 pr-12 text-white placeholder:text-gray-400 outline-none focus:border-green-500"
+    >
 
+    <button
+      type="button"
+      id="clear-ledger-search"
+      class="absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-lg px-2 py-1 text-gray-300 hover:bg-white/10"
+      aria-label="Clear search"
+    >
+      ✕
+    </button>
+  </div>
+</div>
 <div class="table-scroll overflow-auto rounded-2xl border border-white/20 bg-white/10">
   <table class="w-full border-collapse text-left">
     <thead>
@@ -97,7 +116,17 @@ $types = [
 
   async function loadList() {
     tabButtons();
-    const data = await api("/api/ledger.php?type=" + encodeURIComponent(currentType));
+    const search = document.getElementById("ledger-search")?.value.trim() || "";
+
+const params = new URLSearchParams({
+  type: currentType,
+});
+
+if (search !== "") {
+  params.set("search", search);
+}
+
+const data = await api("/api/ledger.php?" + params.toString());
     document.getElementById("ledger-list").innerHTML = (data.parties || []).map((row) => `
       <tr class="border-t border-white/10 hover:bg-white/10" data-party="${row.id}">
         <td class="cursor-pointer p-3 font-semibold">${escapeHtml(row.name)}</td>
@@ -293,6 +322,27 @@ $types = [
   bindDateField("pay-date", "pay-date-picker");
   setDateField("pay-date", "pay-date-picker", todayIsoDate());
   loadList().catch((err) => alert(err.message));
+  let ledgerSearchTimer = null;
+
+document.getElementById("ledger-search").addEventListener("input", () => {
+  clearTimeout(ledgerSearchTimer);
+
+  const search = document.getElementById("ledger-search").value.trim();
+
+  document
+    .getElementById("clear-ledger-search")
+    .classList.toggle("hidden", search === "");
+
+  ledgerSearchTimer = setTimeout(() => {
+    loadList();
+  }, 300);
+});
+
+document.getElementById("clear-ledger-search").addEventListener("click", () => {
+  document.getElementById("ledger-search").value = "";
+  document.getElementById("clear-ledger-search").classList.add("hidden");
+  loadList();
+});
 </script>
 
 <?php require __DIR__ . '/includes/footer.php'; ?>

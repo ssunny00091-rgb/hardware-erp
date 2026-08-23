@@ -293,6 +293,7 @@ async function sendChat(text) {
   pendingFiles = [];
   showFiles();
   chatFile.value = "";
+  showTyping();
 
   const form = new FormData();
   form.append("payload", JSON.stringify({
@@ -311,13 +312,15 @@ async function sendChat(text) {
     if (!response.ok) throw new Error(data.error || "Assistant fail");
     const reply = data.reply || "Ho gaya.";
     const extra = actionSummary(data.actions || []);
-  addBubble("assistant", reply, extra, data.tables || []);
+    hideTyping();
+    addBubble("assistant", reply, extra, data.tables || []);
     speakText(reply);
     history.push({ role: "user", content: outgoing || (filesAreAudio ? "Voice note" : "Photo/PDF bheji hai") });
     history.push({ role: "assistant", content: reply });
   } catch (err) {
     addBubble("assistant", "Error: " + err.message);
   } finally {
+    hideTyping();
     busy = false;
     btnSend.disabled = false;
   }
@@ -330,6 +333,53 @@ chatInput.addEventListener("keydown", (e) => {
     sendChat();
   }
 });
+
+let typingBubble = null;
+
+function showTyping() {
+  if (typingBubble) return;
+  typingBubble = document.createElement("div");
+  typingBubble.className = "chat-bubble chat-bot chat-typing";
+  typingBubble.innerHTML = "<span></span><span></span><span></span>";
+  chatLog.appendChild(typingBubble);
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
+
+function hideTyping() {
+  if (typingBubble) {
+    typingBubble.remove();
+    typingBubble = null;
+  }
+}
+
+document.querySelectorAll("#chat-chips [data-chip]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const msg = (btn.dataset.chip || "").trim();
+    if (!msg || busy) return;
+    sendChat(msg);
+  });
+});
+
+const btnOrMenu = document.getElementById("btn-or-menu");
+const orPanel = document.getElementById("or-panel");
+const btnOrClose = document.getElementById("btn-or-close");
+
+function setOrMenuOpen(open) {
+  if (!orPanel) return;
+  orPanel.classList.toggle("hidden", !open);
+  if (open) {
+    orPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+}
+
+if (btnOrMenu && orPanel) {
+  btnOrMenu.addEventListener("click", () => {
+    setOrMenuOpen(orPanel.classList.contains("hidden"));
+  });
+}
+if (btnOrClose) {
+  btnOrClose.addEventListener("click", () => setOrMenuOpen(false));
+}
 
 function micSupported() {
   return window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -735,6 +785,13 @@ showHttpsHint();
 function applyKeyStatus(data) {
   const test = data.test || null;
   const testMsg = document.getElementById("or-test-msg");
+  if (btnOrMenu) {
+    const dot = btnOrMenu.querySelector("span");
+    if (dot) {
+      dot.classList.toggle("bg-emerald-400", !!(data.saved || data.configured));
+      dot.classList.toggle("bg-amber-400", !(data.saved || data.configured));
+    }
+  }
   if (data.saved || data.configured) {
     keyStatus.textContent = data.configured
       ? "OpenRouter key save hai · " + (data.model || "")
@@ -849,4 +906,4 @@ api("/api/assistant.php").then((data) => {
   keyStatus.textContent = err.message;
 });
 
-addBubble("assistant", "Namaste. Bolke sale banao, ya supplier bill ki photo daal do — main software mein save kar dunga.");
+addBubble("assistant", "Namaste 🙏 Main aapka Shop Assistant hoon. Neeche diye buttons ek tap mein kaam kara denge — ya likho / bolke batao: sale, purchase bill photo, ledger, due reminder. Main software mein sab save kar dunga.");

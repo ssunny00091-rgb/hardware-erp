@@ -61,10 +61,6 @@ $h = static function ($value): string {
 $billDate = $sale['sale_date'] ?? $sale['created_at'];
 $date = format_display_date($billDate);
 $party = $sale['customer_name'] !== '' ? $sale['customer_name'] : 'Walk-in Customer';
-$totalQty = 0.0;
-foreach ($items as $item) {
-    $totalQty += (float) ($item['qty'] ?? 0);
-}
 $grand = (float) $sale['total'];
 $received = isset($sale['received']) && $sale['received'] !== null && $sale['received'] !== ''
     ? (float) $sale['received']
@@ -196,13 +192,6 @@ $waFilename = 'Invoice-' . $safeInv . '.pdf';
             </tr>
           <?php endforeach; ?>
         <?php endif; ?>
-        <tr class="total-row">
-          <td colspan="4">Total</td>
-          <td class="center"><?= $h(rtrim(rtrim(money($totalQty), '0'), '.')) ?></td>
-          <td></td>
-          <td></td>
-          <td class="num"><?= money($grand) ?></td>
-        </tr>
         <tr>
           <td colspan="5" class="words-cell">
             <div class="words-label">Invoice Amount In Words</div>
@@ -210,7 +199,6 @@ $waFilename = 'Invoice-' . $safeInv . '.pdf';
           </td>
           <td colspan="3" style="padding:0">
             <table class="inner-tot">
-              <tr><td>Sub Total</td><td class="num">₹ <?= money($grand) ?></td></tr>
               <tr class="grand"><td>Total</td><td class="num">₹ <?= money($grand) ?></td></tr>
               <tr><td>Received</td><td class="num">₹ <?= money($received) ?></td></tr>
               <tr><td>Balance</td><td class="num">₹ <?= money($balance) ?></td></tr>

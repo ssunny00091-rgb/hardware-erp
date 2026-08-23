@@ -11,13 +11,16 @@ require __DIR__ . '/includes/header.php';
 $reminderBannerRows = reminder_banner_rows(db());
 ?>
 
-<h1 class="mb-4 text-2xl font-bold motion-in sm:mb-6 sm:text-4xl">🏪 SATYANARAYAN HARDWARE STORES</h1>
+<h1 class="mb-4 text-3xl font-extrabold leading-tight motion-in sm:mb-6 sm:text-5xl">
+  <span aria-hidden="true">🏪</span>
+  <span class="shop-title">SATYANARAYAN HARDWARE STORES</span>
+</h1>
 <?php require __DIR__ . '/includes/reminder-banner.php'; ?>
 
-<div class="mb-6 flex flex-col gap-3 no-print sm:flex-row sm:flex-wrap">
-  <button type="button" id="btn-new-sale" class="w-full rounded-lg bg-green-600 px-5 py-3 text-white hover:bg-green-700 motion-in motion-d1 sm:w-auto">➕ New Sale</button>
-  <a href="<?= htmlspecialchars(app_url('assistant.php'), ENT_QUOTES, 'UTF-8') ?>" class="w-full rounded-lg bg-rose-600 px-5 py-3 text-center text-white hover:bg-rose-500 motion-in motion-d2 sm:w-auto">🤖 Bolke / Photo se kaam</a>
-  <button type="button" id="btn-sales-history" class="w-full rounded-lg bg-indigo-600 px-5 py-3 text-white hover:bg-indigo-700 motion-in motion-d3 sm:w-auto">🧾 Sales History</button>
+<div class="mb-6 flex flex-col gap-3 no-print sm:flex-row sm:items-stretch sm:flex-wrap">
+  <button type="button" id="btn-new-sale" class="w-full rounded-lg bg-green-600 px-6 py-3 text-center font-semibold text-white shadow-lg hover:bg-green-700 motion-in motion-d1 sm:w-auto">➕ New Sale</button>
+  <a href="<?= htmlspecialchars(app_url('assistant.php'), ENT_QUOTES, 'UTF-8') ?>" class="inline-flex w-full items-center justify-center rounded-lg bg-rose-600 px-6 py-3 text-center font-semibold text-white shadow-lg hover:bg-rose-500 motion-in motion-d2 sm:w-auto">🤖 Bolke / Photo se kaam</a>
+  <button type="button" id="btn-sales-history" class="w-full rounded-lg bg-indigo-600 px-6 py-3 text-center font-semibold text-white shadow-lg hover:bg-indigo-700 motion-in motion-d3 sm:w-auto">🧾 Sales History</button>
 </div>
 
 <div id="dashboard-cards" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -93,10 +96,10 @@ $reminderBannerRows = reminder_banner_rows(db());
   <div class="mt-8">
     <h3 class="mb-3 font-semibold">2. Saman / Items</h3>
     <p class="mb-3 text-sm text-gray-400">Product naam type karo, list se choose karo. Last price par Enter dabane se next line khulti hai.</p>
-    <div class="line-head mb-4 hidden grid-cols-6 gap-3 rounded-2xl border border-white/10 bg-white/10 p-4 font-semibold md:grid">
+    <div class="line-head sale-head mb-4 hidden rounded-2xl border border-white/10 bg-white/10 font-semibold md:grid">
       <div>📦 Product</div>
       <div>🎨 Colour / Shade</div>
-      <div>Qty</div>
+      <div>Qty / Unit</div>
       <div>Price</div>
       <div>Total</div>
       <div>Action</div>
@@ -130,6 +133,7 @@ $reminderBannerRows = reminder_banner_rows(db());
     Grand Total: ₹<span id="grand-total">0.00</span>
   </div>
   <p class="mt-1 text-right text-lg text-amber-300">Due: ₹<span id="sale-due">0.00</span></p>
+  <p id="sale-npr-hint" class="mt-1 hidden text-right text-base font-semibold text-sky-300"></p>
 
   <div class="mt-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
     <div class="rounded-2xl border border-white/20 bg-white/10 p-4">
@@ -144,10 +148,25 @@ $reminderBannerRows = reminder_banner_rows(db());
       <label id="due-date-wrap" class="mt-3 hidden block max-w-xs text-sm text-gray-200">
         Due date (dd/mm/yyyy)
         <span class="date-field mt-1">
-          <input type="text" id="sale-due-date" inputmode="numeric" placeholder="dd/mm/yyyy" maxlength="10" autocomplete="off" class="rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900">
+          <input type="text" id="sale-due-date" inputmode="numeric" placeholder="dd/mm/yyyy" maxlength="10" autocomplete="off" class="rounded-xl border border-gray-300 bg-white px-3 py-2 text-base text-gray-900">
           <input type="date" id="sale-due-date-picker" title="Calendar" aria-label="Due date">
         </span>
       </label>
+      <div id="npr-wrap" class="mt-3 hidden max-w-xs rounded-xl border border-sky-400/30 bg-sky-500/10 p-3">
+        <label class="block text-sm text-gray-200">
+          🇳🇵 Nepal Rate (₹1 = रु)
+          <input type="number" id="npr-rate" step="0.01" min="0.01" placeholder="1.6" class="mt-1 w-full rounded-xl border border-gray-300 bg-white px-4 py-2 text-gray-900">
+        </label>
+        <p class="mt-1 text-xs text-emerald-300">+977 customer — bill ke last me Nepali rupiya conversion dikhega.</p>
+        <div id="npr-received-wrap" class="mt-3 hidden">
+          <label class="block text-sm text-gray-200">
+            Customer ne kitne <b>रु</b> (NPR) diye?
+            <input type="number" id="npr-received" step="0.01" min="0" placeholder="Nepali rupiya" class="mt-1 w-full rounded-xl border border-gray-300 bg-white px-4 py-2 text-gray-900">
+          </label>
+          <p id="npr-received-inr" class="mt-1 text-xs font-bold text-sky-300"></p>
+          <p class="mt-1 text-xs text-gray-400">Bharne par "Kitna cash mila" apne aap ₹ mein bhar jayega.</p>
+        </div>
+      </div>
     </div>
     <button type="button" id="btn-preview" class="rounded-xl bg-green-600 px-6 py-3 font-semibold text-white hover:bg-green-500">👀 Preview bill</button>
   </div>
@@ -257,6 +276,24 @@ $reminderBannerRows = reminder_banner_rows(db());
     return document.querySelector("input[name=\"pay-mode\"]:checked")?.value || "full";
   }
 
+  const DEFAULT_NPR_RATE = 1.6;
+
+  function isNepalCustomer(mobile) {
+    const raw = String(mobile || "").trim();
+    if (!raw) return false;
+    const hasIntl = raw.startsWith("+") || raw.startsWith("00");
+    let digits = raw.replace(/\D+/g, "");
+    if (hasIntl && digits.startsWith("00")) digits = digits.slice(2);
+    if (!digits.startsWith("977")) return false;
+    return hasIntl ? digits.length >= 11 : digits.length > 10;
+  }
+
+  function nprRate() {
+    const el = document.getElementById("npr-rate");
+    const v = Number(el && el.value);
+    return v > 0 ? v : DEFAULT_NPR_RATE;
+  }
+
   function saleReceivedAmount(total) {
     const grand = total == null ? saleGrandTotal() : Number(total);
     const mode = payMode();
@@ -283,6 +320,27 @@ $reminderBannerRows = reminder_banner_rows(db());
     const received = saleReceivedAmount(total);
     const dueEl = document.getElementById("sale-due");
     if (dueEl) dueEl.textContent = formatMoney(Math.max(0, total - received));
+    const nepal = isNepalCustomer(document.getElementById("customer-mobile").value);
+    const nepalBox = document.getElementById("npr-wrap");
+    if (nepalBox) {
+      nepalBox.classList.toggle("hidden", !nepal);
+      const rateEl = document.getElementById("npr-rate");
+      if (nepal && rateEl && !rateEl.value) {
+        rateEl.value = localStorage.getItem("nprRate") || String(DEFAULT_NPR_RATE);
+      }
+      const recvWrap = document.getElementById("npr-received-wrap");
+      if (recvWrap) recvWrap.classList.toggle("hidden", mode !== "partial");
+    }
+    const nprHint = document.getElementById("sale-npr-hint");
+    if (nprHint) {
+      if (nepal) {
+        nprHint.textContent = "🇳🇵 रु " + formatMoney(total * nprRate()) + " (approx)";
+        nprHint.classList.remove("hidden");
+      } else {
+        nprHint.textContent = "";
+        nprHint.classList.add("hidden");
+      }
+    }
   }
 
   function setPayMode(mode) {
@@ -421,7 +479,8 @@ $reminderBannerRows = reminder_banner_rows(db());
     const no = invoiceNo || nextInvoiceNo || "—";
     const received = saleReceivedAmount(grandTotal);
     const balance = grandTotal - received;
-    const totalQty = products.reduce((sum, p) => sum + (Number(p.qty) || 0), 0);
+    const nepal = isNepalCustomer(customer.mobile);
+    const npr = nepal ? nprRate() : 0;
     const rows = products.length
       ? products.map((p, i) => {
           const colorText = String(p.color || "").trim();
@@ -495,13 +554,6 @@ $reminderBannerRows = reminder_banner_rows(db());
           </thead>
           <tbody>
             ${rows}
-            <tr class="total-row">
-              <td colspan="4">Total</td>
-              <td class="center">${formatQty(totalQty)}</td>
-              <td></td>
-              <td></td>
-              <td class="num">${formatMoney(grandTotal)}</td>
-            </tr>
             <tr>
               <td colspan="5" class="words-cell">
                 <div class="words-label">Invoice Amount In Words</div>
@@ -509,10 +561,11 @@ $reminderBannerRows = reminder_banner_rows(db());
               </td>
               <td colspan="3" style="padding:0">
                 <table class="inner-tot">
-                  <tr><td>Sub Total</td><td class="num">₹ ${formatMoney(grandTotal)}</td></tr>
                   <tr class="grand"><td>Total</td><td class="num">₹ ${formatMoney(grandTotal)}</td></tr>
                   <tr><td>Received</td><td class="num">₹ ${formatMoney(received)}</td></tr>
                   <tr><td>Balance</td><td class="num">₹ ${formatMoney(balance)}</td></tr>
+                  ${nepal ? '<tr class="npr-row"><td>🇳🇵 Total in Nepali Rupiya (₹1 = रु ' + npr + ')</td><td class="num">रु ' + formatMoney(grandTotal * npr) + "</td></tr>" : ""}
+                  ${nepal && balance > 0.009 ? '<tr class="npr-row"><td>🇳🇵 Balance in Nepali Rupiya</td><td class="num">रु ' + formatMoney(balance * npr) + "</td></tr>" : ""}
                 </table>
               </td>
             </tr>
@@ -830,6 +883,36 @@ $reminderBannerRows = reminder_banner_rows(db());
     el.addEventListener("change", syncPaymentUi);
   });
   document.getElementById("sale-received").addEventListener("input", syncPaymentUi);
+  document.getElementById("customer-mobile").addEventListener("input", syncPaymentUi);
+
+  const nprRateInput = document.getElementById("npr-rate");
+  if (nprRateInput) {
+    nprRateInput.addEventListener("input", () => {
+      if (Number(nprRateInput.value) > 0) localStorage.setItem("nprRate", nprRateInput.value);
+      syncPaymentUi();
+    });
+    const storedNpr = localStorage.getItem("nprRate");
+    if (storedNpr && Number(storedNpr) > 0) nprRateInput.value = storedNpr;
+  }
+
+  const nprReceivedInput = document.getElementById("npr-received");
+  if (nprReceivedInput) {
+    nprReceivedInput.addEventListener("input", () => {
+      const amt = Number(nprReceivedInput.value);
+      const rate = nprRate();
+      const recvEl = document.getElementById("sale-received");
+      const out = document.getElementById("npr-received-inr");
+      if (amt > 0 && rate > 0) {
+        const inr = Math.round((amt / rate) * 100) / 100;
+        if (recvEl) recvEl.value = String(inr);
+        if (out) out.textContent = "रु " + formatMoney(amt) + " = ₹ " + formatMoney(inr);
+      } else {
+        if (out) out.textContent = "";
+        if (recvEl && document.activeElement === nprReceivedInput) recvEl.value = "";
+      }
+      syncPaymentUi();
+    });
+  }
 
   document.getElementById("btn-preview").addEventListener("click", () => {
     const products = validProducts();

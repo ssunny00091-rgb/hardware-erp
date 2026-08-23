@@ -20,33 +20,61 @@ try {
         }
 
         $type = normalize_party_type((string) ($_GET['type'] ?? 'customer'));
-        $sql = 'SELECT p.id, p.name, p.mobile, p.address, p.type,
-                    COALESCE(SUM(l.debit), 0) AS debit,
-                    COALESCE(SUM(l.credit), 0) AS credit,
-                    COALESCE(SUM(l.debit), 0) - COALESCE(SUM(l.credit), 0) AS balance
-             FROM parties p
-             LEFT JOIN ledger_entries l ON l.party_id = p.id
-             WHERE p.type = :type AND p.deleted_at IS NULL
-             GROUP BY p.id, p.name, p.mobile, p.address, p.type
-             ORDER BY p.name ASC';
-        try {
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute(['type' => $type]);
-        } catch (Throwable $e) {
-            $stmt = $pdo->prepare(
-                'SELECT p.id, p.name, p.mobile, p.address, p.type,
-                        COALESCE(SUM(l.debit), 0) AS debit,
-                        COALESCE(SUM(l.credit), 0) AS credit,
-                        COALESCE(SUM(l.debit), 0) - COALESCE(SUM(l.credit), 0) AS balance
-                 FROM parties p
-                 LEFT JOIN ledger_entries l ON l.party_id = p.id
-                 WHERE p.type = :type
-                 GROUP BY p.id, p.name, p.mobile, p.address, p.type
-                 ORDER BY p.name ASC'
-            );
-            $stmt->execute(['type' => $type]);
-        }
-        json_response(['type' => $type, 'parties' => $stmt->fetchAll()]);
+$search = trim((string) ($_GET['search'] ?? ''));
+
+$sql = 'SELECT p.id, p.name, p.mobile, p.address, p.type,
+            COALESCE(SUM(l.debit), 0) AS debit,
+            COALESCE(SUM(l.credit), 0) AS credit,
+            COALESCE(SUM(l.debit), 0) - COALESCE(SUM(l.credit), 0) AS balance
+        FROM parties p
+        LEFT JOIN ledger_entries l ON l.party_id = p.id
+        WHERE p.type = :type
+          AND p.deleted_at IS NULL';
+
+$params = ['type' => $type];
+
+if ($search !== '') {
+    $sql .= ' AND (p.name LIKE :search_name OR p.mobile LIKE :search_mobile)';
+$params['search_name'] = '%' . $search . '%';
+$params['search_mobile'] = '%' . $search . '%';
+}
+
+$sql .= ' GROUP BY p.id, p.name, p.mobile, p.address, p.type
+          ORDER BY p.name ASC';
+
+try {
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+} catch (Throwable $e) {
+    $fallbackSql = 'SELECT p.id, p.name, p.mobile, p.address, p.type,
+                           COALESCE(SUM(l.debit), 0) AS debit,
+                           COALESCE(SUM(l.credit), 0) AS credit,
+                           COALESCE(SUM(l.debit), 0) - COALESCE(SUM(l.credit), 0) AS balance
+                    FROM parties p
+                    LEFT JOIN ledger_entries l ON l.party_id = p.id
+                    WHERE p.type = :type';
+
+    $fallbackParams = ['type' => $type];
+
+    if ($search !== '') {
+        $fallbackSql .= ' AND (p.name LIKE :search_name OR p.mobile LIKE :search_mobile)';
+$fallbackParams['search_name'] = '%' . $search . '%';
+$fallbackParams['search_mobile'] = '%' . $search . '%';
+    }
+
+    $fallbackSql .= ' GROUP BY p.id, p.name, p.mobile, p.address, p.type
+                      ORDER BY p.name ASC';
+
+    $stmt = $pdo->prepare($fallbackSql);
+    $stmt->execute($fallbackParams);
+}
+
+json_response([
+    'type' => $type,
+    'search' => $search,
+    'parties' => $stmt->fetchAll()
+]);
+
     }
 
     if ($method === 'POST') {
