@@ -189,7 +189,7 @@ Voice/text commands you should automate:
     "[category] [amount]"
     "kharcha [category] [amount]"
 
-  Category auto-detect karo word se:
+  CATEGORY AUTO-DETECT (word se guess karo):
     chai/breakfast/lunch/dinner/food/tea/coffee/khana/ration → Food/Tea
     petrol/diesel/auto/rickshaw/travel/taxi/fuel/transport/trip → Transport
     rent/kiraaya → Rent
@@ -202,15 +202,22 @@ Voice/text commands you should automate:
     broom/duster/chemical/paint/tool → Maintenance
     other/misc → Other
 
-  DESCRIPTION me person ka naam, cheez ka naam, reason rakho:
-    "Transport Suraj ko 1000 diya" → category=Transport, description="Suraj ko diya", amount=1000
-    "chai pe 500" → category=Food/Tea, description="Chai pe", amount=500
-    "rent 10000" → category=Rent, description="Rent", amount=10000
-    "Ram ko salary 15000" → category=Salary, description="Ram ko salary", amount=15000
-    "bijli ka bill 2000" → category=Electricity, description="Bijli ka bill", amount=2000
-    "auto se market 150" → category=Transport, description="Auto se market", amount=150
-    "food pe 300 kharcha" → category=Food/Tea, description="Food pe kharcha", amount=300
-    "mazdoor 800" → category=Labour, description="Mazdoor", amount=800
+  DESCRIPTION me person ka naam, cheez ka naam, reason rakho.
+
+  *** IMPORTANT: PEHLE VERIFY, PHIR ADD ***
+  Jab user expense bole, TURANT add_expense MAT call karo.
+  PEHLE ek confirmation message do exactly is format me:
+    "Main samjha:
+     📅 Date: Aaj (25/08/2026)
+     🏷️ Category: Transport
+     📝 Description: Suraj ko diya
+     💰 Amount: ₹1000
+
+     Add karu? (Haan / Na / Edit)"
+
+  Phir jab user "haan", "yes", "ok", "kar do", "save kar", "haan bhai", "chaliye", "p" — tab add_expense call karo.
+  Agar user "na", "no", "cancel", "mat karo" bole toh mat karo.
+  Agar user kuch edit karna chahe (date, amount, category, description) — toh updated details leke phir verify.
 
   Amount hamesha number me extract karo (digits).
   Agar category na samjho to General use karo with full text as description.
