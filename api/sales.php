@@ -23,21 +23,66 @@ try {
             json_response(['sale' => $sale]);
         }
 
+        $date = trim((string) ($_GET['date'] ?? ''));
+        $from = trim((string) ($_GET['from'] ?? ''));
+        $to = trim((string) ($_GET['to'] ?? ''));
+        $valid = static fn (string $v): bool => (bool) preg_match('/^\d{4}-\d{2}-\d{2}$/', $v);
+        if (!$valid($date)) {
+            $date = '';
+        }
+        if (!$valid($from)) {
+            $from = '';
+        }
+        if (!$valid($to)) {
+            $to = '';
+        }
+
         try {
-            $stmt = $pdo->query(
-                'SELECT id, invoice_no, customer_name, mobile, total, received, ref_type, ref_name, sale_date, due_date, created_at
-                 FROM sales
-                 ORDER BY COALESCE(sale_date, DATE(created_at)) DESC, id DESC
-                 LIMIT 200'
-            );
+            $where = [];
+            $params = [];
+            if ($date !== '') {
+                $where[] = 'COALESCE(sale_date, DATE(created_at)) = :date';
+                $params['date'] = $date;
+            }
+            if ($from !== '') {
+                $where[] = 'COALESCE(sale_date, DATE(created_at)) >= :from';
+                $params['from'] = $from;
+            }
+            if ($to !== '') {
+                $where[] = 'COALESCE(sale_date, DATE(created_at)) <= :to';
+                $params['to'] = $to;
+            }
+            $sql = 'SELECT id, invoice_no, customer_name, mobile, total, received, ref_type, ref_name, sale_date, due_date, created_at
+                 FROM sales';
+            if ($where !== []) {
+                $sql .= ' WHERE ' . implode(' AND ', $where);
+            }
+            $sql .= ' ORDER BY COALESCE(sale_date, DATE(created_at)) DESC, id DESC LIMIT 500';
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
             json_response(['sales' => $stmt->fetchAll()]);
         } catch (Throwable $e) {
-            $stmt = $pdo->query(
-                'SELECT id, invoice_no, customer_name, mobile, total, created_at
-                 FROM sales
-                 ORDER BY created_at DESC, id DESC
-                 LIMIT 200'
-            );
+            $where = [];
+            $params = [];
+            if ($date !== '') {
+                $where[] = 'DATE(created_at) = :date';
+                $params['date'] = $date;
+            }
+            if ($from !== '') {
+                $where[] = 'DATE(created_at) >= :from';
+                $params['from'] = $from;
+            }
+            if ($to !== '') {
+                $where[] = 'DATE(created_at) <= :to';
+                $params['to'] = $to;
+            }
+            $sql = 'SELECT id, invoice_no, customer_name, mobile, total, created_at FROM sales';
+            if ($where !== []) {
+                $sql .= ' WHERE ' . implode(' AND ', $where);
+            }
+            $sql .= ' ORDER BY created_at DESC, id DESC LIMIT 500';
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
             json_response(['sales' => $stmt->fetchAll()]);
         }
     }

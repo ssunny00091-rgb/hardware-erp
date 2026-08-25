@@ -30,7 +30,7 @@ $activeNav = $activeNav ?? 'home';
     }
     input::placeholder, textarea::placeholder { color: #6b7280 !important; opacity: 1 !important; }
   </style>
-  <script src="<?= htmlspecialchars(app_url('assets/js/app.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
+  <script src="<?= htmlspecialchars(app_url('assets/js/app.js'), ENT_QUOTES, 'UTF-8') ?>?v=2"></script>
 </head>
 <body class="min-h-screen bg-slate-950 text-white">
   <div class="animated-bg" aria-hidden="true">
@@ -51,6 +51,7 @@ $activeNav = $activeNav ?? 'home';
         <a href="<?= htmlspecialchars(app_url('ledger.php'), ENT_QUOTES, 'UTF-8') ?>" class="rounded-lg px-3 py-2 text-center text-sm <?= $activeNav === 'ledger' ? 'bg-green-600' : 'bg-white/10 hover:bg-white/20' ?>">📒 Ledger</a>
         <a href="<?= htmlspecialchars(app_url('reports.php'), ENT_QUOTES, 'UTF-8') ?>" class="rounded-lg px-3 py-2 text-center text-sm <?= $activeNav === 'reports' ? 'bg-green-600' : 'bg-white/10 hover:bg-white/20' ?>">📊 Reports</a>
         <a href="<?= htmlspecialchars(app_url('due-report.php'), ENT_QUOTES, 'UTF-8') ?>" class="rounded-lg px-3 py-2 text-center text-sm <?= $activeNav === 'due' ? 'bg-green-600' : 'bg-white/10 hover:bg-white/20' ?>">⏰ Due / WA</a>
+        <a href="<?= htmlspecialchars(app_url('expenses.php'), ENT_QUOTES, 'UTF-8') ?>" class="rounded-lg px-3 py-2 text-center text-sm <?= $activeNav === 'expenses' ? 'bg-green-600' : 'bg-white/10 hover:bg-white/20' ?>">💸 Expenses</a>
       </div>
     </div>
   </nav>

@@ -8,8 +8,27 @@ require __DIR__ . '/includes/header.php';
 ?>
 
 <div class="mb-6 flex flex-col gap-3 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
-  <h1 class="text-2xl font-bold sm:text-4xl">📦 Product Master</h1>
+  <div>
+    <h1 class="text-2xl font-bold sm:text-4xl">📦 Product Master</h1>
+    <p class="mt-1 text-sm text-neutral-400"><span id="product-count">0</span> products</p>
+  </div>
   <button type="button" id="btn-add-product" class="w-full rounded-xl bg-green-600 px-5 py-3 font-semibold hover:bg-green-500 sm:w-auto">➕ Add Product</button>
+</div>
+
+<div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+  <div class="relative flex-1">
+    <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+    <input type="text" id="product-search" placeholder="Search by name or brand..." class="w-full rounded-lg border border-gray-300 bg-white py-3 pl-10 pr-4 text-gray-900">
+  </div>
+  <select id="brand-filter" class="rounded-lg border border-gray-300 bg-white p-3 text-gray-900 sm:w-48">
+    <option value="">All Brands</option>
+  </select>
+  <select id="stock-filter" class="rounded-lg border border-gray-300 bg-white p-3 text-gray-900 sm:w-44">
+    <option value="">All Stock</option>
+    <option value="in">In Stock (>5)</option>
+    <option value="low">Low (1-5)</option>
+    <option value="out">Out (0)</option>
+  </select>
 </div>
 
 <div class="table-scroll overflow-hidden rounded-2xl border border-white/20 bg-white/10 backdrop-blur-xl">
@@ -18,13 +37,16 @@ require __DIR__ . '/includes/header.php';
       <tr>
         <th class="p-4 text-left">Product</th>
         <th class="p-4 text-left">Brand</th>
+        <th class="p-4 text-left">Category</th>
         <th class="p-4 text-center">Stock</th>
-        <th class="p-4 text-right">Price</th>
+        <th class="p-4 text-right">Purchase ₹</th>
+        <th class="p-4 text-right">Selling ₹</th>
+        <th class="p-4 text-center">Unit</th>
         <th class="p-4 text-center">Action</th>
       </tr>
     </thead>
     <tbody id="product-table-body">
-      <tr><td colspan="5" class="p-8 text-center">Loading...</td></tr>
+      <tr><td colspan="8" class="p-8 text-center">Loading...</td></tr>
     </tbody>
   </table>
 </div>
@@ -37,15 +59,44 @@ require __DIR__ . '/includes/header.php';
     </div>
     <form id="product-form" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <input type="hidden" name="id" id="product-id">
-      <input name="product_name" id="product_name" placeholder="Product Name" class="rounded-lg border border-gray-300 bg-white p-3 text-gray-900" required>
-      <input name="brand" id="brand" placeholder="Brand" class="rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
-      <input name="category" id="category" placeholder="Category" class="rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
-      <select name="unit" id="unit" class="rounded-lg border border-gray-300 bg-white p-3 text-gray-900"></select>
-      <input type="number" step="0.01" name="purchase_price" id="purchase_price" placeholder="Purchase Price" class="rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
-      <input type="number" step="0.01" name="selling_price" id="selling_price" placeholder="Selling Price" class="rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
-      <input type="number" step="0.01" name="stock" id="stock" placeholder="Opening Stock" class="rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
-      <input type="number" step="0.01" name="gst_percent" id="gst_percent" placeholder="GST %" value="18" class="rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
-      <input name="hsn_code" id="hsn_code" placeholder="HSN Code" class="rounded-lg border border-gray-300 bg-white p-3 text-gray-900 sm:col-span-2">
+      <div class="sm:col-span-2">
+        <label class="mb-1 block text-sm font-medium text-neutral-300">Product Name *</label>
+        <input name="product_name" id="product_name" placeholder="e.g. Asian Paint Ace" class="w-full rounded-lg border border-gray-300 bg-white p-3 text-gray-900" required>
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium text-neutral-300">Brand</label>
+        <input name="brand" id="brand" list="brand-list" placeholder="e.g. Asian Paints" class="w-full rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
+        <datalist id="brand-list"></datalist>
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium text-neutral-300">Category</label>
+        <input name="category" id="category" list="category-list" placeholder="e.g. Emulsion, Primer" class="w-full rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
+        <datalist id="category-list"></datalist>
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium text-neutral-300">Unit *</label>
+        <select name="unit" id="unit" class="w-full rounded-lg border border-gray-300 bg-white p-3 text-gray-900"></select>
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium text-neutral-300">HSN Code</label>
+        <input name="hsn_code" id="hsn_code" placeholder="e.g. 3209" class="w-full rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium text-neutral-300">Purchase Price ₹</label>
+        <input type="number" step="0.01" name="purchase_price" id="purchase_price" placeholder="0.00" class="w-full rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium text-neutral-300">Selling Price ₹ *</label>
+        <input type="number" step="0.01" name="selling_price" id="selling_price" placeholder="0.00" class="w-full rounded-lg border border-gray-300 bg-white p-3 text-gray-900" required>
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium text-neutral-300">Opening Stock *</label>
+        <input type="number" step="0.01" name="stock" id="stock" placeholder="0" class="w-full rounded-lg border border-gray-300 bg-white p-3 text-gray-900" required>
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium text-neutral-300">GST %</label>
+        <input type="number" step="0.01" name="gst_percent" id="gst_percent" placeholder="18" value="18" class="w-full rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
+      </div>
       <div class="mt-2 flex gap-3 sm:col-span-2">
         <button type="button" class="close-modal flex-1 rounded-xl bg-gray-600 py-3 font-semibold">Cancel</button>
         <button type="submit" class="flex-1 rounded-xl bg-green-600 py-3 font-semibold">💾 Save Product</button>
@@ -59,31 +110,74 @@ require __DIR__ . '/includes/header.php';
 
   function stockBadge(stock) {
     const value = Number(stock);
-    if (value > 20) return `<span class="rounded-full bg-green-600 px-3 py-1 text-sm font-semibold">🟢 ${value}</span>`;
-    if (value > 5) return `<span class="rounded-full bg-yellow-500 px-3 py-1 text-sm font-semibold">🟡 ${value}</span>`;
-    return `<span class="rounded-full bg-red-600 px-3 py-1 text-sm font-semibold">🔴 LOW (${value})</span>`;
+    if (value > 20) return '<span class="inline-flex items-center gap-1 rounded-full bg-green-600 px-2 py-0.5 text-xs font-semibold">🟢 ' + value + '</span>';
+    if (value > 5) return '<span class="inline-flex items-center gap-1 rounded-full bg-yellow-500 px-2 py-0.5 text-xs font-semibold">🟡 ' + value + '</span>';
+    if (value > 0) return '<span class="inline-flex items-center gap-1 rounded-full bg-orange-500 px-2 py-0.5 text-xs font-semibold">🟠 ' + value + '</span>';
+    return '<span class="inline-flex items-center gap-1 rounded-full bg-red-600 px-2 py-0.5 text-xs font-semibold">🔴 0</span>';
   }
 
   let productCache = [];
+  let brandSet = [];
+  let categorySet = [];
+
+  function populateFilters() {
+    brandSet = [...new Set(productCache.map(p => (p.brand || "").trim()).filter(Boolean))].sort();
+    categorySet = [...new Set(productCache.map(p => (p.category || "").trim()).filter(Boolean))].sort();
+
+    const brandDl = document.getElementById("brand-list");
+    if (brandDl) brandDl.innerHTML = brandSet.map(b => '<option value="' + escapeHtml(b) + '">').join("");
+
+    const catDl = document.getElementById("category-list");
+    if (catDl) catDl.innerHTML = categorySet.map(c => '<option value="' + escapeHtml(c) + '">').join("");
+
+    const brandFilter = document.getElementById("brand-filter");
+    const curBrand = brandFilter.value;
+    brandFilter.innerHTML = '<option value="">All Brands</option>' + brandSet.map(b => '<option value="' + escapeHtml(b) + '">' + escapeHtml(b) + '</option>').join("");
+    brandFilter.value = curBrand;
+  }
+
+  function filteredProducts() {
+    const q = (document.getElementById("product-search").value || "").trim().toLowerCase();
+    const brand = document.getElementById("brand-filter").value;
+    const stockMode = document.getElementById("stock-filter").value;
+    return productCache.filter(p => {
+      if (q && !(p.product_name || "").toLowerCase().includes(q) && !(p.brand || "").toLowerCase().includes(q)) return false;
+      if (brand && (p.brand || "") !== brand) return false;
+      const s = Number(p.stock || 0);
+      if (stockMode === "in" && s <= 5) return false;
+      if (stockMode === "low" && (s <= 0 || s > 5)) return false;
+      if (stockMode === "out" && s > 0) return false;
+      return true;
+    });
+  }
 
   async function loadProducts() {
     const data = await api("/api/products.php");
     productCache = data.products || [];
-    const rows = productCache;
+    populateFilters();
+    renderTable();
+  }
+
+  function renderTable() {
+    const rows = filteredProducts();
     const body = document.getElementById("product-table-body");
+    document.getElementById("product-count").textContent = rows.length;
     if (!rows.length) {
-      body.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-neutral-300">No products yet. Click "Add Product" to create one.</td></tr>`;
+      body.innerHTML = '<tr><td colspan="8" class="p-8 text-center text-neutral-300">No products found.</td></tr>';
       return;
     }
     body.innerHTML = rows.map((p) => `
       <tr class="border-t border-white/10 hover:bg-white/5">
-        <td class="p-4">${p.product_name}</td>
-        <td class="p-4">${p.brand || ""}</td>
-        <td class="p-4 text-center">${stockBadge(p.stock)}</td>
-        <td class="p-4 text-right">₹${formatMoney(p.selling_price)}</td>
-        <td class="p-4 text-center">
-          <button type="button" class="mr-2 rounded-lg bg-yellow-500 px-3 py-2" data-edit="${p.id}">✏️</button>
-          <button type="button" class="rounded-lg bg-red-500 px-3 py-2" data-delete="${p.id}">🗑</button>
+        <td class="p-3 font-medium">${escapeHtml(p.product_name)}</td>
+        <td class="p-3">${escapeHtml(p.brand || "—")}</td>
+        <td class="p-3 text-sm text-neutral-400">${escapeHtml(p.category || "—")}</td>
+        <td class="p-3 text-center">${stockBadge(p.stock)}</td>
+        <td class="p-3 text-right text-sm">${p.purchase_price ? "₹" + formatMoney(p.purchase_price) : "—"}</td>
+        <td class="p-3 text-right font-semibold">₹${formatMoney(p.selling_price)}</td>
+        <td class="p-3 text-center text-sm">${escapeHtml(p.unit || "Piece")}</td>
+        <td class="p-3 text-center">
+          <button type="button" class="mr-1 rounded-lg bg-yellow-500 px-3 py-1.5 text-sm" data-edit="${p.id}">✏️</button>
+          <button type="button" class="rounded-lg bg-red-500 px-3 py-1.5 text-sm" data-delete="${p.id}">🗑</button>
         </td>
       </tr>
     `).join("");
@@ -122,7 +216,8 @@ require __DIR__ . '/includes/header.php';
     }
     const del = e.target.closest("[data-delete]");
     if (del) {
-      if (!confirm("Are you sure you want to delete this product?")) return;
+      const product = productCache.find((p) => String(p.id) === String(del.dataset.delete));
+      if (!confirm("Delete \"" + (product?.product_name || "") + "\"? This cannot be undone.")) return;
       await api("/api/product_save.php?id=" + del.dataset.delete, { method: "DELETE" });
       alert("✅ Product Deleted");
       loadProducts();
@@ -137,6 +232,10 @@ require __DIR__ . '/includes/header.php';
     payload.stock = Number(payload.stock || 0);
     payload.gst_percent = Number(payload.gst_percent || 0);
     const isEdit = Boolean(payload.id);
+
+    if (!payload.product_name.trim()) { alert("Product name zaroori hai!"); return; }
+    if (payload.selling_price <= 0) { alert("Selling price 0 se zyada hona chahiye!"); return; }
+
     await api("/api/product_save.php", {
       method: isEdit ? "PUT" : "POST",
       body: JSON.stringify(payload),
@@ -146,9 +245,13 @@ require __DIR__ . '/includes/header.php';
     loadProducts();
   });
 
+  document.getElementById("product-search").addEventListener("input", renderTable);
+  document.getElementById("brand-filter").addEventListener("change", renderTable);
+  document.getElementById("stock-filter").addEventListener("change", renderTable);
+
   loadProducts().catch((err) => {
     document.getElementById("product-table-body").innerHTML =
-      `<tr><td colspan="5" class="p-8 text-center text-red-300">${err.message}</td></tr>`;
+      '<tr><td colspan="8" class="p-8 text-center text-red-300">' + err.message + '</td></tr>';
   });
 </script>
 

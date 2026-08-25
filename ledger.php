@@ -71,6 +71,29 @@ $types = [
       </div>
     </div>
     <p id="ledger-party-meta" class="mb-4 text-gray-600"></p>
+    <div class="mb-4 flex flex-wrap items-end gap-2">
+      <label class="text-sm font-semibold text-gray-700">Particular date
+        <span class="date-field mt-1 block">
+          <input type="text" id="ledger-entry-filter" inputmode="numeric" placeholder="dd/mm/yyyy" maxlength="10" autocomplete="off" class="w-36 rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900">
+          <input type="date" id="ledger-entry-filter-picker" title="Calendar" aria-label="Calendar">
+        </span>
+      </label>
+      <span class="pb-2 font-bold text-gray-500">ya</span>
+      <label class="text-sm font-semibold text-gray-700">Range: Se
+        <span class="date-field mt-1 block">
+          <input type="text" id="ledger-entry-filter-from" inputmode="numeric" placeholder="dd/mm/yyyy" maxlength="10" autocomplete="off" class="w-36 rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900">
+          <input type="date" id="ledger-entry-filter-from-picker" title="Calendar" aria-label="Calendar">
+        </span>
+      </label>
+      <label class="text-sm font-semibold text-gray-700">Tak
+        <span class="date-field mt-1 block">
+          <input type="text" id="ledger-entry-filter-to" inputmode="numeric" placeholder="dd/mm/yyyy" maxlength="10" autocomplete="off" class="w-36 rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900">
+          <input type="date" id="ledger-entry-filter-to-picker" title="Calendar" aria-label="Calendar">
+        </span>
+      </label>
+      <button type="button" id="btn-clear-ledger-filter" class="rounded-lg bg-slate-600 px-4 py-2 text-white">✕ Clear</button>
+    </div>
+    <p id="ledger-filter-info" class="mb-2 hidden text-sm font-bold text-blue-700"></p>
     <div class="mb-4 grid grid-cols-1 gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 md:grid-cols-4">
       <input type="text" id="edit-party-name" placeholder="Name" class="rounded-lg border p-2">
       <input type="text" id="edit-party-mobile" placeholder="Mobile" class="rounded-lg border p-2">
@@ -82,9 +105,20 @@ $types = [
         <input type="text" id="pay-date" inputmode="numeric" placeholder="dd/mm/yyyy" maxlength="10" autocomplete="off" class="rounded-lg border p-2">
         <input type="date" id="pay-date-picker" title="Calendar" aria-label="Calendar">
       </span>
-      <input type="number" id="pay-amount" placeholder="Amount" class="rounded-lg border p-2">
+      <select id="pay-currency" class="rounded-lg border bg-white p-2 text-gray-900">
+        <option value="inr">₹ Indian</option>
+        <option value="npr">🇳🇵 रु Nepali</option>
+      </select>
+      <input type="number" id="pay-amount" placeholder="Amount" class="rounded-lg border bg-white p-2 text-gray-900">
       <input type="text" id="pay-notes" placeholder="Receipt / Payment note" class="min-w-[200px] flex-1 rounded-lg border p-2">
       <button type="button" id="btn-add-payment" class="rounded-lg bg-green-600 px-4 py-2 text-white">Add Receipt / Payment</button>
+      <div id="pay-npr-extra" class="flex-wrap items-center gap-3" style="display:none">
+        <label class="flex items-center gap-1 text-sm text-gray-300">₹1 =
+          <input type="number" step="0.01" min="0.01" id="pay-npr-rate" placeholder="1.6" class="w-20 rounded border bg-white p-1 text-gray-900">
+          रु
+        </label>
+        <span id="pay-npr-inr" class="text-sm font-bold text-emerald-300"></span>
+      </div>
     </div>
     <table class="w-full border-collapse border">
       <thead>
@@ -106,6 +140,63 @@ $types = [
 <script>
   let currentType = "customer";
   let currentPartyId = 0;
+  let ledgerAllEntries = [];
+
+  function renderLedgerEntries() {
+    const rawDate = document.getElementById("ledger-entry-filter").value.trim();
+    const rawFrom = document.getElementById("ledger-entry-filter-from").value.trim();
+    const rawTo = document.getElementById("ledger-entry-filter-to").value.trim();
+    const iso = rawDate !== "" ? parseToIsoDate(rawDate) : "";
+    const fromIso = rawFrom !== "" ? parseToIsoDate(rawFrom) : "";
+    const toIso = rawTo !== "" ? parseToIsoDate(rawTo) : "";
+    const dayOf = (row) => (row.entry_date || "").slice(0, 10);
+    let list;
+    if (iso) {
+      list = ledgerAllEntries.filter((row) => dayOf(row) === iso);
+    } else if (fromIso || toIso) {
+      list = ledgerAllEntries.filter((row) => {
+        const d = dayOf(row);
+        return (!fromIso || d >= fromIso) && (!toIso || d <= toIso);
+      });
+    } else {
+      list = ledgerAllEntries;
+    }
+    const info = document.getElementById("ledger-filter-info");
+    if ((iso || fromIso || toIso) && list.length) {
+      const dSum = list.reduce((s, r) => s + (Number(r.debit) || 0), 0);
+      const cSum = list.reduce((s, r) => s + (Number(r.credit) || 0), 0);
+      const label = iso
+        ? "Is date ki entries"
+        : "Is range ki entries (" + (fromIso ? formatDisplayDate(fromIso) : "shuruaat") + " se " + (toIso ? formatDisplayDate(toIso) : "aaj tak") + ")";
+      info.textContent = label + ": " + list.length + " | Debit ₹" + formatMoney(dSum) + " | Credit ₹" + formatMoney(cSum);
+      info.classList.remove("hidden");
+    } else if (iso || fromIso || toIso) {
+      info.textContent = "Is date/range ki koi entry nahi mili.";
+      info.classList.remove("hidden");
+    } else {
+      info.classList.add("hidden");
+    }
+    document.getElementById("ledger-entries").innerHTML = list.map((row) => `
+      <tr data-entry-id="${row.id}">
+        <td class="border p-2"><input type="text" data-f="entry_date" value="${escapeHtml(invoiceDateLabel(row.entry_date))}" class="w-28 rounded border p-1"></td>
+        <td class="border p-2"><input type="text" data-f="particulars" value="${escapeHtml(row.particulars || "")}" class="w-full min-w-[140px] rounded border p-1"></td>
+        <td class="border p-2">
+          <input type="text" data-f="ref_no" value="${escapeHtml(row.ref_no || "")}" class="w-24 rounded border p-1">
+          ${row.sale_id ? ' <a class="text-blue-600" href="' + appUrl("invoice.php?id=" + row.sale_id) + '" target="_blank">sale</a>' : ""}
+          ${row.purchase_id ? ' <a class="text-blue-600" href="' + appUrl("purchase-bill.php?id=" + row.purchase_id) + '" target="_blank">bill</a>' : ""}
+        </td>
+        <td class="border p-2 text-right"><input type="number" step="0.01" data-f="debit" value="${Number(row.debit) || ""}" class="w-24 rounded border p-1 text-right"></td>
+        <td class="border p-2 text-right"><input type="number" step="0.01" data-f="credit" value="${Number(row.credit) || ""}" class="w-24 rounded border p-1 text-right"></td>
+        <td class="border p-2 text-right">${formatMoney(row.balance)}</td>
+        <td class="border p-2">
+          <div class="flex gap-1">
+            <button type="button" data-save-entry="${row.id}" class="rounded bg-amber-500 px-2 py-1 text-white">✏️</button>
+            <button type="button" data-del-entry="${row.id}" class="rounded bg-red-600 px-2 py-1 text-white">🗑</button>
+          </div>
+        </td>
+      </tr>
+    `).join("") || `<tr><td colspan="7" class="border p-3 text-center text-gray-500">${iso ? "Is date ki koi entry nahi mili." : "Koi entry nahi."}</td></tr>`;
+  }
 
   function tabButtons() {
     document.querySelectorAll(".ledger-tab").forEach((btn) => {
@@ -168,26 +259,8 @@ const data = await api("/api/ledger.php?" + params.toString());
       wa.href = "#";
       wa.classList.add("hidden");
     }
-    document.getElementById("ledger-entries").innerHTML = (data.entries || []).map((row) => `
-      <tr data-entry-id="${row.id}">
-        <td class="border p-2"><input type="text" data-f="entry_date" value="${escapeHtml(invoiceDateLabel(row.entry_date))}" class="w-28 rounded border p-1"></td>
-        <td class="border p-2"><input type="text" data-f="particulars" value="${escapeHtml(row.particulars || "")}" class="w-full min-w-[140px] rounded border p-1"></td>
-        <td class="border p-2">
-          <input type="text" data-f="ref_no" value="${escapeHtml(row.ref_no || "")}" class="w-24 rounded border p-1">
-          ${row.sale_id ? ' <a class="text-blue-600" href="' + appUrl("invoice.php?id=" + row.sale_id) + '" target="_blank">sale</a>' : ""}
-          ${row.purchase_id ? ' <a class="text-blue-600" href="' + appUrl("purchase-bill.php?id=" + row.purchase_id) + '" target="_blank">bill</a>' : ""}
-        </td>
-        <td class="border p-2 text-right"><input type="number" step="0.01" data-f="debit" value="${Number(row.debit) || ""}" class="w-24 rounded border p-1 text-right"></td>
-        <td class="border p-2 text-right"><input type="number" step="0.01" data-f="credit" value="${Number(row.credit) || ""}" class="w-24 rounded border p-1 text-right"></td>
-        <td class="border p-2 text-right">${formatMoney(row.balance)}</td>
-        <td class="border p-2">
-          <div class="flex gap-1">
-            <button type="button" data-save-entry="${row.id}" class="rounded bg-amber-500 px-2 py-1 text-white">✏️</button>
-            <button type="button" data-del-entry="${row.id}" class="rounded bg-red-600 px-2 py-1 text-white">🗑</button>
-          </div>
-        </td>
-      </tr>
-    `).join("");
+    ledgerAllEntries = data.entries || [];
+    renderLedgerEntries();
     document.getElementById("ledger-detail").classList.remove("hidden");
     document.getElementById("ledger-detail").classList.add("flex");
   }
@@ -299,19 +372,70 @@ const data = await api("/api/ledger.php?" + params.toString());
     document.getElementById("ledger-detail").classList.remove("flex");
   });
 
+  const payCurrency = document.getElementById("pay-currency");
+  const payAmountEl = document.getElementById("pay-amount");
+  const payNprExtra = document.getElementById("pay-npr-extra");
+  const payNprRate = document.getElementById("pay-npr-rate");
+  const payNprInr = document.getElementById("pay-npr-inr");
+
+  function ledgerPayIsNpr() {
+    return payCurrency && payCurrency.value === "npr";
+  }
+
+  function ledgerPayRate() {
+    const v = Number(payNprRate && payNprRate.value);
+    return v > 0 ? v : (Number(localStorage.getItem("nprRate")) || 1.6);
+  }
+
+  function syncLedgerPayUi() {
+    const npr = ledgerPayIsNpr();
+    if (payNprExtra) payNprExtra.style.display = npr ? "flex" : "none";
+    if (!npr || !payNprInr) return;
+    if (payNprRate && !payNprRate.value) {
+      payNprRate.value = localStorage.getItem("nprRate") || "1.6";
+    }
+    const amt = Number(payAmountEl ? payAmountEl.value : 0);
+    const rate = ledgerPayRate();
+    payNprInr.textContent = amt > 0 && rate > 0
+      ? "= ₹ " + formatMoney(Math.round((amt / rate) * 100) / 100)
+      : "";
+  }
+
+  if (payCurrency) payCurrency.addEventListener("change", syncLedgerPayUi);
+  if (payNprRate) {
+    payNprRate.addEventListener("input", () => {
+      const v = Number(payNprRate.value);
+      if (v > 0) localStorage.setItem("nprRate", String(v));
+      syncLedgerPayUi();
+    });
+  }
+  if (payAmountEl) payAmountEl.addEventListener("input", syncLedgerPayUi);
+  syncLedgerPayUi();
+
   document.getElementById("btn-add-payment").addEventListener("click", async () => {
+    let amountVal = document.getElementById("pay-amount").value;
+    let notesVal = document.getElementById("pay-notes").value;
+    if (ledgerPayIsNpr()) {
+      const nprAmt = Number(amountVal);
+      const rate = ledgerPayRate();
+      if (!(nprAmt > 0)) { alert("Nepali rupiya mein amount likho"); return; }
+      if (!(rate > 0)) { alert("Rate likho: ₹1 = kitne रु"); return; }
+      amountVal = String(Math.round((nprAmt / rate) * 100) / 100);
+      notesVal = (notesVal ? notesVal + " " : "") + "[रु" + formatMoney(nprAmt) + " @ ₹1=रु" + rate + "]";
+    }
     try {
       await api("/api/ledger.php", {
         method: "POST",
         body: JSON.stringify({
           party_id: currentPartyId,
-          amount: document.getElementById("pay-amount").value,
-          notes: document.getElementById("pay-notes").value,
+          amount: amountVal,
+          notes: notesVal,
           entry_date: parseToIsoDate(document.getElementById("pay-date").value),
         }),
       });
       document.getElementById("pay-amount").value = "";
       document.getElementById("pay-notes").value = "";
+      if (payNprInr) payNprInr.textContent = "";
       await openParty(currentPartyId);
       await loadList();
     } catch (err) {
@@ -321,6 +445,23 @@ const data = await api("/api/ledger.php?" + params.toString());
 
   bindDateField("pay-date", "pay-date-picker");
   setDateField("pay-date", "pay-date-picker", todayIsoDate());
+
+  bindDateField("ledger-entry-filter", "ledger-entry-filter-picker");
+  bindDateField("ledger-entry-filter-from", "ledger-entry-filter-from-picker");
+  bindDateField("ledger-entry-filter-to", "ledger-entry-filter-to-picker");
+  ["ledger-entry-filter", "ledger-entry-filter-from", "ledger-entry-filter-to"].forEach((id) => {
+    document.getElementById(id).addEventListener("change", renderLedgerEntries);
+  });
+  ["ledger-entry-filter-picker", "ledger-entry-filter-from-picker", "ledger-entry-filter-to-picker"].forEach((id) => {
+    document.getElementById(id).addEventListener("change", renderLedgerEntries);
+  });
+  document.getElementById("btn-clear-ledger-filter").addEventListener("click", () => {
+    ["ledger-entry-filter", "ledger-entry-filter-picker", "ledger-entry-filter-from", "ledger-entry-filter-from-picker", "ledger-entry-filter-to", "ledger-entry-filter-to-picker"].forEach((id) => {
+      document.getElementById(id).value = "";
+    });
+    renderLedgerEntries();
+  });
+
   loadList().catch((err) => alert(err.message));
   let ledgerSearchTimer = null;
 

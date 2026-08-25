@@ -36,9 +36,21 @@ try {
         $purchaseDue = (float) $pdo->query('SELECT COALESCE(SUM(total), 0) FROM purchases')->fetchColumn();
     }
 
+    $todayExpenses = $pdo->prepare(
+        'SELECT COALESCE(SUM(amount), 0) AS total FROM expenses WHERE expense_date = :d'
+    );
+    $todayExpenses->execute(['d' => $today]);
+
+    $monthExpenses = $pdo->prepare(
+        'SELECT COALESCE(SUM(amount), 0) AS total FROM expenses WHERE expense_date LIKE :m'
+    );
+    $monthExpenses->execute(['m' => date('Y-m') . '%']);
+
     json_response([
         'today_sales' => (float) $salesToday->fetchColumn(),
         'today_purchase' => (float) $purchaseToday->fetchColumn(),
+        'today_expenses' => (float) $todayExpenses->fetchColumn(),
+        'month_expenses' => (float) $monthExpenses->fetchColumn(),
         'cash_in_hand' => (float) ($cash['total'] ?? 0),
         'pending_payment' => (float) ($saleDue['total'] ?? 0) + $purchaseDue,
     ]);

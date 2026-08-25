@@ -130,6 +130,67 @@ async function invoiceElementToPdfBlob(sourceEl, filename) {
   }
 }
 
+function openWhatsAppUrl(url) {
+  let opened = false;
+  try {
+    const w = window.open(url, "_blank");
+    opened = !!(w && !w.closed);
+  } catch (err) {
+    opened = false;
+  }
+  if (opened) return;
+  setTimeout(() => {
+    if (document.visibilityState === "visible") {
+      window.location.href = url;
+    }
+  }, 900);
+}
+
+function absoluteUrl(pathOrUrl) {
+  try {
+    return new URL(pathOrUrl, window.location.href).href;
+  } catch (err) {
+    return String(pathOrUrl || "");
+  }
+}
+
+async function uploadPdfBlob(blob, filename) {
+  let name = String(filename || "Invoice.pdf");
+  if (!/\.pdf$/i.test(name)) name += ".pdf";
+  const base = typeof appUrl === "function"
+    ? appUrl("api/invoice-pdf.php")
+    : "api/invoice-pdf.php";
+  const res = await fetch(base + "?name=" + encodeURIComponent(name), {
+    method: "POST",
+    headers: { "Content-Type": "application/pdf" },
+    body: blob,
+  });
+  let data = {};
+  try { data = await res.json(); } catch (err) { data = {}; }
+  if (!res.ok || !data.ok) throw new Error(data.error || "PDF server par save nahi hui");
+  return data;
+}
+
+async function copyToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (err) {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.cssText = "position:fixed;left:-9999px;";
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand("copy");
+      ta.remove();
+      return ok;
+    } catch (e) {
+      return false;
+    }
+  }
+}
+
 async function shareInvoicePdfToWhatsApp(options) {
   const sourceEl = options.element;
   const filename = options.filename || "Invoice.pdf";
@@ -139,7 +200,7 @@ async function shareInvoicePdfToWhatsApp(options) {
     throw new Error("Invoice preview nahi mili.");
   }
   if (!whatsappDigitsJs(phone)) {
-    phone = window.prompt("Customer ka WhatsApp number (10 digit):", phone) || "";
+    phone = window.prompt("Customer ka WhatsApp number (10 digit ya 91 ke saath):\nNumber save na ho tab bhi chalega.", phone) || "";
   }
   if (!whatsappDigitsJs(phone)) {
     throw new Error("WhatsApp number nahi mila. Customer mobile save karo.");
@@ -153,19 +214,35 @@ async function shareInvoicePdfToWhatsApp(options) {
     file = null;
   }
 
-  if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+  // Best case: PDF FILE seedha WhatsApp ko — koi text message nahi
+  if (file && window.isSecureContext && navigator.canShare && navigator.canShare({ files: [file] })) {
     try {
-      await navigator.share({ files: [file], title: filename });
+      await navigator.share({ files: [file] });
       return "shared";
     } catch (err) {
       if (err && err.name === "AbortError") return "cancel";
     }
   }
 
-  downloadBlobFile(blob, filename);
   const url = whatsappChatUrl(phone, "");
-  if (url) window.open(url, "_blank");
-  return "download";
+  if (!url) return "cancel";
+
+  let savedUrl = "";
+  try {
+    const up = await uploadPdfBlob(blob, filename);
+    if (up && up.url) savedUrl = absoluteUrl(up.url);
+  } catch (err) {
+    /* server save fail */
+  }
+
+  if (savedUrl) await copyToClipboard(savedUrl);
+  openWhatsAppUrl(url);
+
+  if (window.isSecureContext && savedUrl) {
+    downloadBlobFile(blob, filename);
+    return "download";
+  }
+  return "text-only";
 }
 
 async function bindWhatsAppPdfButton(btn, getContext) {
@@ -179,7 +256,9 @@ async function bindWhatsAppPdfButton(btn, getContext) {
       const ctx = typeof getContext === "function" ? getContext() : getContext;
       const result = await shareInvoicePdfToWhatsApp(ctx);
       if (result === "download") {
-        alert("Sirf PDF download hua. WhatsApp mein 📎 Document se yeh PDF attach karo — text mat likho.");
+        alert("WhatsApp chat khul gayi (koi text nahi likha).\n📎 dabao → Document → Downloads wali Invoice PDF choose karke bhejo.\nPDF ka link clipboard mein bhi copy hai — paste karke bhi bhej sakte ho.");
+      } else if (result === "text-only") {
+        alert("WhatsApp chat khul gayi aur PDF ka LINK clipboard mein copy ho gaya.\nChat mein paste karke bhejo — customer link tap karke PDF kholega.\n\n(Seedha file bhejne ke liye site par HTTPS chahiye.)");
       }
     } catch (err) {
       alert(err.message || String(err));

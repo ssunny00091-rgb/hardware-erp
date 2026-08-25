@@ -23,7 +23,7 @@ $reminderBannerRows = reminder_banner_rows(db());
   <button type="button" id="btn-sales-history" class="w-full rounded-lg bg-indigo-600 px-6 py-3 text-center font-semibold text-white shadow-lg hover:bg-indigo-700 motion-in motion-d3 sm:w-auto">🧾 Sales History</button>
 </div>
 
-<div id="dashboard-cards" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+<div id="dashboard-cards" class="grid grid-cols-1 gap-4 lg:grid-cols-4">
   <article class="relative overflow-hidden rounded-2xl p-6 shadow-xl motion-card" style="background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%); --d: 0">
     <h3 class="text-lg font-semibold">Today's Sales</h3>
     <p class="mt-3 text-4xl font-bold" data-stat="today_sales">₹0.00</p>
@@ -40,6 +40,14 @@ $reminderBannerRows = reminder_banner_rows(db());
     <h3 class="text-lg font-semibold">Pending Payment</h3>
     <p class="mt-3 text-4xl font-bold" data-stat="pending_payment">₹0.00</p>
   </article>
+</div>
+
+<div class="mt-4 grid grid-cols-1 lg:grid-cols-4">
+  <a href="<?= htmlspecialchars(app_url('expenses.php'), ENT_QUOTES) ?>" class="relative overflow-hidden rounded-2xl p-6 shadow-xl transition-all hover:scale-[1.03] hover:shadow-2xl motion-card" style="background: linear-gradient(135deg, #dc2626 0%, #f97316 100%); --d: 4; text-decoration:none; color:#fff;">
+    <h3 class="text-lg font-semibold">💸 Expenses</h3>
+    <p class="mt-3 text-4xl font-bold" data-stat="today_expenses">₹0.00</p>
+    <p class="mt-1 text-xs opacity-70">Click to view all →</p>
+  </a>
 </div>
 
 <section id="sale-form" class="mt-8 hidden rounded-2xl border border-white/20 bg-white/10 p-4 shadow-2xl backdrop-blur-xl sm:rounded-3xl sm:p-8">
@@ -126,6 +134,61 @@ $reminderBannerRows = reminder_banner_rows(db());
       <option value="Black"></option>
     </datalist>
     <div id="product-rows"></div>
+
+    <div id="quick-add-modal" class="fixed inset-0 z-50 hidden items-end justify-center bg-black/50 sm:items-center">
+      <div class="w-full max-w-lg rounded-t-2xl bg-slate-900 p-5 shadow-2xl sm:rounded-2xl">
+        <div class="mb-4 flex items-center justify-between">
+          <h3 class="text-lg font-bold">📦 Naya Product Save Karo</h3>
+          <button type="button" id="quick-add-close" class="rounded-lg bg-red-500 px-3 py-1 text-sm">✕</button>
+        </div>
+        <div class="mb-3 text-sm text-neutral-400">Naam aur price line se auto-fill ho gaye — baaki details bharo.</div>
+        <form id="quick-add-form" class="grid grid-cols-2 gap-3">
+          <input type="hidden" name="sale_index" id="qa-sale-index">
+          <div class="col-span-2">
+            <label class="mb-0.5 block text-xs font-medium text-neutral-400">Product Name</label>
+            <input name="product_name" id="qa-name" class="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-gray-900" required>
+          </div>
+          <div>
+            <label class="mb-0.5 block text-xs font-medium text-neutral-400">Brand</label>
+            <input name="brand" id="qa-brand" list="qa-brand-list" placeholder="e.g. Asian Paints" class="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-gray-900">
+            <datalist id="qa-brand-list"></datalist>
+          </div>
+          <div>
+            <label class="mb-0.5 block text-xs font-medium text-neutral-400">Category</label>
+            <input name="category" id="qa-category" list="qa-category-list" placeholder="e.g. Emulsion" class="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-gray-900">
+            <datalist id="qa-category-list"></datalist>
+          </div>
+          <div>
+            <label class="mb-0.5 block text-xs font-medium text-neutral-400">Unit</label>
+            <select name="unit" id="qa-unit" class="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-gray-900"></select>
+          </div>
+          <div>
+            <label class="mb-0.5 block text-xs font-medium text-neutral-400">HSN Code</label>
+            <input name="hsn_code" id="qa-hsn" placeholder="e.g. 3209" class="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-gray-900">
+          </div>
+          <div>
+            <label class="mb-0.5 block text-xs font-medium text-neutral-400">Selling Price ₹</label>
+            <input type="number" step="0.01" name="selling_price" id="qa-price" class="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-gray-900" required>
+          </div>
+          <div>
+            <label class="mb-0.5 block text-xs font-medium text-neutral-400">Purchase Price ₹</label>
+            <input type="number" step="0.01" name="purchase_price" id="qa-purchase" placeholder="0" class="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-gray-900">
+          </div>
+          <div>
+            <label class="mb-0.5 block text-xs font-medium text-neutral-400">Opening Stock</label>
+            <input type="number" step="0.01" name="stock" id="qa-stock" value="0" class="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-gray-900">
+          </div>
+          <div>
+            <label class="mb-0.5 block text-xs font-medium text-neutral-400">GST %</label>
+            <input type="number" step="0.01" name="gst_percent" id="qa-gst" value="18" class="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-gray-900">
+          </div>
+          <div class="col-span-2 flex gap-3 pt-1">
+            <button type="button" id="quick-add-cancel" class="flex-1 rounded-xl bg-gray-600 py-2.5 font-semibold">Cancel</button>
+            <button type="submit" class="flex-1 rounded-xl bg-green-600 py-2.5 font-semibold">💾 Save & Add to Bill</button>
+          </div>
+        </form>
+      </div>
+    </div>
     <button type="button" id="btn-add-sale-row" class="mt-2 rounded-xl bg-white/15 px-4 py-3 font-semibold hover:bg-white/25">➕ Aur item add karo</button>
   </div>
 
@@ -178,6 +241,29 @@ $reminderBannerRows = reminder_banner_rows(db());
       <h2 class="text-xl font-bold sm:text-3xl">🧾 Sales History</h2>
       <button type="button" id="btn-close-history" class="rounded-lg bg-red-600 px-5 py-2 text-white">✖ Close</button>
     </div>
+    <div class="mb-3 flex flex-wrap items-end gap-2">
+      <label class="text-sm font-semibold text-gray-700">Date se dekho
+        <span class="date-field mt-1 block">
+          <input type="text" id="history-date" inputmode="numeric" placeholder="dd/mm/yyyy" maxlength="10" autocomplete="off" class="w-36 rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900">
+          <input type="date" id="history-date-picker" title="Calendar" aria-label="Calendar">
+        </span>
+      </label>
+      <span class="pb-2 font-bold text-gray-500">ya</span>
+      <label class="text-sm font-semibold text-gray-700">Range: Se
+        <span class="date-field mt-1 block">
+          <input type="text" id="history-from" inputmode="numeric" placeholder="dd/mm/yyyy" maxlength="10" autocomplete="off" class="w-36 rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900">
+          <input type="date" id="history-from-picker" title="Calendar" aria-label="Calendar">
+        </span>
+      </label>
+      <label class="text-sm font-semibold text-gray-700">Tak
+        <span class="date-field mt-1 block">
+          <input type="text" id="history-to" inputmode="numeric" placeholder="dd/mm/yyyy" maxlength="10" autocomplete="off" class="w-36 rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900">
+          <input type="date" id="history-to-picker" title="Calendar" aria-label="Calendar">
+        </span>
+      </label>
+      <button type="button" id="btn-clear-history-date" class="rounded-lg bg-slate-600 px-4 py-2 text-white">✕ Clear</button>
+    </div>
+    <p id="history-summary" class="mb-2 text-sm font-bold text-blue-700"></p>
     <div class="table-scroll max-h-[70vh] overflow-auto">
       <table class="w-full border-collapse border">
         <thead>
@@ -206,6 +292,7 @@ $reminderBannerRows = reminder_banner_rows(db());
     <div class="sticky bottom-0 flex flex-wrap justify-center gap-2 border-t bg-white p-3 print-hide sm:gap-4 sm:p-4">
       <button type="button" id="btn-edit-sale" class="w-full rounded-lg bg-gray-600 px-5 py-2 text-white sm:w-auto">✏️ Edit</button>
       <button type="button" id="btn-print-invoice" class="w-full rounded-lg bg-blue-600 px-5 py-2 text-white sm:w-auto">🖨️ Print</button>
+      <button type="button" id="btn-pos-print" class="w-full rounded-lg bg-teal-700 px-5 py-2 text-white sm:w-auto">🧾 POS Print</button>
       <button type="button" id="btn-wa-preview" class="w-full rounded-lg bg-green-600 px-5 py-2 text-white sm:w-auto">📲 WhatsApp PDF</button>
       <button type="button" id="btn-confirm-save" class="w-full rounded-lg bg-purple-600 px-5 py-2 text-white sm:w-auto">💾 Save Sale</button>
     </div>
@@ -394,6 +481,14 @@ $reminderBannerRows = reminder_banner_rows(db());
     catalog = data.products || [];
   }
 
+  function suggestStockBadge(stock) {
+    const v = Number(stock || 0);
+    if (v > 20) return '<span class="inline-block rounded bg-green-600 px-1.5 py-0.5 text-xs text-white">🟢 ' + v + '</span>';
+    if (v > 5) return '<span class="inline-block rounded bg-yellow-500 px-1.5 py-0.5 text-xs text-white">🟡 ' + v + '</span>';
+    if (v > 0) return '<span class="inline-block rounded bg-orange-500 px-1.5 py-0.5 text-xs text-white">🟠 ' + v + '</span>';
+    return '<span class="inline-block rounded bg-red-600 px-1.5 py-0.5 text-xs text-white">🔴 0</span>';
+  }
+
   function showSuggestions(index, value) {
     const box = document.querySelector(`[data-suggest="${index}"]`);
     if (!box) return;
@@ -403,19 +498,34 @@ $reminderBannerRows = reminder_banner_rows(db());
       box.innerHTML = "";
       return;
     }
-    const matches = catalog.filter((p) => (p.product_name || "").toLowerCase().includes(search.toLowerCase())).slice(0, 80);
-    const exact = catalog.some((p) => (p.product_name || "").toLowerCase() === search.toLowerCase());
-    let html = matches.map((p) => `
-      <div class="cursor-pointer border-b p-3 hover:bg-blue-100" data-pick="${p.id}" data-index="${index}">
-        <div class="font-medium">${escapeHtml(p.product_name)}</div>
-        <div class="text-sm text-gray-500">₹ ${formatMoney(p.selling_price)}</div>
-      </div>
-    `).join("");
+    const q = search.toLowerCase();
+    const addedIds = new Set(saleRows.filter(r => r.product_id).map(r => String(r.product_id)));
+    const matches = catalog.filter((p) => {
+      const nm = (p.product_name || "").toLowerCase();
+      const br = (p.brand || "").toLowerCase();
+      return nm.includes(q) || br.includes(q);
+    }).slice(0, 50);
+    const exact = catalog.some((p) => (p.product_name || "").toLowerCase() === q);
+    let html = matches.map((p) => {
+      const dup = addedIds.has(String(p.id));
+      const stock = Number(p.stock || 0);
+      return '<div class="cursor-pointer border-b px-3 py-2.5 hover:bg-blue-50' + (dup ? ' bg-yellow-50' : '') + '" data-pick="' + p.id + '" data-index="' + index + '">' +
+        '<div class="flex items-center justify-between gap-2">' +
+          '<span class="font-medium truncate">' + escapeHtml(p.product_name) + '</span>' +
+          '<span class="whitespace-nowrap text-right text-sm font-semibold">₹' + formatMoney(p.selling_price) + '</span>' +
+        '</div>' +
+        '<div class="mt-0.5 flex items-center gap-2 text-xs text-gray-500">' +
+          (p.brand ? '<span class="font-medium text-gray-600">' + escapeHtml(p.brand) + '</span>' : '') +
+          suggestStockBadge(stock) +
+          '<span>' + escapeHtml(p.unit || "Piece") + '</span>' +
+          (dup ? '<span class="font-semibold text-orange-600">⚠️ Already added</span>' : '') +
+        '</div>' +
+      '</div>';
+    }).join("");
     if (!exact) {
-      html += `
-        <div class="cursor-pointer bg-green-50 p-3 font-semibold text-green-800 hover:bg-green-100" data-save-new="${index}">
-          ➕ Save "${escapeHtml(search)}" as new product
-        </div>`;
+      html += '<div class="cursor-pointer border-t bg-green-50 px-3 py-2.5 font-semibold text-green-800 hover:bg-green-100" data-save-new="' + index + '">' +
+        '➕ New product: "' + escapeHtml(search) + '" — Tap to save with details' +
+      '</div>';
     }
     if (!html) {
       box.classList.add("hidden");
@@ -426,37 +536,69 @@ $reminderBannerRows = reminder_banner_rows(db());
     setSuggestActive(box, 0);
   }
 
-  async function saveRowAsProduct(index) {
-    const row = saleRows[index];
+  function openQuickAddModal(index) {
+    const row = saleRows[index] || {};
     const name = (row.name || "").trim();
-    if (!name) {
-      alert("Pehle product name likho");
-      return;
-    }
-    const price = Number(row.price) || 0;
+    if (!name) { alert("Pehle product name likho"); return; }
+
+    document.getElementById("qa-sale-index").value = index;
+    document.getElementById("qa-name").value = name;
+    document.getElementById("qa-price").value = row.price || "";
+    document.getElementById("qa-unit").innerHTML = unitOptions(row.unit || "Piece");
+
+    const brands = [...new Set(catalog.map(p => (p.brand || "").trim()).filter(Boolean))].sort();
+    const cats = [...new Set(catalog.map(p => (p.category || "").trim()).filter(Boolean))].sort();
+    const qaBrandDl = document.getElementById("qa-brand-list");
+    const qaCatDl = document.getElementById("qa-category-list");
+    if (qaBrandDl) qaBrandDl.innerHTML = brands.map(b => '<option value="' + escapeHtml(b) + '">').join("");
+    if (qaCatDl) qaCatDl.innerHTML = cats.map(c => '<option value="' + escapeHtml(c) + '">').join("");
+
+    document.getElementById("quick-add-modal").classList.remove("hidden");
+    document.getElementById("quick-add-modal").classList.add("flex");
+    document.getElementById("qa-brand").focus();
+  }
+
+  function closeQuickAddModal() {
+    document.getElementById("quick-add-modal").classList.add("hidden");
+    document.getElementById("quick-add-modal").classList.remove("flex");
+  }
+
+  document.getElementById("quick-add-close").addEventListener("click", closeQuickAddModal);
+  document.getElementById("quick-add-cancel").addEventListener("click", closeQuickAddModal);
+  document.getElementById("quick-add-modal").addEventListener("click", (e) => {
+    if (e.target === e.currentTarget) closeQuickAddModal();
+  });
+
+  document.getElementById("quick-add-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const index = Number(fd.get("sale_index"));
+    const payload = {
+      product_name: (fd.get("product_name") || "").trim(),
+      brand: (fd.get("brand") || "").trim(),
+      category: (fd.get("category") || "").trim(),
+      unit: fd.get("unit") || "Piece",
+      hsn_code: (fd.get("hsn_code") || "").trim(),
+      selling_price: Number(fd.get("selling_price") || 0),
+      purchase_price: Number(fd.get("purchase_price") || 0),
+      stock: Number(fd.get("stock") || 0),
+      gst_percent: Number(fd.get("gst_percent") || 18),
+    };
+    if (!payload.product_name) { alert("Product name zaroori hai!"); return; }
+    if (payload.selling_price <= 0) { alert("Selling price 0 se zyada hona chahiye!"); return; }
+
     const data = await api("/api/product_save.php", {
       method: "POST",
-      body: JSON.stringify({
-        product_name: name,
-        unit: row.unit || "Piece",
-        selling_price: price,
-        purchase_price: 0,
-        stock: 0,
-        gst_percent: 18,
-      }),
+      body: JSON.stringify(payload),
     });
-    const product = {
-      id: data.id,
-      product_name: name,
-      unit: row.unit || "Piece",
-      selling_price: price,
-    };
-    catalog.push(product);
+    catalog.push({ id: data.id, product_name: payload.product_name, brand: payload.brand, category: payload.category, unit: payload.unit, selling_price: payload.selling_price, hsn_code: payload.hsn_code, stock: payload.stock });
     saleRows[index].product_id = data.id;
-    alert("✅ Product saved: " + name);
-    const box = document.querySelector(`[data-suggest="${index}"]`);
+    saleRows[index].hsn = payload.hsn_code;
+    closeQuickAddModal();
+    alert("✅ Product saved: " + payload.product_name);
+    const box = document.querySelector('[data-suggest="' + index + '"]');
     if (box) box.classList.add("hidden");
-  }
+  });
 
   let nextInvoiceNo = "";
 
@@ -828,7 +970,7 @@ $reminderBannerRows = reminder_banner_rows(db());
     }
     const saveNew = e.target.closest("[data-save-new]");
     if (saveNew) {
-      saveRowAsProduct(Number(saveNew.dataset.saveNew)).catch((err) => alert(err.message));
+      openQuickAddModal(Number(saveNew.dataset.saveNew));
     }
   });
 
@@ -936,6 +1078,23 @@ $reminderBannerRows = reminder_banner_rows(db());
     printInvoiceSheet(invoiceSheetHtml(currentCustomer(), products, total));
   });
 
+  document.getElementById("btn-pos-print").addEventListener("click", () => {
+    const products = validProducts();
+    const total = products.reduce((sum, row) => sum + rowTotal(row), 0);
+    const received = saleReceivedAmount(total);
+    const nepal = isNepalCustomer(document.getElementById("customer-mobile").value);
+    printPosReceipt(posReceiptHtml({
+      invoiceNo: nextInvoiceNo,
+      dateLabel: document.getElementById("sale-date").value || formatDisplayDate(todayIsoDate()),
+      customer: currentCustomer(),
+      items: products,
+      total,
+      received,
+      balance: total - received,
+      nprRate: nepal ? nprRate() : null,
+    }));
+  });
+
   async function persistCurrentSale() {
     const customer = currentCustomer();
     const products = validProducts();
@@ -1018,9 +1177,23 @@ $reminderBannerRows = reminder_banner_rows(db());
     }
   });
 
-  document.getElementById("btn-sales-history").addEventListener("click", async () => {
-    const data = await api("/api/sales.php");
-    document.getElementById("sales-history-body").innerHTML = (data.sales || []).map((sale) => {
+  function historyDateQuery() {
+    const rawDate = document.getElementById("history-date").value.trim();
+    if (rawDate !== "") {
+      return "?date=" + encodeURIComponent(parseToIsoDate(rawDate));
+    }
+    const rawFrom = document.getElementById("history-from").value.trim();
+    const rawTo = document.getElementById("history-to").value.trim();
+    const parts = [];
+    if (rawFrom !== "") parts.push("from=" + encodeURIComponent(parseToIsoDate(rawFrom)));
+    if (rawTo !== "") parts.push("to=" + encodeURIComponent(parseToIsoDate(rawTo)));
+    return parts.length ? "?" + parts.join("&") : "";
+  }
+
+  async function loadSalesHistory() {
+    const data = await api("/api/sales.php" + historyDateQuery());
+    const sales = data.sales || [];
+    document.getElementById("sales-history-body").innerHTML = sales.map((sale) => {
       const ref = sale.ref_name ? (sale.ref_type || "ref") + ": " + sale.ref_name : "—";
       return `
       <tr>
@@ -1039,9 +1212,47 @@ $reminderBannerRows = reminder_banner_rows(db());
         </td>
       </tr>
     `;
-    }).join("");
+    }).join("") || `<tr><td colspan="6" class="border p-4 text-center text-gray-500">Is date ki koi sale nahi mili.</td></tr>`;
+    const totalSum = sales.reduce((sum, s) => sum + (Number(s.total) || 0), 0);
+    document.getElementById("history-summary").textContent = sales.length
+      ? sales.length + " bills | Total ₹" + formatMoney(totalSum)
+      : "";
+  }
+
+  document.getElementById("btn-sales-history").addEventListener("click", async () => {
+    try {
+      await loadSalesHistory();
+    } catch (err) {
+      alert(err.message);
+    }
     document.getElementById("history-modal").classList.remove("hidden");
     document.getElementById("history-modal").classList.add("flex");
+  });
+
+  bindDateField("history-date", "history-date-picker");
+  bindDateField("history-from", "history-from-picker");
+  bindDateField("history-to", "history-to-picker");
+  ["history-date", "history-from", "history-to"].forEach((id) => {
+    document.getElementById(id).addEventListener("change", () => {
+      if (!document.getElementById("history-modal").classList.contains("hidden")) {
+        loadSalesHistory().catch((err) => alert(err.message));
+      }
+    });
+  });
+  ["history-date-picker", "history-from-picker", "history-to-picker"].forEach((id) => {
+    document.getElementById(id).addEventListener("change", () => {
+      if (!document.getElementById("history-modal").classList.contains("hidden")) {
+        loadSalesHistory().catch((err) => alert(err.message));
+      }
+    });
+  });
+  document.getElementById("btn-clear-history-date").addEventListener("click", () => {
+    ["history-date", "history-date-picker", "history-from", "history-from-picker", "history-to", "history-to-picker"].forEach((id) => {
+      document.getElementById(id).value = "";
+    });
+    if (!document.getElementById("history-modal").classList.contains("hidden")) {
+      loadSalesHistory().catch((err) => alert(err.message));
+    }
   });
 
   document.getElementById("btn-close-history").addEventListener("click", () => {

@@ -306,3 +306,124 @@ function printInvoiceSheet(html) {
     win.print();
   }, 400);
 }
+
+function posMoney(value) {
+  const n = Math.round((Number(value) || 0) * 100) / 100;
+  return Number.isInteger(n) ? String(n) : formatMoney(n);
+}
+
+function posPadL(str, n) {
+  str = String(str ?? "");
+  return str.length >= n ? str : " ".repeat(n - str.length) + str;
+}
+
+function posPadR(str, n) {
+  str = String(str ?? "");
+  return str.length >= n ? str.slice(0, n) : str + " ".repeat(n - str.length);
+}
+
+function posWrapWords(text, width) {
+  const out = [];
+  let line = "";
+  String(text || "").trim().split(/\s+/).forEach((w) => {
+    while (w.length > width) {
+      if (line) { out.push(line); line = ""; }
+      out.push(w.slice(0, width));
+      w = w.slice(width);
+    }
+    if (!line) line = w;
+    else if ((line + " " + w).length <= width) line += " " + w;
+    else { out.push(line); line = w; }
+  });
+  if (line) out.push(line);
+  return out.length ? out : [""];
+}
+
+function posReceiptHtml(data) {
+  const c = window.COMPANY || {};
+  const cust = data.customer || {};
+  const items = data.items || [];
+  const total = Number(data.total) || 0;
+  const received = Number(data.received) || 0;
+  const balance = Number(data.balance) || 0;
+  const rate = data.nprRate;
+
+  const W_NAME = 15, W_QTY = 3, W_RATE = 6, W_AMT = 7;
+  const headLine = posPadR("Item", W_NAME) + posPadL("Qty", W_QTY) + posPadL("Rate", W_RATE) + posPadL("Amt", W_AMT);
+  let itemRows = "";
+  items.forEach((p) => {
+    const shade = String(p.color || "").trim();
+    const nameText = (p.name || "") + (shade ? " (" + shade + ")" : "");
+    const lines = posWrapWords(nameText, W_NAME);
+    const numPart = posPadL(formatQty(p.qty), W_QTY) + posPadL(posMoney(p.price), W_RATE) + posPadL(posMoney(rowTotal(p)), W_AMT);
+    lines.forEach((ln, i) => {
+      const full = i === lines.length - 1 ? posPadR(ln, W_NAME) + numPart : ln;
+      itemRows += '<div class="ln">' + escapeHtml(full) + "</div>";
+    });
+  });
+  const refLine = cust.ref_type && cust.ref_name
+    ? "<div>Ref: " + escapeHtml(cust.ref_type) + " - " + escapeHtml(cust.ref_name) + "</div>"
+    : "";
+  return `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>POS Receipt</title>
+<style>
+  @page { size: 58mm auto; margin: 3mm 2mm; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: "Courier New", Courier, monospace; font-size: 11px; color: #000; }
+  .sheet { width: 51mm; margin: 0 auto; }
+  .center { text-align: center; }
+  .r { text-align: right; white-space: nowrap; }
+  .name { font-size: 13px; font-weight: bold; letter-spacing: 0.3px; }
+  .big { font-weight: bold; font-size: 12px; }
+  .rule { border-top: 1px dashed #000; margin: 3px 0; }
+  .items-block { font-size: 10px; }
+  .ln { white-space: pre; line-height: 1.45; }
+  .head { font-weight: bold; border-bottom: 1px solid #000; }
+  .totals { width: 100%; border-collapse: collapse; }
+  .totals td { padding: 1px 0; }
+</style></head>
+<body>
+<div class="sheet">
+  <div class="center name">${escapeHtml(c.name || "")}</div>
+  ${c.address_line1 ? '<div class="center">' + escapeHtml(c.address_line1) + "</div>" : ""}
+  <div class="center">Ph: ${escapeHtml(c.mobile || "")}</div>
+  ${c.gst ? '<div class="center">GSTIN: ' + escapeHtml(c.gst) + "</div>" : ""}
+  <div class="rule"></div>
+  <div>Bill No: <b>${escapeHtml(String(data.invoiceNo || "-"))}</b></div>
+  <div>Date: ${escapeHtml(String(data.dateLabel || ""))}</div>
+  ${cust.name ? "<div>Customer: " + escapeHtml(cust.name) + "</div>" : ""}
+  ${cust.mobile ? "<div>Mobile: " + escapeHtml(cust.mobile) + "</div>" : ""}
+  ${refLine}
+  <div class="rule"></div>
+  <div class="items-block">
+    <div class="ln head">${escapeHtml(headLine)}</div>
+    ${itemRows}
+  </div>
+  <div class="rule"></div>
+  <table class="totals">
+    <tr><td>Total</td><td class="r big">&#8377; ${posMoney(total)}</td></tr>
+    <tr><td>Received</td><td class="r">&#8377; ${posMoney(received)}</td></tr>
+    <tr><td>Balance</td><td class="r">&#8377; ${posMoney(balance)}</td></tr>
+    ${rate ? '<tr><td>NPR &#2352;&#2369; (' + escapeHtml(String(rate)) + ')</td><td class="r">&#2352;&#2369; ' + posMoney(total * rate) + "</td></tr>" : ""}
+    ${rate && balance > 0.009 ? '<tr><td>Balance NPR</td><td class="r">&#2352;&#2369; ' + posMoney(balance * rate) + "</td></tr>" : ""}
+  </table>
+  <div class="rule"></div>
+  <div class="center">Dhanyawaad! Phir Aayen</div>
+</div>
+</body></html>`;
+}
+
+function printPosReceipt(html) {
+  const win = window.open("", "posPrint", "width=340,height=660");
+  if (!win) {
+    alert("Pop-up block ho gaya. Browser mein pop-up allow karo.");
+    return;
+  }
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => {
+    win.print();
+  }, 350);
+}

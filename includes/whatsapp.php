@@ -47,6 +47,59 @@ function whatsapp_inr(float $n): string
     return 'Rs ' . money($n);
 }
 
+function phone_is_nepal(string $mobile): bool
+{
+    $d = preg_replace('/\D+/', '', $mobile) ?? '';
+    if ($d === '') {
+        return false;
+    }
+    while (str_starts_with($d, '00')) {
+        $d = substr($d, 2);
+    }
+    return str_starts_with($d, '977') && strlen($d) >= 11;
+}
+
+function whatsapp_npr_rate(): float
+{
+    $settings = function_exists('read_app_settings') ? read_app_settings() : [];
+    $r = (float) ($settings['npr_rate'] ?? 0);
+    if ($r <= 0) {
+        $r = (float) (getenv('NPR_RATE') ?: 0);
+    }
+    return $r > 0 ? $r : 1.6;
+}
+
+function whatsapp_invoice_short_text(array $company, array $sale): string
+{
+    $name = (string) ($company['name'] ?? 'Hardware Store');
+    $inv = (string) ($sale['invoice_no'] ?? '');
+    $party = (string) (($sale['customer_name'] ?? '') !== '' ? $sale['customer_name'] : 'Walk-in');
+    $grand = (float) ($sale['total'] ?? 0);
+    $received = isset($sale['received']) && $sale['received'] !== null && $sale['received'] !== ''
+        ? (float) $sale['received']
+        : $grand;
+    $due = max(0, $grand - $received);
+
+    $lines = [
+        '*' . $name . '*',
+        'Invoice: ' . $inv,
+        'Customer: ' . $party,
+        '*Total: Rs ' . money($grand) . '*',
+    ];
+
+    $rate = null;
+    if (!empty($sale['mobile']) && phone_is_nepal((string) $sale['mobile'])) {
+        $rate = whatsapp_npr_rate();
+        $lines[] = "\xE0\xA4\xB0\xE0\xA5\x81 " . money($grand * $rate) . ' (NPR @ ' . rtrim(rtrim(number_format($rate, 4, '.', ''), '0'), '.') . ')';
+    }
+
+    $lines[] = $due > 0.009 ? 'Due: Rs ' . money($due) : 'Paid full — Dhanyawaad!';
+    if ($rate !== null && $due > 0.009) {
+        $lines[] = "\xE0\xA4\xB0\xE0\xA5\x81 " . money($due * $rate) . ' (NPR)';
+    }
+    return implode("\n", $lines);
+}
+
 function whatsapp_invoice_text(array $company, array $sale, array $items): string
 {
     $name = (string) ($company['name'] ?? 'Hardware Store');

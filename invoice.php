@@ -202,6 +202,17 @@ $waFilename = 'Invoice-' . $safeInv . '.pdf';
               <tr class="grand"><td>Total</td><td class="num">₹ <?= money($grand) ?></td></tr>
               <tr><td>Received</td><td class="num">₹ <?= money($received) ?></td></tr>
               <tr><td>Balance</td><td class="num">₹ <?= money($balance) ?></td></tr>
+              <?php
+                $nepalCustomer = !empty($sale['mobile']) && phone_is_nepal((string) $sale['mobile']);
+                $nprRate = $nepalCustomer ? whatsapp_npr_rate() : null;
+                $nprRateLabel = $nprRate !== null ? rtrim(rtrim(number_format($nprRate, 4, '.', ''), '0'), '.') : '';
+              ?>
+              <?php if ($nprRate !== null): ?>
+                <tr style="font-weight:700;background:#f0fdf4"><td>🇳🇵 Total in Nepali Rupiya (₹1 = रु <?= $h($nprRateLabel) ?>)</td><td class="num">रु <?= money($grand * $nprRate) ?></td></tr>
+              <?php endif; ?>
+              <?php if ($nprRate !== null && $balance > 0.009): ?>
+                <tr style="font-weight:700;background:#f0fdf4"><td>🇳🇵 Balance in Nepali Rupiya</td><td class="num">रु <?= money($balance * $nprRate) ?></td></tr>
+              <?php endif; ?>
             </table>
           </td>
         </tr>
@@ -228,6 +239,17 @@ $waFilename = 'Invoice-' . $safeInv . '.pdf';
         element: document.querySelector("article.invoice"),
         filename: <?= json_encode($waFilename, JSON_UNESCAPED_UNICODE) ?>,
         phone: <?= json_encode($waPhone, JSON_UNESCAPED_UNICODE) ?>,
+        message: <?= json_encode(
+            (static function () use ($company, $sale) {
+                if (!function_exists('whatsapp_invoice_short_text')) {
+                    require_once __DIR__ . '/includes/whatsapp.php';
+                }
+                return function_exists('whatsapp_invoice_short_text')
+                    ? whatsapp_invoice_short_text($company, $sale)
+                    : '';
+            })(),
+            JSON_UNESCAPED_UNICODE
+        ) ?>,
       };
       bindWhatsAppPdfButton(btn, ctx);
       <?php if ($autoWaPdf): ?>
