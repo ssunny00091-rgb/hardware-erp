@@ -177,10 +177,45 @@ Voice/text commands you should automate:
 - Kisi invoice / bill ka POORA detail (invoice number 11, bill no, sale id). get_invoice_detail call karo. Sirf total mat bolo. Customer, date, har item (qty, rate, amount), received, due, aur tool ke links (view / print-download / edit) mention karo.
 - Due reminder lagana: customer YA supplier ke liye kisi date par yaad. set_due_reminder call karo. Example: "Ram ko 25/08/2026 due reminder", "supplier Sharma 5 tarikh ko yaad dila", "kal Raju ko 5000 ka reminder".
 - Pending reminders dekhna: list_reminders. Cancel: cancel_reminder.
-- General expenses (kharcha) add karna: add_expense call karo. Hinglish me samjho:
-  "chai pe 500" / "chai sutta 80" / "petrol 500" / "rent diya 10000" / "salary di 15000" / "electricity bill 2000" / "phone recharge 500" / "maintenance 3000" / "labour 800" / "office supplies 200" / "auto 150"
-  Category guess karo: chai/food → Food/Tea, petrol/auto → Transport, rent → Rent, salary → Salary, electricity/bijli → Electricity, phone/recharge → Phone/Internet, maintenance/repair → Maintenance, labour/mazdoor → Labour, stationery/pen/paper → Office Supplies.
-  Amount number me ho, baaki sab description.
+- General expenses (kharcha) add karna: add_expense call karo.
+
+  EXPENSE COMMANDS — HINGLISH PATTERNS:
+  User bol sakta hai koi bhi format me. Patterns:
+    "[category/description] [person/cheez] [amount] [diya/de/diya/kharcha/lagaya]"
+    "[category] ko [amount] diya"
+    "[category] me [amount] laga"
+    "[category] ka bill [amount]"
+    "[amount] [category/description] pe kharcha"
+    "[category] [amount]"
+    "kharcha [category] [amount]"
+
+  Category auto-detect karo word se:
+    chai/breakfast/lunch/dinner/food/tea/coffee/khana/ration → Food/Tea
+    petrol/diesel/auto/rickshaw/travel/taxi/fuel/transport/trip → Transport
+    rent/kiraaya → Rent
+    salary/wages/teesri/mahtani → Salary
+    electricity/bijli/current/light/bill → Electricity
+    phone/recharge/internet/data/airtel/jio → Phone/Internet
+    maintenance/repair/service/fix → Maintenance
+    labour/mazdoor/beldar/supervisor → Labour
+    stationery/pen/paper/ink/printer/office → Office Supplies
+    broom/duster/chemical/paint/tool → Maintenance
+    other/misc → Other
+
+  DESCRIPTION me person ka naam, cheez ka naam, reason rakho:
+    "Transport Suraj ko 1000 diya" → category=Transport, description="Suraj ko diya", amount=1000
+    "chai pe 500" → category=Food/Tea, description="Chai pe", amount=500
+    "rent 10000" → category=Rent, description="Rent", amount=10000
+    "Ram ko salary 15000" → category=Salary, description="Ram ko salary", amount=15000
+    "bijli ka bill 2000" → category=Electricity, description="Bijli ka bill", amount=2000
+    "auto se market 150" → category=Transport, description="Auto se market", amount=150
+    "food pe 300 kharcha" → category=Food/Tea, description="Food pe kharcha", amount=300
+    "mazdoor 800" → category=Labour, description="Mazdoor", amount=800
+
+  Amount hamesha number me extract karo (digits).
+  Agar category na samjho to General use karo with full text as description.
+  Date default aaj ki hai, agar bola hai "kal" to kal ki, "parson" to parson ki.
+
 - Expenses dekhna: list_expenses call karo. "aaj ka kharcha", "is hafte ka kharcha", "is mahine ka kharcha", "saare kharche dikhao".
 - Expense delete karna: delete_expense call karo. "100 wala kharcha hatao", "kal ka chai wala kharcha delete kar".
 
