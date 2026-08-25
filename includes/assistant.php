@@ -177,6 +177,12 @@ Voice/text commands you should automate:
 - Kisi invoice / bill ka POORA detail (invoice number 11, bill no, sale id). get_invoice_detail call karo. Sirf total mat bolo. Customer, date, har item (qty, rate, amount), received, due, aur tool ke links (view / print-download / edit) mention karo.
 - Due reminder lagana: customer YA supplier ke liye kisi date par yaad. set_due_reminder call karo. Example: "Ram ko 25/08/2026 due reminder", "supplier Sharma 5 tarikh ko yaad dila", "kal Raju ko 5000 ka reminder".
 - Pending reminders dekhna: list_reminders. Cancel: cancel_reminder.
+- General expenses (kharcha) add karna: add_expense call karo. Hinglish me samjho:
+  "chai pe 500" / "chai sutta 80" / "petrol 500" / "rent diya 10000" / "salary di 15000" / "electricity bill 2000" / "phone recharge 500" / "maintenance 3000" / "labour 800" / "office supplies 200" / "auto 150"
+  Category guess karo: chai/food → Food/Tea, petrol/auto → Transport, rent → Rent, salary → Salary, electricity/bijli → Electricity, phone/recharge → Phone/Internet, maintenance/repair → Maintenance, labour/mazdoor → Labour, stationery/pen/paper → Office Supplies.
+  Amount number me ho, baaki sab description.
+- Expenses dekhna: list_expenses call karo. "aaj ka kharcha", "is hafte ka kharcha", "is mahine ka kharcha", "saare kharche dikhao".
+- Expense delete karna: delete_expense call karo. "100 wala kharcha hatao", "kal ka chai wala kharcha delete kar".
 
 When the user asks to remind / yaad dila / reminder / due date par notify:
 1. Call set_due_reminder with name, type (customer/supplier), remind_on (dd/mm/yyyy), amount if spoken, note if any.
@@ -487,6 +493,53 @@ function assistant_tool_schemas(): array
                 ],
             ],
         ],
+        [
+            'type' => 'function',
+            'function' => [
+                'name' => 'add_expense',
+                'description' => 'Record a general shop expense (kharcha). Category: Rent, Salary, Transport, Electricity, Phone/Internet, Office Supplies, Maintenance, Food/Tea, Labour, General, Other.',
+                'parameters' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'amount' => ['type' => 'number', 'description' => 'Expense amount in rupees'],
+                        'category' => ['type' => 'string', 'description' => 'One of: Rent, Salary, Transport, Electricity, Phone/Internet, Office Supplies, Maintenance, Food/Tea, Labour, General, Other'],
+                        'description' => ['type' => 'string', 'description' => 'What was the expense for, in Hindi or English'],
+                        'date' => ['type' => 'string', 'description' => 'Date dd/mm/yyyy, default today'],
+                        'payment_mode' => ['type' => 'string', 'description' => 'Cash, UPI, Bank, Card — default Cash'],
+                    ],
+                    'required' => ['amount'],
+                ],
+            ],
+        ],
+        [
+            'type' => 'function',
+            'function' => [
+                'name' => 'list_expenses',
+                'description' => 'List general expenses for today, this week, this month, or a date range. Shows total and item-wise list.',
+                'parameters' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'period' => ['type' => 'string', 'enum' => ['today', 'week', 'month', 'all', 'range']],
+                        'from' => ['type' => 'string', 'description' => 'Start date dd/mm/yyyy (if period=range)'],
+                        'to' => ['type' => 'string', 'description' => 'End date dd/mm/yyyy (if period=range)'],
+                    ],
+                ],
+            ],
+        ],
+        [
+            'type' => 'function',
+            'function' => [
+                'name' => 'delete_expense',
+                'description' => 'Delete a recorded expense by its ID',
+                'parameters' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'id' => ['type' => 'integer', 'description' => 'Expense ID to delete'],
+                    ],
+                    'required' => ['id'],
+                ],
+            ],
+        ],
     ];
 }
 
@@ -524,6 +577,9 @@ function assistant_run_tool(PDO $pdo, string $name, array $args): array
             'set_due_reminder' => assistant_tool_set_reminder($pdo, $args),
             'list_reminders' => assistant_tool_list_reminders($pdo, $args),
             'cancel_reminder' => assistant_tool_cancel_reminder($pdo, $args),
+            'add_expense' => assistant_tool_add_expense($pdo, $args),
+            'list_expenses' => assistant_tool_list_expenses($pdo, $args),
+            'delete_expense' => assistant_tool_delete_expense($pdo, $args),
             default => ['error' => 'Unknown tool: ' . $name],
         };
     } catch (Throwable $e) {
@@ -2036,7 +2092,144 @@ function assistant_tables_from_actions(array $actions): array
                 ['Status', (string) ($r['status'] ?? 'cancelled')],
             ]));
         }
+
+        if ($tool === 'add_expense' && !empty($r['ok'])) {
+            $push(assistant_table_pack('Kharcha Save', ['Field', 'Value'], [
+                ['Date', (string) ($r['expense_date'] ?? '')],
+                ['Category', (string) ($r['category'] ?? '')],
+                ['Description', (string) ($r['description'] ?? '')],
+                ['Amount', assistant_inr($r['amount'] ?? 0)],
+                ['Mode', (string) ($r['payment_mode'] ?? 'Cash')],
+            ]));
+        }
+
+        if ($tool === 'list_expenses' && isset($r['total'])) {
+            $rows = [];
+            foreach ($r['expenses'] ?? [] as $e) {
+                if (!is_array($e)) continue;
+                $rows[] = [
+                    (string) ($e['expense_date'] ?? ''),
+                    (string) ($e['category'] ?? ''),
+                    (string) ($e['description'] ?? '—'),
+                    assistant_inr($e['amount'] ?? 0),
+                    (string) ($e['payment_mode'] ?? 'Cash'),
+                ];
+            }
+            $push(assistant_table_pack(
+                'Expenses (' . ($r['count'] ?? 0) . ' entries, Total: ' . assistant_inr($r['total'] ?? 0) . ')',
+                ['Date', 'Category', 'Description', 'Amount', 'Mode'],
+                $rows
+            ));
+        }
+
+        if ($tool === 'delete_expense' && !empty($r['ok'])) {
+            $push(assistant_table_pack('Kharcha Delete', ['Field', 'Value'], [
+                ['ID', (string) ($r['id'] ?? '')],
+                ['Status', 'Deleted'],
+            ]));
+        }
     }
 
     return $tables;
+}
+
+function assistant_tool_add_expense(PDO $pdo, array $args): array
+{
+    $amount = (float) ($args['amount'] ?? 0);
+    if ($amount <= 0) {
+        return ['error' => 'Amount 0 se zyada hona chahiye'];
+    }
+    $category = trim((string) ($args['category'] ?? 'General'));
+    $desc = trim((string) ($args['description'] ?? ''));
+    $payMode = trim((string) ($args['payment_mode'] ?? 'Cash'));
+    $dateRaw = trim((string) ($args['date'] ?? ''));
+    if ($dateRaw !== '') {
+        $date = assistant_parse_date($dateRaw);
+    } else {
+        $date = date('Y-m-d');
+    }
+    $validCats = ['Rent', 'Salary', 'Transport', 'Electricity', 'Phone/Internet', 'Office Supplies', 'Maintenance', 'Food/Tea', 'Labour', 'General', 'Other'];
+    if (!in_array($category, $validCats, true)) {
+        $category = 'General';
+    }
+    $ins = $pdo->prepare(
+        'INSERT INTO expenses (expense_date, category, description, amount, payment_mode) VALUES (:d, :cat, :desc, :amt, :pm)'
+    );
+    $ins->execute(['d' => $date, 'cat' => $category, 'desc' => $desc, 'amt' => $amount, 'pm' => $payMode]);
+    return [
+        'ok' => true,
+        'id' => (int) $pdo->lastInsertId(),
+        'expense_date' => $date,
+        'category' => $category,
+        'description' => $desc,
+        'amount' => $amount,
+        'payment_mode' => $payMode,
+    ];
+}
+
+function assistant_tool_list_expenses(PDO $pdo, array $args): array
+{
+    $period = trim((string) ($args['period'] ?? 'today'));
+    $where = [];
+    $params = [];
+    if ($period === 'today') {
+        $where[] = 'expense_date = :d';
+        $params['d'] = date('Y-m-d');
+    } elseif ($period === 'week') {
+        $dow = (int) date('w');
+        $mon = date('Y-m-d', strtotime('-' . (($dow + 6) % 7) . ' days'));
+        $sun = date('Y-m-d', strtotime($mon . ' +6 days'));
+        $where[] = 'expense_date BETWEEN :from AND :to';
+        $params['from'] = $mon;
+        $params['to'] = $sun;
+    } elseif ($period === 'month') {
+        $where[] = 'expense_date LIKE :m';
+        $params['m'] = date('Y-m') . '%';
+    } elseif ($period === 'range') {
+        $from = assistant_parse_date(trim((string) ($args['from'] ?? '')));
+        $to = assistant_parse_date(trim((string) ($args['to'] ?? '')));
+        if ($from !== '' && $to !== '') {
+            $where[] = 'expense_date BETWEEN :from AND :to';
+            $params['from'] = $from;
+            $params['to'] = $to;
+        }
+    }
+    $sql = 'SELECT id, expense_date, category, description, amount, payment_mode FROM expenses';
+    if ($where) {
+        $sql .= ' WHERE ' . implode(' AND ', $where);
+    }
+    $sql .= ' ORDER BY expense_date DESC, id DESC LIMIT 100';
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $rows = $stmt->fetchAll();
+    $total = 0.0;
+    foreach ($rows as $r) {
+        $total += (float) $r['amount'];
+    }
+    return ['expenses' => $rows, 'total' => round($total, 2), 'count' => count($rows)];
+}
+
+function assistant_tool_delete_expense(PDO $pdo, array $args): array
+{
+    $id = (int) ($args['id'] ?? 0);
+    if ($id <= 0) {
+        return ['error' => 'Expense ID do'];
+    }
+    $pdo->prepare('DELETE FROM expenses WHERE id = :id')->execute(['id' => $id]);
+    return ['ok' => true, 'id' => $id];
+}
+
+function assistant_parse_date(string $raw): string
+{
+    $raw = trim($raw);
+    if ($raw === '') return '';
+    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $raw)) return $raw;
+    if (preg_match('/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/', $raw, $m)) {
+        return $m[3] . '-' . str_pad($m[2], 2, '0', STR_PAD_LEFT) . '-' . str_pad($m[1], 2, '0', STR_PAD_LEFT);
+    }
+    if (preg_match('/^(\d{1,2})[\/\-](\d{1,2})$/', $raw, $m)) {
+        return date('Y') . '-' . str_pad($m[2], 2, '0', STR_PAD_LEFT) . '-' . str_pad($m[1], 2, '0', STR_PAD_LEFT);
+    }
+    $ts = strtotime($raw);
+    return $ts ? date('Y-m-d', $ts) : date('Y-m-d');
 }
