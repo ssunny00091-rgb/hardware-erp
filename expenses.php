@@ -21,7 +21,6 @@ require __DIR__ . '/includes/header.php';
       <div class="text-xs text-neutral-400">Is Mahine</div>
       <div class="text-xl font-bold text-orange-400" id="stat-month">₹0</div>
     </div>
-    <a href="#" id="btn-expenses-pdf" target="_blank" class="self-center rounded-lg bg-red-600 px-4 py-2.5 font-semibold text-white hover:bg-red-500">🖨️ PDF</a>
   </div>
 </div>
 
@@ -161,15 +160,6 @@ require __DIR__ . '/includes/header.php';
     const data = await api(url);
     expCache = data.expenses || [];
     renderExpenses();
-
-    const pdfBtn = document.getElementById("btn-expenses-pdf");
-    if (pdfBtn) {
-      if (expFilter === "all") {
-        pdfBtn.href = appUrl("expenses-print.php?from=2000-01-01&to=" + new Date().toISOString().slice(0, 10));
-      } else {
-        pdfBtn.href = appUrl("expenses-print.php?from=" + range.from + "&to=" + range.to);
-      }
-    }
 
     const todayData = await api("/api/expenses.php?from=" + expDateRange("today").from + "&to=" + expDateRange("today").to);
     const monthData = await api("/api/expenses.php?from=" + expDateRange("month").from + "&to=" + expDateRange("month").to);
