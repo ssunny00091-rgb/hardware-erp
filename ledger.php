@@ -23,6 +23,7 @@ $types = [
     <button type="button" data-type="<?= htmlspecialchars($key, ENT_QUOTES, 'UTF-8') ?>" class="ledger-tab rounded-lg bg-white/10 px-4 py-2 hover:bg-white/20"><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></button>
   <?php endforeach; ?>
   <button type="button" id="btn-add-party" class="rounded-lg bg-green-600 px-4 py-2 font-semibold hover:bg-green-500">➕ Naya Party</button>
+  <a href="<?= htmlspecialchars(app_url('painter-list.php'), ENT_QUOTES) ?>" target="_blank" class="rounded-lg bg-purple-600 px-4 py-2 font-semibold hover:bg-purple-500">📋 Painter List (PDF)</a>
 </div>
 
 <div id="add-party-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60">
