@@ -18,10 +18,48 @@ $types = [
 <h1 class="mb-6 text-4xl font-bold">📒 Ledger</h1>
 <p class="mb-6 text-gray-300">Customer, supplier aur painter/plumber/electrician ka hisaab. Painter par click karke dekho usne kitna saman liya.</p>
 
-<div class="mb-6 flex flex-wrap gap-2">
+<div class="mb-6 flex flex-wrap items-center gap-2">
   <?php foreach ($types as $key => $label): ?>
     <button type="button" data-type="<?= htmlspecialchars($key, ENT_QUOTES, 'UTF-8') ?>" class="ledger-tab rounded-lg bg-white/10 px-4 py-2 hover:bg-white/20"><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></button>
   <?php endforeach; ?>
+  <button type="button" id="btn-add-party" class="rounded-lg bg-green-600 px-4 py-2 font-semibold hover:bg-green-500">➕ Naya Party</button>
+</div>
+
+<div id="add-party-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60">
+  <div class="w-full max-w-lg rounded-2xl bg-slate-900 p-6 shadow-2xl">
+    <div class="mb-4 flex items-center justify-between">
+      <h3 class="text-xl font-bold">➕ Naya Party Add Karo</h3>
+      <button type="button" id="close-add-party" class="rounded-lg bg-red-500 px-3 py-1">✕</button>
+    </div>
+    <form id="add-party-form" class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div class="sm:col-span-2">
+        <label class="mb-1 block text-sm text-neutral-400">Naam *</label>
+        <input type="text" id="ap-name" placeholder="Jaise: Ram Painter, Sharma Ji" class="w-full rounded-lg border border-gray-300 bg-white p-3 text-gray-900" required>
+      </div>
+      <div>
+        <label class="mb-1 block text-sm text-neutral-400">Mobile</label>
+        <input type="text" id="ap-mobile" placeholder="9831046765" class="w-full rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
+      </div>
+      <div>
+        <label class="mb-1 block text-sm text-neutral-400">Type *</label>
+        <select id="ap-type" class="w-full rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
+          <option value="painter">🎨 Painter</option>
+          <option value="plumber">🔧 Plumber</option>
+          <option value="electrician">⚡ Electrician</option>
+          <option value="customer">👤 Customer</option>
+          <option value="supplier">📦 Supplier</option>
+        </select>
+      </div>
+      <div class="sm:col-span-2">
+        <label class="mb-1 block text-sm text-neutral-400">Address (optional)</label>
+        <input type="text" id="ap-address" placeholder="Area / Mohalla / City" class="w-full rounded-lg border border-gray-300 bg-white p-3 text-gray-900">
+      </div>
+      <div class="sm:col-span-2 flex gap-3 pt-2">
+        <button type="button" id="cancel-add-party" class="flex-1 rounded-xl bg-gray-600 py-3 font-semibold">Cancel</button>
+        <button type="submit" class="flex-1 rounded-xl bg-green-600 py-3 font-semibold">💾 Save Party</button>
+      </div>
+    </form>
+  </div>
 </div>
 <div class="mb-6">
   <div class="relative max-w-xl">
@@ -484,6 +522,49 @@ document.getElementById("clear-ledger-search").addEventListener("click", () => {
   document.getElementById("clear-ledger-search").classList.add("hidden");
   loadList();
 });
+
+  document.getElementById("btn-add-party").addEventListener("click", () => {
+    document.getElementById("add-party-modal").classList.remove("hidden");
+    document.getElementById("add-party-modal").classList.add("flex");
+    document.getElementById("ap-name").focus();
+  });
+  document.getElementById("close-add-party").addEventListener("click", () => {
+    document.getElementById("add-party-modal").classList.add("hidden");
+    document.getElementById("add-party-modal").classList.remove("flex");
+  });
+  document.getElementById("cancel-add-party").addEventListener("click", () => {
+    document.getElementById("add-party-modal").classList.add("hidden");
+    document.getElementById("add-party-modal").classList.remove("flex");
+  });
+  document.getElementById("add-party-modal").addEventListener("click", (e) => {
+    if (e.target === e.currentTarget) {
+      document.getElementById("add-party-modal").classList.add("hidden");
+      document.getElementById("add-party-modal").classList.remove("flex");
+    }
+  });
+
+  document.getElementById("add-party-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = document.getElementById("ap-name").value.trim();
+    const mobile = document.getElementById("ap-mobile").value.trim();
+    const type = document.getElementById("ap-type").value;
+    const address = document.getElementById("ap-address").value.trim();
+    if (!name) { alert("Naam toh likho!"); return; }
+    try {
+      await api("/api/parties.php", {
+        method: "POST",
+        body: JSON.stringify({ name, mobile, type, address }),
+      });
+      alert("✅ Party saved: " + name + " (" + type + ")");
+      document.getElementById("add-party-modal").classList.add("hidden");
+      document.getElementById("add-party-modal").classList.remove("flex");
+      document.getElementById("add-party-form").reset();
+      document.querySelector('.ledger-tab[data-type="' + type + '"]')?.click();
+      loadList().catch(() => {});
+    } catch (err) {
+      alert("Error: " + err.message);
+    }
+  });
 </script>
 
 <?php require __DIR__ . '/includes/footer.php'; ?>
