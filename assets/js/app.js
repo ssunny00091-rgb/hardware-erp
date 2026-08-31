@@ -287,12 +287,14 @@ document.addEventListener("keydown", (event) => {
   handleSuggestKey(event, box);
 }, true);
 
-function printInvoiceSheet(html) {
+function openInvoicePrintWindow() {
   const win = window.open("", "invoicePrint", "width=920,height=740");
-  if (!win) {
-    alert("Pop-up block ho gaya. Browser mein pop-up allow karo.");
-    return;
-  }
+  if (!win) alert("Pop-up block ho gaya. Browser mein pop-up allow karo.");
+  return win;
+}
+
+function fillInvoicePrintWindow(win, html) {
+  if (!win) return;
   const cssHref = window.location.origin + appUrl("assets/css/invoice-print.css");
   win.document.open();
   win.document.write(
@@ -305,6 +307,11 @@ function printInvoiceSheet(html) {
   setTimeout(() => {
     win.print();
   }, 400);
+}
+
+function printInvoiceSheet(html) {
+  const win = openInvoicePrintWindow();
+  fillInvoicePrintWindow(win, html);
 }
 
 function posMoney(value) {
@@ -417,12 +424,14 @@ function posReceiptHtml(data) {
 </body></html>`;
 }
 
-function printPosReceipt(html) {
+function openPosPrintWindow() {
   const win = window.open("", "posPrint", "width=340,height=660");
-  if (!win) {
-    alert("Pop-up block ho gaya. Browser mein pop-up allow karo.");
-    return;
-  }
+  if (!win) alert("Pop-up block ho gaya. Browser mein pop-up allow karo.");
+  return win;
+}
+
+function fillPosPrintWindow(win, html) {
+  if (!win) return;
   win.document.open();
   win.document.write(html);
   win.document.close();
@@ -430,6 +439,11 @@ function printPosReceipt(html) {
   setTimeout(() => {
     win.print();
   }, 350);
+}
+
+function printPosReceipt(html) {
+  const win = openPosPrintWindow();
+  fillPosPrintWindow(win, html);
 }
 
 function upiPaymentString(amount) {

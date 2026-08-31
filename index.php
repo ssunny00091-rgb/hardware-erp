@@ -317,7 +317,7 @@ $reminderBannerRows = reminder_banner_rows(db());
       <h2 class="text-lg font-bold text-blue-700 sm:text-2xl">Invoice Preview</h2>
       <button type="button" id="btn-close-preview" class="rounded-lg bg-red-500 px-4 py-2 text-white">✕ Close</button>
     </div>
-    <div class="flex-1 overflow-y-auto bg-white p-6 text-black" id="invoice-preview-body"></div>
+    <div class="invoice-preview flex-1 overflow-y-auto bg-white p-6 text-black" id="invoice-preview-body"></div>
     <div class="sticky bottom-0 flex flex-wrap justify-center gap-2 border-t bg-white p-3 print-hide sm:gap-4 sm:p-4">
       <button type="button" id="btn-edit-sale" class="w-full rounded-lg bg-gray-600 px-5 py-2 text-white sm:w-auto">✏️ Edit</button>
       <button type="button" id="btn-print-invoice" class="w-full rounded-lg bg-blue-600 px-5 py-2 text-white sm:w-auto">🖨️ Print</button>
@@ -1106,20 +1106,24 @@ $reminderBannerRows = reminder_banner_rows(db());
     document.getElementById("preview-modal").classList.remove("flex");
   });
   document.getElementById("btn-print-invoice").addEventListener("click", async () => {
+    const win = openInvoicePrintWindow();
+    if (!win) return;
     const products = validProducts();
     const total = products.reduce((sum, row) => sum + rowTotal(row), 0);
     const received = saleReceivedAmount(total);
     const qrSrc = await qrDataUrl(total - received, 200);
-    printInvoiceSheet(invoiceSheetHtml(currentCustomer(), products, total, undefined, qrSrc));
+    fillInvoicePrintWindow(win, invoiceSheetHtml(currentCustomer(), products, total, undefined, qrSrc));
   });
 
   document.getElementById("btn-pos-print").addEventListener("click", async () => {
+    const win = openPosPrintWindow();
+    if (!win) return;
     const products = validProducts();
     const total = products.reduce((sum, row) => sum + rowTotal(row), 0);
     const received = saleReceivedAmount(total);
     const nepal = isNepalCustomer(document.getElementById("customer-mobile").value);
     const qrSrc = await qrDataUrl(total, 160);
-    printPosReceipt(posReceiptHtml({
+    fillPosPrintWindow(win, posReceiptHtml({
       invoiceNo: nextInvoiceNo,
       dateLabel: document.getElementById("sale-date").value || formatDisplayDate(todayIsoDate()),
       customer: currentCustomer(),
