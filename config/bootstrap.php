@@ -193,6 +193,32 @@ function has_payment_qr(): bool
     return payment_qr_url() !== '';
 }
 
+function payment_upi_id(): string
+{
+    $settings = read_app_settings();
+    return trim((string) ($settings['payment_upi'] ?? ''));
+}
+
+function upi_payment_string(string $upi, string $name, float $amount = 0.0, string $note = ''): string
+{
+    $upi = trim($upi);
+    if ($upi === '') {
+        return '';
+    }
+    $params = ['pa=' . rawurlencode($upi)];
+    if ($name !== '') {
+        $params[] = 'pn=' . rawurlencode($name);
+    }
+    if ($amount > 0) {
+        $params[] = 'am=' . number_format($amount, 2, '.', '');
+    }
+    $params[] = 'cu=INR';
+    if ($note !== '') {
+        $params[] = 'tn=' . rawurlencode($note);
+    }
+    return 'upi://pay?' . implode('&', $params);
+}
+
 function run_sql_file(PDO $pdo, string $file): void
 {
     $sql = file_get_contents($file);

@@ -54,23 +54,28 @@ $reminderBannerRows = reminder_banner_rows(db());
   <details id="qr-card" class="rounded-2xl border border-white/20 bg-white/10 p-5 shadow-xl backdrop-blur-xl">
     <summary class="cursor-pointer font-semibold">📱 Payment QR Code
       <span class="ml-2 text-sm font-normal text-gray-300" id="qr-status">
-        <?= has_payment_qr() ? '✅ Lag gaya hai' : '❌ Nahi hai — yahan lagao' ?>
+        <?= (payment_upi_id() !== '' || has_payment_qr()) ? '✅ Lag gaya hai' : '❌ Nahi hai — yahan lagao' ?>
       </span>
     </summary>
-    <div class="mt-4 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
-      <div>
-        <img id="qr-preview" src="<?= htmlspecialchars(payment_qr_url(), ENT_QUOTES, 'UTF-8') ?>" alt="Payment QR" class="h-32 w-32 rounded-lg border border-white/20 object-contain <?= has_payment_qr() ? '' : 'hidden' ?>">
-        <p id="qr-preview-empty" class="<?= has_payment_qr() ? 'hidden' : '' ?> text-sm text-gray-400">Abhi koi QR nahi hai.</p>
+    <div class="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div class="rounded-xl border border-white/15 bg-black/20 p-4">
+        <h4 class="mb-2 font-semibold text-emerald-300">💳 UPI QR (Recommended — clean QR, amount auto set)</h4>
+        <p class="mb-2 text-xs text-gray-400">Apna UPI ID daalo (jaise <code>naam@okbank</code> ya <code>naam@paytm</code>). Bill pe ek saaf black-white QR banega jisme bill ki amount automatically set hogi — Zoho jaisa.</p>
+        <input type="text" id="upi-input" value="<?= htmlspecialchars(payment_upi_id(), ENT_QUOTES, 'UTF-8') ?>" placeholder="jaise: 9831046765@upi" class="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-sm text-gray-900">
+        <button type="button" id="upi-save" class="mt-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold hover:bg-emerald-500">💾 Save UPI QR</button>
+        <p id="upi-msg" class="mt-2 hidden rounded-lg bg-white/10 px-3 py-2 text-xs"></p>
       </div>
-      <div class="flex w-full flex-col gap-2 sm:w-auto">
-        <input type="file" id="qr-file" accept="image/png,image/jpeg,image/webp,image/gif" class="block w-full max-w-xs cursor-pointer rounded-lg border border-gray-300 bg-white p-2 text-sm text-gray-900">
-        <p id="qr-chosen" class="text-xs text-gray-400">Koi file nahi chuni.</p>
-        <button type="button" id="qr-save" class="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold hover:bg-green-500">💾 Save QR</button>
-        <button type="button" id="qr-remove" class="rounded-lg bg-red-600/80 px-4 py-2 text-sm font-semibold hover:bg-red-600 <?= has_payment_qr() ? '' : 'hidden' ?>">🗑️ Hatao</button>
-        <p id="qr-msg" class="hidden rounded-lg bg-white/10 px-3 py-2 text-xs"></p>
-        <p class="text-xs text-gray-400">Yeh QR A4 bill aur POS receipt dono pe dikhega.</p>
+      <div class="rounded-xl border border-white/15 bg-black/20 p-4">
+        <h4 class="mb-2 font-semibold">🖼️ Bank QR Image (optional)</h4>
+        <p class="mb-2 text-xs text-gray-400">Ya apna bank ka QR photo upload karo (sirf agar UPI ID nahi hai).</p>
+        <input type="file" id="qr-file" accept="image/png,image/jpeg,image/webp,image/gif" class="block w-full cursor-pointer rounded-lg border border-gray-300 bg-white p-2 text-sm text-gray-900">
+        <p id="qr-chosen" class="mt-1 text-xs text-gray-400">Koi file nahi chuni.</p>
+        <button type="button" id="qr-save" class="mt-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold hover:bg-green-500">💾 Save Image QR</button>
+        <button type="button" id="qr-remove" class="mt-2 rounded-lg bg-red-600/80 px-4 py-2 text-sm font-semibold hover:bg-red-600 <?= has_payment_qr() ? '' : 'hidden' ?>">🗑️ Hatao</button>
+        <p id="qr-msg" class="mt-2 hidden rounded-lg bg-white/10 px-3 py-2 text-xs"></p>
       </div>
     </div>
+    <p id="qr-status2" class="mt-3 text-xs text-gray-400"><span id="qr-status-pill" class="rounded px-2 py-1 <?= (payment_upi_id() !== '' || has_payment_qr()) ? 'bg-green-600/30 text-green-300' : 'bg-red-600/30 text-red-300' ?>"><?= (payment_upi_id() !== '' || has_payment_qr()) ? '✅ QR ready — bill pe dikhega' : '❌ QR set nahi hai' ?></span> &nbsp; QR A4 bill aur POS receipt dono pe dikhega.</p>
   </details>
 </div>
 
@@ -637,7 +642,7 @@ $reminderBannerRows = reminder_banner_rows(db());
     }
   }
 
-  function invoiceSheetHtml(customer, products, grandTotal, invoiceNo) {
+  function invoiceSheetHtml(customer, products, grandTotal, invoiceNo, qrSrc) {
     const company = window.COMPANY || {};
     const name = company.name || "SATYANARAYAN HARDWARE STORES";
     const email = company.email || "";
@@ -741,7 +746,7 @@ $reminderBannerRows = reminder_banner_rows(db());
                 Thank you for doing business with us.
               </td>
               <td colspan="3" class="sign-cell">
-                ${window.QR_URL ? '<div class="qr-block" style="margin-bottom:10px;text-align:center;"><img src="' + escapeHtml(window.QR_URL) + '" alt="Payment QR" style="width:90px;height:90px;object-fit:contain;border:1px solid #ccc;padding:4px;"><div style="font-size:11px;font-weight:bold;margin-top:4px;">📱 Scan & Pay</div></div>' : ""}
+                ${qrSrc ? '<div class="qr-block" style="margin-bottom:10px;text-align:center;"><img src="' + escapeHtml(qrSrc) + '" alt="Payment QR" style="width:90px;height:90px;object-fit:contain;"><div style="font-size:11px;font-weight:bold;margin-top:4px;">📱 Scan & Pay</div></div>' : (window.UPI_ID ? '<div class="qr-block" style="margin-bottom:10px;text-align:center;"><div class="upi-qr-fill" data-amt="' + Number(balance) + '"></div><div style="font-size:11px;font-weight:bold;margin-top:4px;">📱 Scan & Pay</div></div>' : (window.QR_URL ? '<div class="qr-block" style="margin-bottom:10px;text-align:center;"><img src="' + escapeHtml(window.QR_URL) + '" alt="Payment QR" style="width:90px;height:90px;object-fit:contain;border:1px solid #ccc;padding:4px;"><div style="font-size:11px;font-weight:bold;margin-top:4px;">📱 Scan & Pay</div></div>' : ""))}
                 <div class="sign-who">For ${escapeHtml(name)}</div>
                 <div>Authorized Signatory</div>
               </td>
@@ -1085,6 +1090,9 @@ $reminderBannerRows = reminder_banner_rows(db());
     const products = validProducts();
     const total = products.reduce((sum, row) => sum + rowTotal(row), 0);
     document.getElementById("invoice-preview-body").innerHTML = invoiceSheetHtml(currentCustomer(), products, total);
+    document.querySelectorAll(".invoice-preview .upi-qr-fill").forEach((el) => {
+      drawUpiQr(el, Number(el.dataset.amt || 0));
+    });
     document.getElementById("preview-modal").classList.remove("hidden");
     document.getElementById("preview-modal").classList.add("flex");
   });
@@ -1097,17 +1105,20 @@ $reminderBannerRows = reminder_banner_rows(db());
     document.getElementById("preview-modal").classList.add("hidden");
     document.getElementById("preview-modal").classList.remove("flex");
   });
-  document.getElementById("btn-print-invoice").addEventListener("click", () => {
+  document.getElementById("btn-print-invoice").addEventListener("click", async () => {
     const products = validProducts();
     const total = products.reduce((sum, row) => sum + rowTotal(row), 0);
-    printInvoiceSheet(invoiceSheetHtml(currentCustomer(), products, total));
+    const received = saleReceivedAmount(total);
+    const qrSrc = await qrDataUrl(total - received, 200);
+    printInvoiceSheet(invoiceSheetHtml(currentCustomer(), products, total, undefined, qrSrc));
   });
 
-  document.getElementById("btn-pos-print").addEventListener("click", () => {
+  document.getElementById("btn-pos-print").addEventListener("click", async () => {
     const products = validProducts();
     const total = products.reduce((sum, row) => sum + rowTotal(row), 0);
     const received = saleReceivedAmount(total);
     const nepal = isNepalCustomer(document.getElementById("customer-mobile").value);
+    const qrSrc = await qrDataUrl(total, 160);
     printPosReceipt(posReceiptHtml({
       invoiceNo: nextInvoiceNo,
       dateLabel: document.getElementById("sale-date").value || formatDisplayDate(todayIsoDate()),
@@ -1117,6 +1128,7 @@ $reminderBannerRows = reminder_banner_rows(db());
       received,
       balance: total - received,
       nprRate: nepal ? nprRate() : null,
+      qrSrc,
     }));
   });
 
@@ -1181,6 +1193,13 @@ $reminderBannerRows = reminder_banner_rows(db());
         total,
         result.invoice_no
       );
+      const fills = document.querySelectorAll("#invoice-preview-body .upi-qr-fill");
+      if (fills.length) {
+        const src = await qrDataUrl(total - saleReceivedAmount(total), 150);
+        fills.forEach((el) => {
+          el.innerHTML = src ? '<img src="' + src + '" style="width:90px;height:90px;object-fit:contain;">' : "";
+        });
+      }
       const sheet = document.querySelector("#invoice-preview-body .invoice");
       const sent = await shareInvoicePdfToWhatsApp({
         element: sheet,
@@ -1369,12 +1388,54 @@ $reminderBannerRows = reminder_banner_rows(db());
   const qrChosen = document.getElementById("qr-chosen");
   const qrMsg = document.getElementById("qr-msg");
   const qrSave = document.getElementById("qr-save");
+  const upiInput = document.getElementById("upi-input");
+  const upiSave = document.getElementById("upi-save");
+  const upiMsg = document.getElementById("upi-msg");
+
+  function refreshQrStatusPill() {
+    const pill = document.getElementById("qr-status-pill");
+    if (!pill) return;
+    const ready = !!(window.UPI_ID || window.QR_URL);
+    pill.textContent = ready ? "✅ QR ready — bill pe dikhega" : "❌ QR set nahi hai";
+    pill.className = "rounded px-2 py-1 " + (ready ? "bg-green-600/30 text-green-300" : "bg-red-600/30 text-red-300");
+  }
 
   function qrShowMsg(text, ok) {
     qrMsg.textContent = (ok ? "✅ " : "❌ ") + text;
     qrMsg.classList.remove("hidden");
     qrMsg.classList.toggle("bg-green-600/20", !!ok);
     qrMsg.classList.toggle("bg-red-600/20", !ok);
+  }
+  function upiShowMsg(text, ok) {
+    upiMsg.textContent = (ok ? "✅ " : "❌ ") + text;
+    upiMsg.classList.remove("hidden");
+    upiMsg.classList.toggle("bg-green-600/20", !!ok);
+    upiMsg.classList.toggle("bg-red-600/20", !ok);
+  }
+
+  if (upiSave) {
+    upiSave.addEventListener("click", async () => {
+      const upi = (upiInput.value || "").trim();
+      if (!upi) { upiShowMsg("UPI ID likho (jaise naam@bank).", false); return; }
+      upiSave.disabled = true;
+      try {
+        const res = await fetch(appUrl("api/qr-upload.php?action=upi"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ upi }),
+        });
+        let data = {};
+        try { data = await res.json(); } catch (e) {}
+        if (!res.ok || !data.ok) throw new Error(data.error || "Save fail");
+        window.UPI_ID = data.upi;
+        refreshQrStatusPill();
+        upiShowMsg("UPI QR ready! Bill pe clean QR dikhega amount ke saath.", true);
+      } catch (err) {
+        upiShowMsg(err.message || "UPI save nahi hua", false);
+      } finally {
+        upiSave.disabled = false;
+      }
+    });
   }
 
   if (qrFile) {
@@ -1402,36 +1463,30 @@ $reminderBannerRows = reminder_banner_rows(db());
         if (!res.ok) throw new Error(data.error || ("Upload fail (" + res.status + ")"));
         if (!data.ok) throw new Error(data.error || "Upload fail");
         window.QR_URL = data.url;
-        const img = document.getElementById("qr-preview");
-        img.src = data.url + "?t=" + Date.now();
-        img.classList.remove("hidden");
-        document.getElementById("qr-preview-empty").classList.add("hidden");
         document.getElementById("qr-remove").classList.remove("hidden");
-        document.getElementById("qr-status").textContent = "✅ Lag gaya hai";
-        qrShowMsg("QR save ho gaya! Ab yeh bill pe dikhega.", true);
+        refreshQrStatusPill();
+        qrShowMsg("Image QR save ho gaya!", true);
       } catch (err) {
         qrShowMsg(err.message || "Save nahi hua", false);
       } finally {
         qrSave.disabled = false;
-        qrSave.textContent = "💾 Save QR";
+        qrSave.textContent = "💾 Save Image QR";
       }
     });
   }
 
   const rm = document.getElementById("qr-remove");
   if (rm) rm.addEventListener("click", async () => {
-    if (!confirm("QR hata du?")) return;
+    if (!confirm("Bank image QR hata du?")) return;
     try {
       const res = await fetch(appUrl("api/qr-upload.php?action=remove"), { method: "POST" });
       const data = await res.json();
       if (data.ok) {
         window.QR_URL = "";
-        document.getElementById("qr-preview").classList.add("hidden");
-        document.getElementById("qr-preview-empty").classList.remove("hidden");
-        document.getElementById("qr-status").textContent = "❌ Nahi hai — yahan lagao";
         rm.classList.add("hidden");
         if (qrChosen) qrChosen.textContent = "Koi file nahi chuni.";
-        qrShowMsg("QR hata diya.", true);
+        refreshQrStatusPill();
+        qrShowMsg("Image QR hata diya.", true);
       }
     } catch (err) {
       qrShowMsg(err.message, false);

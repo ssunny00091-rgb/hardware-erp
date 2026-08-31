@@ -11,6 +11,24 @@ try {
 
     $action = trim((string) ($_GET['action'] ?? ''));
 
+    if ($action === 'upi') {
+        $raw = (string) file_get_contents('php://input');
+        $raw = preg_replace('/^\xEF\xBB\xBF/u', '', $raw) ?? $raw;
+        $body = json_decode($raw, true) ?: [];
+        $upi = trim((string) ($body['upi'] ?? ''));
+        if ($upi === '') {
+            $settings = read_app_settings();
+            unset($settings['payment_upi']);
+            write_app_settings($settings);
+            json_response(['ok' => true, 'upi' => '']);
+        }
+        if (!preg_match('/^[A-Za-z0-9._-]{2,}@[A-Za-z]{2,}$/', $upi)) {
+            json_response(['error' => 'UPI ID galat hai. Format: naam@bank (jaise 98310@upi)'], 422);
+        }
+        write_app_settings(['payment_upi' => $upi]);
+        json_response(['ok' => true, 'upi' => $upi]);
+    }
+
     if ($action === 'upload') {
         if (empty($_FILES['qr']) || !is_uploaded_file($_FILES['qr']['tmp_name'])) {
             json_response(['error' => 'QR image file bhejo (field: qr)'], 400);

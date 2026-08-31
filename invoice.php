@@ -80,6 +80,11 @@ $waFilename = 'Invoice-' . $safeInv . '.pdf';
   <meta charset="UTF-8">
   <title>Invoice <?= $h($sale['invoice_no']) ?></title>
   <link rel="stylesheet" href="<?= $h(app_url('assets/css/invoice-print.css')) ?>">
+  <script>
+    window.COMPANY = <?= json_encode($company, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    window.UPI_ID = <?= json_encode(payment_upi_id(), JSON_UNESCAPED_SLASHES) ?>;
+  </script>
+  <script src="<?= $h(app_url('assets/vendor/qrcode.min.js')) ?>"></script>
 </head>
 <body class="invoice-page">
   <div class="no-print">
@@ -222,8 +227,13 @@ $waFilename = 'Invoice-' . $safeInv . '.pdf';
             Thank you for doing business with us.
           </td>
           <td colspan="3" class="sign-cell">
-            <?php $qrUrl = payment_qr_url(); ?>
-            <?php if ($qrUrl !== ''): ?>
+            <?php $qrUrl = payment_qr_url(); $upi = payment_upi_id(); ?>
+            <?php if ($upi !== ''): ?>
+              <div class="qr-block" style="margin-bottom:10px;text-align:center;">
+                <div id="inv-qr"></div>
+                <div style="font-size:11px;font-weight:bold;margin-top:4px;">📱 Scan & Pay</div>
+              </div>
+            <?php elseif ($qrUrl !== ''): ?>
               <div class="qr-block" style="margin-bottom:10px;text-align:center;">
                 <img src="<?= $h($qrUrl) ?>" alt="Payment QR" style="width:90px;height:90px;object-fit:contain;border:1px solid #ccc;padding:4px;">
                 <div style="font-size:11px;font-weight:bold;margin-top:4px;">📱 Scan & Pay</div>
@@ -266,6 +276,30 @@ $waFilename = 'Invoice-' . $safeInv . '.pdf';
       <?php endif; ?>
     })();
   </script>
+  <?php if (payment_upi_id() !== ''): ?>
+  <script>
+    (function () {
+      function build() {
+        var box = document.getElementById("inv-qr");
+        if (!box || typeof QRCode === "undefined") return;
+        var upi = (window.UPI_ID || "").trim();
+        if (!upi) return;
+        var amt = <?= json_encode((float) $balance) ?>;
+        var s = "upi://pay?pa=" + encodeURIComponent(upi) + "&cu=INR";
+        s += "&pn=" + encodeURIComponent((window.COMPANY && window.COMPANY.name) || "");
+        if (amt > 0) s += "&am=" + Number(amt).toFixed(2);
+        s += "&tn=" + encodeURIComponent("Bill payment");
+        box.innerHTML = "";
+        new QRCode(box, { text: s, width: 100, height: 100, correctLevel: QRCode.CorrectLevel.M });
+      }
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", build);
+      } else {
+        build();
+      }
+    })();
+  </script>
+  <?php endif; ?>
   <?php if (!empty($_GET['print'])): ?>
   <script>window.addEventListener("load", function () { window.print(); });</script>
   <?php endif; ?>

@@ -411,7 +411,7 @@ function posReceiptHtml(data) {
     ${rate && balance > 0.009 ? '<tr><td>Balance NPR</td><td class="r">&#2352;&#2369; ' + posMoney(balance * rate) + "</td></tr>" : ""}
   </table>
   <div class="rule"></div>
-  ${window.QR_URL ? '<div class="qr-box"><img src="' + escapeHtml(window.QR_URL) + '" alt="Scan & Pay"><div class="qr-label">Scan &amp; Pay</div></div><div class="rule"></div>' : ""}
+  ${(data.qrSrc || window.QR_URL) ? '<div class="qr-box"><img src="' + escapeHtml(data.qrSrc || window.QR_URL) + '" alt="Scan & Pay"><div class="qr-label">Scan &amp; Pay</div></div><div class="rule"></div>' : ""}
   <div class="center">Dhanyawaad! Phir Aayen</div>
 </div>
 </body></html>`;
@@ -430,4 +430,68 @@ function printPosReceipt(html) {
   setTimeout(() => {
     win.print();
   }, 350);
+}
+
+function upiPaymentString(amount) {
+  const upi = (window.UPI_ID || "").trim();
+  if (!upi) return "";
+  const c = window.COMPANY || {};
+  let s = "upi://pay?pa=" + encodeURIComponent(upi) + "&cu=INR";
+  if (c.name) s += "&pn=" + encodeURIComponent(c.name);
+  if (amount && Number(amount) > 0) s += "&am=" + Number(amount).toFixed(2);
+  if (c.name) s += "&tn=" + encodeURIComponent("Bill payment to " + c.name);
+  return s;
+}
+
+function drawUpiQr(container, amount) {
+  if (!container) return;
+  container.innerHTML = "";
+  const payload = upiPaymentString(amount);
+  if (!payload || typeof QRCode === "undefined") {
+    container.innerHTML = "UPI set nahi hai";
+    return;
+  }
+  try {
+    new QRCode(container, {
+      text: payload,
+      width: 150,
+      height: 150,
+      correctLevel: QRCode.CorrectLevel.M,
+    });
+  } catch (e) {
+    container.innerHTML = "QR bana nahi";
+  }
+}
+
+function qrDataUrl(amount, size) {
+  return new Promise((resolve) => {
+    const upi = (window.UPI_ID || "").trim();
+    if (!upi || typeof QRCode === "undefined") { resolve(""); return; }
+    const tmp = document.createElement("div");
+    tmp.style.position = "fixed";
+    tmp.style.left = "-9999px";
+    tmp.style.top = "-9999px";
+    document.body.appendChild(tmp);
+    try {
+      new QRCode(tmp, {
+        text: upiPaymentString(amount),
+        width: size || 200,
+        height: size || 200,
+        correctLevel: QRCode.CorrectLevel.M,
+      });
+      const img = tmp.querySelector("img");
+      const canvas = tmp.querySelector("canvas");
+      let src = "";
+      if (canvas) {
+        src = canvas.toDataURL("image/png");
+      } else if (img) {
+        src = img.src;
+      }
+      resolve(src);
+    } catch (e) {
+      resolve("");
+    } finally {
+      tmp.remove();
+    }
+  });
 }

@@ -18,6 +18,7 @@ $activeNav = $activeNav ?? 'home';
     window.APP_BASE = <?= json_encode(BASE_URL, JSON_UNESCAPED_SLASHES) ?>;
     window.COMPANY = <?= json_encode($company, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
     window.QR_URL = <?= json_encode(has_payment_qr() ? payment_qr_url() : '', JSON_UNESCAPED_SLASHES) ?>;
+    window.UPI_ID = <?= json_encode(payment_upi_id(), JSON_UNESCAPED_SLASHES) ?>;
   </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="<?= htmlspecialchars(app_url('assets/css/style.css'), ENT_QUOTES, 'UTF-8') ?>?v=3">
@@ -32,6 +33,7 @@ $activeNav = $activeNav ?? 'home';
     input::placeholder, textarea::placeholder { color: #6b7280 !important; opacity: 1 !important; }
   </style>
   <script src="<?= htmlspecialchars(app_url('assets/js/app.js'), ENT_QUOTES, 'UTF-8') ?>?v=2"></script>
+  <script src="<?= htmlspecialchars(app_url('assets/vendor/qrcode.min.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
 </head>
 <body class="min-h-screen bg-slate-950 text-white">
   <div class="animated-bg" aria-hidden="true">
