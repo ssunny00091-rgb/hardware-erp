@@ -1,36 +1,80 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Hardware ERP (PHP + MySQL)
 
-## Getting Started
+SATYANARAYAN HARDWARE STORES billing app.
 
-First, run the development server:
+## Command Prompt se setup (Windows)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+XAMPP Control Panel mein **Apache** aur **MySQL** Start karo, phir CMD kholo:
+
+```bat
+cd /d C:\xampp\htdocs\hardware-erp
+setup.bat
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Har step pe Enter dabao (XAMPP default: user `root`, password khali).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Bina poochhe automatic:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bat
+cd /d C:\xampp\htdocs\hardware-erp
+setup.bat /yes
+```
 
-## Learn More
+Agar `php.exe` nahi milti:
 
-To learn more about Next.js, take a look at the following resources:
+```bat
+cd /d C:\xampp\htdocs\hardware-erp
+C:\xampp\php\php.exe setup.php
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Sirf MySQL import (PHP ke bina):
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bat
+cd /d C:\xampp\htdocs\hardware-erp
+setup-mysql.bat
+```
 
-## Deploy on Vercel
+Uske baad browser: http://localhost/hardware-erp/index.php
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Browser wizard (optional)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+http://localhost/hardware-erp/install.php
+
+## Linux / PHP CLI
+
+```bash
+php setup.php --yes --host=127.0.0.1 --user=root --pass= --name=hardware_erp
+php -S localhost:8000
+```
+
+PHP 8.1+ with `pdo_mysql` chahiye. Voice/photo assistant ke liye `curl` recommended.
+
+## Shop Assistant (OpenRouter)
+
+1. Browser: `assistant.php`
+2. [OpenRouter key](https://openrouter.ai/keys) paste karke Save.
+3. 🎤 Bolke sale/purchase bolo, ya supplier bill ki photo/PDF (scan, screenshot, WhatsApp image) attach karo — supplier + bill software mein save ho jata hai.
+
+`.env` mein:
+
+```
+OPENROUTER_API_KEY=sk-or-v1-...
+OPENROUTER_MODEL=google/gemini-2.5-flash
+```
+
+Key kaam na kare to:
+
+1. Key `sk-or-v1-` se start honi chahiye (ChatGPT key nahi).
+2. Assistant page pe **Save + test key** dabao — asli error dikhega.
+3. [Credits](https://openrouter.ai/settings/credits) 0 na hon.
+4. XAMPP `php.ini` mein `extension=curl` on, Apache restart.
+5. Quotes (`"`) ke bina paste karo.
+
+## Tables
+
+| Table | Kaam |
+| --- | --- |
+| `customers` | Customer master |
+| `products` | Product + stock |
+| `sales` / `sale_items` | Invoices |
+| `purchases` / `purchase_items` | Purchase bills |
