@@ -222,6 +222,13 @@ $waFilename = 'Invoice-' . $safeInv . '.pdf';
             Thank you for doing business with us.
           </td>
           <td colspan="3" class="sign-cell">
+            <?php $qrUrl = payment_qr_url(); ?>
+            <?php if ($qrUrl !== ''): ?>
+              <div class="qr-block" style="margin-bottom:10px;text-align:center;">
+                <img src="<?= $h($qrUrl) ?>" alt="Payment QR" style="width:90px;height:90px;object-fit:contain;border:1px solid #ccc;padding:4px;">
+                <div style="font-size:11px;font-weight:bold;margin-top:4px;">📱 Scan & Pay</div>
+              </div>
+            <?php endif; ?>
             <div class="sign-who">For <?= $h($company['name']) ?></div>
             <div>Authorized Signatory</div>
           </td>

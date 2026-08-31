@@ -50,6 +50,30 @@ $reminderBannerRows = reminder_banner_rows(db());
   </a>
 </div>
 
+<div class="mt-4">
+  <details id="qr-card" class="rounded-2xl border border-white/20 bg-white/10 p-5 shadow-xl backdrop-blur-xl">
+    <summary class="cursor-pointer font-semibold">📱 Payment QR Code
+      <span class="ml-2 text-sm font-normal text-gray-300" id="qr-status">
+        <?= has_payment_qr() ? '✅ Lag gaya hai' : '❌ Nahi hai — yahan lagao' ?>
+      </span>
+    </summary>
+    <div class="mt-4 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+      <div>
+        <img id="qr-preview" src="<?= $h(payment_qr_url()) ?>" alt="Payment QR" class="h-32 w-32 rounded-lg border border-white/20 object-contain <?= has_payment_qr() ? '' : 'hidden' ?>">
+        <p id="qr-preview-empty" class="<?= has_payment_qr() ? 'hidden' : '' ?> text-sm text-gray-400">Abhi koi QR nahi hai.</p>
+      </div>
+      <div class="flex flex-col gap-2">
+        <label class="cursor-pointer rounded-lg bg-green-600 px-4 py-2 text-center text-sm font-semibold hover:bg-green-500">
+          📤 Bank QR Image Upload Karo
+          <input type="file" id="qr-file" accept="image/png,image/jpeg,image/webp,image/gif" class="hidden">
+        </label>
+        <button type="button" id="qr-remove" class="rounded-lg bg-red-600/80 px-4 py-2 text-sm font-semibold hover:bg-red-600 <?= has_payment_qr() ? '' : 'hidden' ?>">🗑️ Hatao</button>
+        <p class="text-xs text-gray-400">Yeh QR A4 bill aur POS receipt dono pe dikhega.</p>
+      </div>
+    </div>
+  </details>
+</div>
+
 <section id="sale-form" class="mt-8 hidden rounded-2xl border border-white/20 bg-white/10 p-4 shadow-2xl backdrop-blur-xl sm:rounded-3xl sm:p-8">
   <div class="mb-6 flex flex-col gap-3 border-b border-white/10 pb-4 sm:mb-8 sm:flex-row sm:items-start sm:justify-between">
     <div>
@@ -717,6 +741,7 @@ $reminderBannerRows = reminder_banner_rows(db());
                 Thank you for doing business with us.
               </td>
               <td colspan="3" class="sign-cell">
+                ${window.QR_URL ? '<div class="qr-block" style="margin-bottom:10px;text-align:center;"><img src="' + escapeHtml(window.QR_URL) + '" alt="Payment QR" style="width:90px;height:90px;object-fit:contain;border:1px solid #ccc;padding:4px;"><div style="font-size:11px;font-weight:bold;margin-top:4px;">📱 Scan & Pay</div></div>' : ""}
                 <div class="sign-who">For ${escapeHtml(name)}</div>
                 <div>Authorized Signatory</div>
               </td>
@@ -1332,15 +1357,51 @@ $reminderBannerRows = reminder_banner_rows(db());
       .catch((err) => alert(err.message));
   }
 
-  loadDashboard().catch((err) => {
-    const go = confirm("MySQL connect nahi hua: " + err.message + "\n\nSetup wizard (install.php) kholun?");
-    if (go) window.location.href = appUrl("install.php");
-  });
-  loadCatalog().catch(() => {});
-  loadNextInvoice().catch(() => {});
-  renderRows();
-</script>
-<script src="<?= htmlspecialchars(app_url('assets/vendor/html2canvas.min.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
+    const d = document.getElementById("qr-file");
+    if (!d) return;
+    d.addEventListener("change", async () => {
+      const file = d.files && d.files[0];
+      if (!file) return;
+      const fd = new FormData();
+      fd.append("qr", file);
+      try {
+        const res = await fetch(appUrl("api/qr-upload.php?action=upload"), { method: "POST", body: fd });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || "Upload fail");
+        window.QR_URL = data.url;
+        const img = document.getElementById("qr-preview");
+        img.src = data.url + "?t=" + Date.now();
+        img.classList.remove("hidden");
+        document.getElementById("qr-preview-empty").classList.add("hidden");
+        document.getElementById("qr-remove").classList.remove("hidden");
+        document.getElementById("qr-status").textContent = "✅ Lag gaya hai";
+        alert("✅ QR upload ho gaya! Ab yeh bill pe dikhega.");
+      } catch (err) {
+        alert("Error: " + err.message);
+      } finally {
+        d.value = "";
+      }
+    });
+
+    const rm = document.getElementById("qr-remove");
+    if (rm) rm.addEventListener("click", async () => {
+      if (!confirm("QR hata du?")) return;
+      try {
+        const res = await fetch(appUrl("api/qr-upload.php?action=remove"), { method: "POST" });
+        const data = await res.json();
+        if (data.ok) {
+          window.QR_URL = "";
+          document.getElementById("qr-preview").classList.add("hidden");
+          document.getElementById("qr-preview-empty").classList.remove("hidden");
+          document.getElementById("qr-status").textContent = "❌ Nahi hai — yahan lagao";
+          rm.classList.add("hidden");
+          alert("QR hata diya.");
+        }
+      } catch (err) {
+        alert("Error: " + err.message);
+      }
+    });
+</script><script src="<?= htmlspecialchars(app_url('assets/vendor/html2canvas.min.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(app_url('assets/vendor/jspdf.umd.min.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(app_url('assets/js/whatsapp-pdf.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
 

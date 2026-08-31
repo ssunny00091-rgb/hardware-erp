@@ -171,6 +171,28 @@ function app_url(string $path = ''): string
     return BASE_URL . '/' . ltrim($path, '/');
 }
 
+function payment_qr_url(): string
+{
+    $settings = read_app_settings();
+    $rel = trim((string) ($settings['payment_qr_file'] ?? 'assets/qr/payment-qr.png'));
+    $rel = ltrim($rel, '/');
+    $abs = APP_ROOT . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $rel);
+    if (is_file($abs)) {
+        $stamp = (string) @filemtime($abs);
+        return app_url($rel) . '?v=' . $stamp;
+    }
+    $fallback = APP_ROOT . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'qr' . DIRECTORY_SEPARATOR . 'payment-qr.png';
+    if (is_file($fallback)) {
+        return app_url('assets/qr/payment-qr.png') . '?v=' . (string) @filemtime($fallback);
+    }
+    return '';
+}
+
+function has_payment_qr(): bool
+{
+    return payment_qr_url() !== '';
+}
+
 function run_sql_file(PDO $pdo, string $file): void
 {
     $sql = file_get_contents($file);

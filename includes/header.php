@@ -17,6 +17,7 @@ $activeNav = $activeNav ?? 'home';
   <script>
     window.APP_BASE = <?= json_encode(BASE_URL, JSON_UNESCAPED_SLASHES) ?>;
     window.COMPANY = <?= json_encode($company, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    window.QR_URL = <?= json_encode(has_payment_qr() ? payment_qr_url() : '', JSON_UNESCAPED_SLASHES) ?>;
   </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="<?= htmlspecialchars(app_url('assets/css/style.css'), ENT_QUOTES, 'UTF-8') ?>?v=3">

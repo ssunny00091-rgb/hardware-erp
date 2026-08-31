@@ -381,6 +381,9 @@ function posReceiptHtml(data) {
   .head { font-weight: bold; border-bottom: 1px solid #000; }
   .totals { width: 100%; border-collapse: collapse; }
   .totals td { padding: 1px 0; }
+  .qr-box { text-align: center; margin: 4px 0; }
+  .qr-box img { width: 90px; height: 90px; object-fit: contain; }
+  .qr-label { font-weight: bold; letter-spacing: 0.5px; margin-top: 2px; }
 </style></head>
 <body>
 <div class="sheet">
@@ -408,6 +411,7 @@ function posReceiptHtml(data) {
     ${rate && balance > 0.009 ? '<tr><td>Balance NPR</td><td class="r">&#2352;&#2369; ' + posMoney(balance * rate) + "</td></tr>" : ""}
   </table>
   <div class="rule"></div>
+  ${window.QR_URL ? '<div class="qr-box"><img src="' + escapeHtml(window.QR_URL) + '" alt="Scan & Pay"><div class="qr-label">Scan &amp; Pay</div></div><div class="rule"></div>' : ""}
   <div class="center">Dhanyawaad! Phir Aayen</div>
 </div>
 </body></html>`;
