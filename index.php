@@ -59,7 +59,7 @@ $reminderBannerRows = reminder_banner_rows(db());
     </summary>
     <div class="mt-4 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
       <div>
-        <img id="qr-preview" src="<?= $h(payment_qr_url()) ?>" alt="Payment QR" class="h-32 w-32 rounded-lg border border-white/20 object-contain <?= has_payment_qr() ? '' : 'hidden' ?>">
+        <img id="qr-preview" src="<?= htmlspecialchars(payment_qr_url(), ENT_QUOTES, 'UTF-8') ?>" alt="Payment QR" class="h-32 w-32 rounded-lg border border-white/20 object-contain <?= has_payment_qr() ? '' : 'hidden' ?>">
         <p id="qr-preview-empty" class="<?= has_payment_qr() ? 'hidden' : '' ?> text-sm text-gray-400">Abhi koi QR nahi hai.</p>
       </div>
       <div class="flex flex-col gap-2">
