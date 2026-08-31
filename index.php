@@ -62,12 +62,12 @@ $reminderBannerRows = reminder_banner_rows(db());
         <img id="qr-preview" src="<?= htmlspecialchars(payment_qr_url(), ENT_QUOTES, 'UTF-8') ?>" alt="Payment QR" class="h-32 w-32 rounded-lg border border-white/20 object-contain <?= has_payment_qr() ? '' : 'hidden' ?>">
         <p id="qr-preview-empty" class="<?= has_payment_qr() ? 'hidden' : '' ?> text-sm text-gray-400">Abhi koi QR nahi hai.</p>
       </div>
-      <div class="flex flex-col gap-2">
-        <label class="cursor-pointer rounded-lg bg-green-600 px-4 py-2 text-center text-sm font-semibold hover:bg-green-500">
-          📤 Bank QR Image Upload Karo
-          <input type="file" id="qr-file" accept="image/png,image/jpeg,image/webp,image/gif" class="hidden">
-        </label>
+      <div class="flex w-full flex-col gap-2 sm:w-auto">
+        <input type="file" id="qr-file" accept="image/png,image/jpeg,image/webp,image/gif" class="block w-full max-w-xs cursor-pointer rounded-lg border border-gray-300 bg-white p-2 text-sm text-gray-900">
+        <p id="qr-chosen" class="text-xs text-gray-400">Koi file nahi chuni.</p>
+        <button type="button" id="qr-save" class="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold hover:bg-green-500">💾 Save QR</button>
         <button type="button" id="qr-remove" class="rounded-lg bg-red-600/80 px-4 py-2 text-sm font-semibold hover:bg-red-600 <?= has_payment_qr() ? '' : 'hidden' ?>">🗑️ Hatao</button>
+        <p id="qr-msg" class="hidden rounded-lg bg-white/10 px-3 py-2 text-xs"></p>
         <p class="text-xs text-gray-400">Yeh QR A4 bill aur POS receipt dono pe dikhega.</p>
       </div>
     </div>
@@ -1357,16 +1357,41 @@ $reminderBannerRows = reminder_banner_rows(db());
       .catch((err) => alert(err.message));
   }
 
-    const d = document.getElementById("qr-file");
-    if (!d) return;
-    d.addEventListener("change", async () => {
-      const file = d.files && d.files[0];
-      if (!file) return;
-      const fd = new FormData();
-      fd.append("qr", file);
+  const qrFile = document.getElementById("qr-file");
+  const qrChosen = document.getElementById("qr-chosen");
+  const qrMsg = document.getElementById("qr-msg");
+  const qrSave = document.getElementById("qr-save");
+
+  function qrShowMsg(text, ok) {
+    qrMsg.textContent = (ok ? "✅ " : "❌ ") + text;
+    qrMsg.classList.remove("hidden");
+    qrMsg.classList.toggle("bg-green-600/20", !!ok);
+    qrMsg.classList.toggle("bg-red-600/20", !ok);
+  }
+
+  if (qrFile) {
+    qrFile.addEventListener("change", () => {
+      const file = qrFile.files && qrFile.files[0];
+      qrChosen.textContent = file ? "Chuni: " + file.name : "Koi file nahi chuni.";
+      qrMsg.classList.add("hidden");
+    });
+  }
+  if (qrSave) {
+    qrSave.addEventListener("click", async () => {
+      const file = qrFile && qrFile.files && qrFile.files[0];
+      if (!file) {
+        qrShowMsg("Pehle QR image file chuno.", false);
+        return;
+      }
+      qrSave.disabled = true;
+      qrSave.textContent = "Saving...";
       try {
+        const fd = new FormData();
+        fd.append("qr", file);
         const res = await fetch(appUrl("api/qr-upload.php?action=upload"), { method: "POST", body: fd });
-        const data = await res.json();
+        let data = {};
+        try { data = await res.json(); } catch (e) { data = {}; }
+        if (!res.ok) throw new Error(data.error || ("Upload fail (" + res.status + ")"));
         if (!data.ok) throw new Error(data.error || "Upload fail");
         window.QR_URL = data.url;
         const img = document.getElementById("qr-preview");
@@ -1375,32 +1400,35 @@ $reminderBannerRows = reminder_banner_rows(db());
         document.getElementById("qr-preview-empty").classList.add("hidden");
         document.getElementById("qr-remove").classList.remove("hidden");
         document.getElementById("qr-status").textContent = "✅ Lag gaya hai";
-        alert("✅ QR upload ho gaya! Ab yeh bill pe dikhega.");
+        qrShowMsg("QR save ho gaya! Ab yeh bill pe dikhega.", true);
       } catch (err) {
-        alert("Error: " + err.message);
+        qrShowMsg(err.message || "Save nahi hua", false);
       } finally {
-        d.value = "";
+        qrSave.disabled = false;
+        qrSave.textContent = "💾 Save QR";
       }
     });
+  }
 
-    const rm = document.getElementById("qr-remove");
-    if (rm) rm.addEventListener("click", async () => {
-      if (!confirm("QR hata du?")) return;
-      try {
-        const res = await fetch(appUrl("api/qr-upload.php?action=remove"), { method: "POST" });
-        const data = await res.json();
-        if (data.ok) {
-          window.QR_URL = "";
-          document.getElementById("qr-preview").classList.add("hidden");
-          document.getElementById("qr-preview-empty").classList.remove("hidden");
-          document.getElementById("qr-status").textContent = "❌ Nahi hai — yahan lagao";
-          rm.classList.add("hidden");
-          alert("QR hata diya.");
-        }
-      } catch (err) {
-        alert("Error: " + err.message);
+  const rm = document.getElementById("qr-remove");
+  if (rm) rm.addEventListener("click", async () => {
+    if (!confirm("QR hata du?")) return;
+    try {
+      const res = await fetch(appUrl("api/qr-upload.php?action=remove"), { method: "POST" });
+      const data = await res.json();
+      if (data.ok) {
+        window.QR_URL = "";
+        document.getElementById("qr-preview").classList.add("hidden");
+        document.getElementById("qr-preview-empty").classList.remove("hidden");
+        document.getElementById("qr-status").textContent = "❌ Nahi hai — yahan lagao";
+        rm.classList.add("hidden");
+        if (qrChosen) qrChosen.textContent = "Koi file nahi chuni.";
+        qrShowMsg("QR hata diya.", true);
       }
-    });
+    } catch (err) {
+      qrShowMsg(err.message, false);
+    }
+  });
 </script><script src="<?= htmlspecialchars(app_url('assets/vendor/html2canvas.min.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(app_url('assets/vendor/jspdf.umd.min.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(app_url('assets/js/whatsapp-pdf.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
