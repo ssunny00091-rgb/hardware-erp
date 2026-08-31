@@ -630,6 +630,11 @@ $reminderBannerRows = reminder_banner_rows(db());
   });
 
   let nextInvoiceNo = "";
+  let currentInvoiceNo = "";
+
+  function activeInvoiceNo() {
+    return currentInvoiceNo || nextInvoiceNo || "—";
+  }
 
   async function loadNextInvoice() {
     try {
@@ -759,6 +764,7 @@ $reminderBannerRows = reminder_banner_rows(db());
 
   document.getElementById("btn-new-sale").addEventListener("click", () => {
     document.getElementById("editing-sale-id").value = "";
+    currentInvoiceNo = "";
     document.getElementById("sale-form-title").textContent = "📝 New Sale";
     saleRows = [emptyRow()];
     document.getElementById("customer-name").value = "";
@@ -1089,7 +1095,7 @@ $reminderBannerRows = reminder_banner_rows(db());
   document.getElementById("btn-preview").addEventListener("click", () => {
     const products = validProducts();
     const total = products.reduce((sum, row) => sum + rowTotal(row), 0);
-    document.getElementById("invoice-preview-body").innerHTML = invoiceSheetHtml(currentCustomer(), products, total);
+    document.getElementById("invoice-preview-body").innerHTML = invoiceSheetHtml(currentCustomer(), products, total, activeInvoiceNo());
     document.querySelectorAll(".invoice-preview .upi-qr-fill").forEach((el) => {
       drawUpiQr(el, Number(el.dataset.amt || 0));
     });
@@ -1112,7 +1118,7 @@ $reminderBannerRows = reminder_banner_rows(db());
     const total = products.reduce((sum, row) => sum + rowTotal(row), 0);
     const received = saleReceivedAmount(total);
     const qrSrc = await qrDataUrl(total - received, 200);
-    fillInvoicePrintWindow(win, invoiceSheetHtml(currentCustomer(), products, total, undefined, qrSrc));
+    fillInvoicePrintWindow(win, invoiceSheetHtml(currentCustomer(), products, total, activeInvoiceNo(), qrSrc));
   });
 
   document.getElementById("btn-pos-print").addEventListener("click", async () => {
@@ -1124,7 +1130,7 @@ $reminderBannerRows = reminder_banner_rows(db());
     const nepal = isNepalCustomer(document.getElementById("customer-mobile").value);
     const qrSrc = await qrDataUrl(total, 160);
     fillPosPrintWindow(win, posReceiptHtml({
-      invoiceNo: nextInvoiceNo,
+      invoiceNo: activeInvoiceNo(),
       dateLabel: document.getElementById("sale-date").value || formatDisplayDate(todayIsoDate()),
       customer: currentCustomer(),
       items: products,
@@ -1166,6 +1172,7 @@ $reminderBannerRows = reminder_banner_rows(db());
       const result = await persistCurrentSale();
       alert((editId ? "✅ Sale Updated\\nInvoice: " : "✅ Sale Saved Successfully\\nInvoice: ") + result.invoice_no);
       document.getElementById("editing-sale-id").value = "";
+      currentInvoiceNo = "";
       document.getElementById("preview-modal").classList.add("hidden");
       document.getElementById("preview-modal").classList.remove("flex");
       window.open(appUrl("invoice.php?id=" + result.id), "_blank");
@@ -1214,6 +1221,7 @@ $reminderBannerRows = reminder_banner_rows(db());
         alert("PDF save ho gaya. WhatsApp mein 📎 se wahi Invoice PDF attach karke customer ko bhejo.");
       }
       document.getElementById("editing-sale-id").value = "";
+      currentInvoiceNo = "";
       loadDashboard();
       loadCatalog();
       loadNextInvoice();
@@ -1310,8 +1318,9 @@ $reminderBannerRows = reminder_banner_rows(db());
 
   function applySaleToForm(sale) {
     document.getElementById("editing-sale-id").value = sale.id;
+    currentInvoiceNo = String(sale.invoice_no || "");
     document.getElementById("sale-form-title").textContent = "✏️ Edit Sale";
-    document.getElementById("next-invoice").textContent = sale.invoice_no;
+    document.getElementById("next-invoice").textContent = currentInvoiceNo || "—";
     document.getElementById("customer-name").value = sale.customer_name || "";
     document.getElementById("customer-mobile").value = sale.mobile || "";
     document.getElementById("customer-address").value = sale.address || "";
