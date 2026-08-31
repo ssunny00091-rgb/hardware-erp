@@ -1357,6 +1357,14 @@ $reminderBannerRows = reminder_banner_rows(db());
       .catch((err) => alert(err.message));
   }
 
+  loadDashboard().catch((err) => {
+    const go = confirm("MySQL connect nahi hua: " + err.message + "\n\nSetup wizard (install.php) kholun?");
+    if (go) window.location.href = appUrl("install.php");
+  });
+  loadCatalog().catch(() => {});
+  loadNextInvoice().catch(() => {});
+  renderRows();
+
   const qrFile = document.getElementById("qr-file");
   const qrChosen = document.getElementById("qr-chosen");
   const qrMsg = document.getElementById("qr-msg");
