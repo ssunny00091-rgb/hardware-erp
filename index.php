@@ -17,6 +17,13 @@ $reminderBannerRows = reminder_banner_rows(db());
 </h1>
 <?php require __DIR__ . '/includes/reminder-banner.php'; ?>
 
+<div class="ja-banner mb-5 no-print">
+  <span class="ja-feather">🦚</span>
+  जन्माष्टमी की हार्दिक शुभकामनाएँ! 🙏
+  <span class="ja-feather">🦚</span>
+  <span class="block text-xs font-normal text-white/80">Happy Janmashtami — श्री कृष्ण जन्मोत्सव</span>
+</div>
+
 <div class="mb-6 flex flex-col gap-3 no-print sm:flex-row sm:items-stretch sm:flex-wrap">
   <button type="button" id="btn-new-sale" class="w-full rounded-lg bg-green-600 px-6 py-3 text-center font-semibold text-white shadow-lg hover:bg-green-700 motion-in motion-d1 sm:w-auto">➕ New Sale</button>
   <a href="<?= htmlspecialchars(app_url('assistant.php'), ENT_QUOTES, 'UTF-8') ?>" class="inline-flex w-full items-center justify-center rounded-lg bg-rose-600 px-6 py-3 text-center font-semibold text-white shadow-lg hover:bg-rose-500 motion-in motion-d2 sm:w-auto">🤖 Bolke / Photo se kaam</a>

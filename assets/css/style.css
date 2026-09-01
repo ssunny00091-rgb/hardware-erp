@@ -3,7 +3,7 @@
   inset: 0;
   z-index: 0;
   overflow: hidden;
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #000 100%);
+  background: linear-gradient(135deg, #071022 0%, #0f1f4a 35%, #1a0f3d 70%, #000 100%);
   pointer-events: none;
 }
 
@@ -11,7 +11,7 @@
   position: absolute;
   border-radius: 9999px;
   filter: blur(80px);
-  opacity: 0.35;
+  opacity: 0.38;
 }
 
 .blob-blue {
@@ -19,7 +19,7 @@
   height: 420px;
   left: -8rem;
   top: -8rem;
-  background: #3b82f6;
+  background: #1e40af;
   animation: float-a 16s ease-in-out infinite;
 }
 
@@ -28,7 +28,7 @@
   height: 380px;
   right: -8rem;
   top: 8rem;
-  background: #f97316;
+  background: #f59e0b;
   animation: float-b 18s ease-in-out infinite;
 }
 
@@ -37,7 +37,7 @@
   height: 450px;
   left: 20%;
   bottom: -150px;
-  background: #10b981;
+  background: #0d9488;
   animation: float-c 20s ease-in-out infinite;
 }
 
@@ -46,8 +46,35 @@
   height: 320px;
   right: 15%;
   bottom: -120px;
-  background: #a855f7;
+  background: #9333ea;
   animation: float-d 22s ease-in-out infinite;
+}
+
+/* Janmashtami: peacock feather touches */
+.ja-banner {
+  position: relative;
+  z-index: 1;
+  margin: 0 auto;
+  max-width: 48rem;
+  text-align: center;
+  padding: 0.75rem 1rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(253, 230, 138, 0.35);
+  background: linear-gradient(135deg, rgba(30, 64, 175, 0.55), rgba(13, 148, 136, 0.55), rgba(249, 115, 22, 0.35));
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.ja-feather {
+  display: inline-block;
+  vertical-align: middle;
+  font-size: 1.1em;
+  animation: ja-glint 3s ease-in-out infinite;
+}
+@keyframes ja-glint {
+  0%, 100% { transform: scale(1) rotate(-4deg); opacity: 0.9; }
+  50% { transform: scale(1.25) rotate(4deg); opacity: 1; }
 }
 
 @keyframes float-a {
